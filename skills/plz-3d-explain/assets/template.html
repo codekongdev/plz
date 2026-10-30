@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- TEXT: 페이지 제목 -->
+<title>__페이지 제목__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- 대표 제목(h1) 글꼴 Pretendard Variable. 한글과 영문이 한 글꼴로 맞고 가독성이 좋다. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  /* 의미 색 3개: actor(움직이며 일을 일으키는 주인공) · bound(경계·규칙·중개자) · matter(데이터·자원·재료).
+     한 색에는 의미 하나만 둔다. 값을 바꾸면 아래 <script>의 COLOR 도 같이 바꾼다. */
+  :root {
+    --paper: #ECEEEA;
+    --table: #E1E4DF;
+    --ink: #1E2A33;
+    --ink-soft: #55616B;
+    --rule: #C8CDC6;
+    --actor: #D2364A;
+    --actor-ink: #B4233A;
+    --bound: #2F6FB2;
+    --matter: #C4921F;
+    --matter-ink: #835A0E;
+    --serif: "Hahmlet", "Noto Serif KR", serif;
+    --title: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 17px/1.8 var(--sans);
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--bound); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--bound); outline-offset: 3px; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 38rem) minmax(0, 1fr); }
+  .text { padding: 4.5rem clamp(1.5rem, 4vw, 3.5rem) 40vh; border-right: 1px solid var(--rule); }
+  .stage { position: sticky; top: 0; align-self: start; height: 100vh; height: 100dvh; background: var(--table); overflow: hidden; }
+
+  .intro h1 { font: 700 2.2rem/1.3 var(--title); letter-spacing: -0.015em; margin: 0 0 1.5rem; }
+  .intro .lead { font-size: 1.1rem; margin: 0 0 1rem; }
+  .intro .note { color: var(--ink-soft); font-size: 0.95rem; margin: 0; }
+
+  .chapter { padding: 6rem 0 1rem; min-height: 72vh; }
+  .chapter h2 {
+    display: grid; grid-template-columns: 2.4rem 1fr; align-items: baseline;
+    margin: 0 0 1.25rem; font: 700 1.7rem/1.32 var(--serif); letter-spacing: -0.015em;
+  }
+  .chapter h2 .n { font-weight: 500; color: var(--rule); transition: color .3s; }
+  .chapter.is-active h2 .n { color: var(--ink); }
+  .chapter p { margin: 0 0 1rem; }
+  .chapter .gist { margin: 1.5rem 0 0; padding-left: 1rem; border-left: 3px solid var(--ink); font: 500 1.06rem/1.7 var(--serif); }
+  .chapter h3 { font: 700 1.15rem/1.45 var(--serif); margin: 2.25rem 0 0.75rem; }
+  /* 예시 코드. 한글 주석은 고정폭에서 넓어지므로 줄을 접는다. */
+  pre.code {
+    margin: 0 0 1.25rem; padding: 0.95rem 1.05rem;
+    background: #E2E5E0; border-radius: 6px; overflow-x: auto; white-space: pre-wrap;
+    font: 500 0.8rem/1.7 "IBM Plex Mono", "IBM Plex Sans KR", monospace;
+  }
+  pre.code code { background: none; padding: 0; font: inherit; }
+  pre.code .c { color: var(--ink-soft); }
+  /* 문서에 숨은 지시처럼 "바깥에서 들어온 입력"을 인용할 때 */
+  blockquote.planted {
+    margin: 0 0 1rem; padding: 0.75rem 1rem;
+    border: 1px dashed var(--ink-soft); border-radius: 6px;
+    background: rgba(255, 255, 255, 0.4); font-size: 0.95rem;
+  }
+  code { font: 500 0.86em/1 var(--mono); background: rgba(30, 42, 51, 0.07); padding: 0.14em 0.36em; border-radius: 3px; }
+
+  .act { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.75rem 1.1rem; margin-top: 1.75rem; padding-top: 1.1rem; border-top: 1px solid var(--rule); }
+  .act button { font: 600 0.97rem/1 var(--sans); color: #fff; background: var(--ink); border: 0; border-radius: 6px; padding: 0.85rem 1.15rem; cursor: pointer; }
+  .act button:hover { background: #33444F; }
+  .result { flex: 1 1 13rem; margin: 0; min-height: 3.2em; color: var(--ink-soft); font-size: 0.95rem; line-height: 1.6; }
+
+  /* 단계 목록: li 를 grid 로 만들면 글과 <code> 가 칸으로 갈라진다. 번호는 absolute 로 단다. */
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 1.25rem 0 0; }
+  ol.steps li { counter-increment: s; position: relative; padding-left: 2rem; margin-bottom: 0.55rem; font-size: 0.97rem; line-height: 1.65; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; font: 500 1rem/1.65 var(--serif); color: var(--ink-soft); }
+
+  table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.89rem; line-height: 1.55; }
+  th, td { text-align: left; vertical-align: top; padding: 0.65rem 0.55rem 0.65rem 0; border-bottom: 1px solid var(--rule); }
+  thead th { font-weight: 600; border-bottom: 1.5px solid var(--ink); }
+  tbody th { font-weight: 600; color: var(--ink-soft); width: 5.6rem; }
+
+  .terms h2 { display: block; }
+  dl.terms-list { display: grid; grid-template-columns: 8rem 1fr; gap: 0.7rem 1rem; margin: 0; font-size: 0.95rem; line-height: 1.65; }
+  dl.terms-list dt { font-weight: 600; }
+  dl.terms-list dd { margin: 0; color: var(--ink-soft); }
+  .sources { margin-top: 3.5rem; font-size: 0.85rem; color: var(--ink-soft); line-height: 1.7; }
+  .sources h3 { font: 600 0.95rem/1.4 var(--sans); color: var(--ink); margin: 0 0 0.5rem; }
+  .sources ul { margin: 0; padding-left: 1.1rem; }
+
+  .canvas-wrap { position: absolute; inset: 0; }
+  .canvas-wrap canvas { display: block; }
+  .labels { position: absolute; inset: 0; }
+  .tag { font: 500 12.5px/1.3 var(--sans); color: var(--ink); background: rgba(236, 238, 234, 0.9); padding: 3px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
+  .tag.actor { color: var(--actor-ink); }
+  .tag.bound { color: var(--bound); }
+  .tag.matter { color: var(--matter-ink); }
+  .tag.warn { background: var(--ink); color: #fff; }
+  .tag.big { font: 700 14px/1.3 var(--serif); padding: 4px 9px; }
+  .hud { position: absolute; top: 1.1rem; left: 1.3rem; right: 1.3rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; pointer-events: none; z-index: 2; }
+  .hud .now { font: 700 1.05rem/1.35 var(--serif); }
+  .hud .tools { display: flex; align-items: flex-start; gap: 0.5rem; flex: none; }
+  .hud button { pointer-events: auto; font: 500 0.85rem/1 var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 0.55rem 0.75rem; cursor: pointer; }
+  /* 자동 실행 스위치: 켜면 장에 들어설 때 그 장의 동작을 한 번 실행한다. 색 의미 3개와 겹치지 않게 잉크색으로만 그린다. */
+  .hud .autorun { display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  .autorun .track { position: relative; flex: none; width: 1.9rem; height: 0.95rem; border: 1.5px solid var(--ink-soft); border-radius: 999px; transition: background .2s, border-color .2s; }
+  .autorun .track::after { content: ""; position: absolute; top: 50%; left: 2px; width: 0.6rem; height: 0.6rem; margin-top: -0.3rem; border-radius: 50%; background: var(--ink-soft); transition: transform .2s, background .2s; }
+  .autorun[aria-checked="true"] .track { background: var(--ink); border-color: var(--ink); }
+  .autorun[aria-checked="true"] .track::after { background: var(--paper); transform: translateX(0.86rem); }
+  .legend { position: absolute; left: 1.3rem; bottom: 1.1rem; z-index: 2; display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
+  .legend i { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 2px; margin-right: 0.4rem; vertical-align: -1px; }
+  .hint { position: absolute; right: 1.3rem; bottom: 1.1rem; z-index: 2; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
+  .fallback { position: absolute; inset: 0; display: none; place-items: center; padding: 2rem; text-align: center; color: var(--ink-soft); }
+  .stage.no-webgl .fallback { display: grid; }
+
+  /* 휴대폰·좁은 화면 공통(세로로 쌓은 배치와 가로 모드 둘 다).
+     무대를 "제목줄 / 3D 캔버스 / 범례줄" 세 칸으로 나눠, 제목·버튼·범례가 모형 위에 얹히지 않게 한다. */
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+    body { font-size: 16px; line-height: 1.75; }
+    .stage { display: flex; flex-direction: column; }
+    .hud { order: -1; position: static; flex: none; min-height: 3rem; padding: 0.3rem 0.9rem 0.3rem 1.1rem; align-items: center; }
+    .hud .now { flex: 1 1 auto; min-width: 0; font-size: 0.98rem; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+    .hud .tools { align-items: center; gap: 0.4rem; }
+    .canvas-wrap { position: relative; inset: auto; flex: 1 1 0; min-height: 0; overflow: hidden; }
+    .legend { position: static; flex: none; padding: 0.25rem 1.1rem 0.55rem; gap: 0.1rem 0.9rem; font-size: 0.76rem; line-height: 1.5; }
+    .hint { display: none; }
+    .tag { font-size: 11px; padding: 2px 5px; }
+    .tag.big { font-size: 12px; padding: 3px 6px; }
+    .chapter .gist { font-size: 1rem; }
+    /* 휴대폰의 코드 블록은 줄을 접지 않고 블록 안에서만 가로로 스크롤한다(접으면 URL이 단어 중간에서 꺾이고 들여쓰기가 빈 줄처럼 보인다). */
+    pre.code { white-space: pre; font-size: 0.74rem; line-height: 1.65; overscroll-behavior-x: contain; tab-size: 4; }
+    .intro .lead { font-size: 1.02rem; }
+    .intro .note .wide { display: none; }
+    .intro .note .narrow { display: inline; }
+  }
+  /* 세로 휴대폰: 무대를 위에 붙여 두고(sticky) 글을 아래에서 스크롤한다. 무대 44svh, 글 56svh. */
+  @media (max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px) {
+    :root { --stage-h: 44vh; }
+    @supports (height: 1svh) { :root { --stage-h: 44svh; } }
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .stage { grid-row: 1; height: var(--stage-h); z-index: 3; border-bottom: 1px solid var(--rule); }
+    .text { grid-row: 2; border-right: 0; padding: 1.75rem 1.25rem 60vh; }
+    .intro h1 { font-size: 1.7rem; margin-bottom: 1.1rem; }
+    .chapter { min-height: auto; padding-top: 2.75rem; scroll-margin-top: var(--stage-h); }
+    .chapter h2 { font-size: 1.45rem; }
+    [data-scene] { scroll-margin-top: var(--stage-h); }
+  }
+  /* 가로 휴대폰: 데스크톱처럼 왼쪽 글, 오른쪽 무대. 무대는 화면 높이 전체. */
+  @media (orientation: landscape) and (max-height: 520px) {
+    .layout { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+    .stage { height: 100vh; height: 100svh; }
+    .text { padding: 1.5rem 1.25rem 55vh; }
+    .intro h1 { font-size: 1.6rem; margin-bottom: 1rem; }
+    .chapter { min-height: auto; padding-top: 2.5rem; }
+    .chapter h2 { font-size: 1.4rem; }
+  }
+  /* 폭 430px 이하: 스위치 글자를 "자동"으로 줄여 장 제목에 폭을 준다(접근 가능한 이름은 aria-label 로 "자동 실행"). */
+  @media (max-width: 430px) {
+    .hud .autorun .more { display: none; }
+    .hud .tools { gap: 0.3rem; }
+    .hud button { padding-left: 0.55rem; padding-right: 0.55rem; }
+    .hud .autorun { gap: 0.35rem; }
+  }
+  /* 터치 기기: 누르는 것은 44px 이상. */
+  @media (pointer: coarse), (max-width: 860px), (max-height: 520px) {
+    .act button, .hud button { min-height: 44px; min-width: 44px; }
+    .hud button { padding: 0.5rem 0.7rem; font-size: 0.85rem; }
+    .hud .autorun { gap: 0.4rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .chapter h2 .n { transition: none; }
+    .autorun .track, .autorun .track::after { transition: none; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<main class="layout">
+  <article class="text">
+
+    <!-- TEXT: 도입. data-scene 은 첫 장면 이름과 같게 둔다. -->
+    <header class="intro" data-scene="s1">
+      <h1>__제목 첫 줄__<br>__제목 둘째 줄__</h1>
+      <p class="lead">__무엇을 설명하는 페이지인지, 왜 알아야 하는지 2~4문장__</p>
+      <p class="note"><span class="wide">오른쪽 모형은 드래그하면</span><span class="narrow" hidden>모형은 좌우로 밀면</span> 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.</p>
+    </header>
+
+    <!-- TEXT: 장 하나 = section 하나. data-scene 과 버튼의 data-run 은 defineScene 이름과 같아야 한다. -->
+    <section class="chapter" data-scene="s1">
+      <h2><span class="n">1</span><span>__장 제목__</span></h2>
+      <p>__본문 2~3문단. 처음 나오는 용어는 한 줄로 풀어 쓴다.__</p>
+      <p class="gist">__이 장의 요지 한 문장__</p>
+      <div class="act"><button type="button" data-run="s1">__동작 이름__</button><p class="result" aria-live="polite"></p></div>
+    </section>
+
+    <section class="chapter" data-scene="s2">
+      <h2><span class="n">2</span><span>__장 제목__</span></h2>
+      <p>__본문__</p>
+      <ol class="steps">
+        <li>__단계 설명. say() 의 번호와 맞춘다.__</li>
+        <li>__단계 설명__</li>
+        <li>__단계 설명__</li>
+      </ol>
+      <p class="gist">__요지 한 문장__</p>
+      <div class="act"><button type="button" data-run="s2">__동작 이름__</button><p class="result" aria-live="polite"></p></div>
+    </section>
+
+    <!-- TEXT: 용어 정리와 출처. 확인한 날짜를 적는다. 출처가 없으면 sources 블록을 지운다. -->
+    <section class="chapter terms">
+      <h2>용어 정리</h2>
+      <dl class="terms-list">
+        <dt>__용어__</dt><dd>__한두 문장 풀이__</dd>
+      </dl>
+      <div class="sources">
+        <h3>출처 (__YYYY-MM-DD__ 확인)</h3>
+        <ul>
+          <li><a href="__URL__">__출처 이름__</a></li>
+        </ul>
+      </div>
+    </section>
+
+  </article>
+
+  <aside class="stage" aria-label="3D 모형">
+    <div class="canvas-wrap"></div>
+    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" class="autorun" role="switch" aria-checked="false" aria-label="자동 실행"><span class="track" aria-hidden="true"></span><span aria-hidden="true">자동<span class="more"> 실행</span></span></button><button type="button" class="reset-view">시점 되돌리기</button></div></div>
+    <!-- TEXT: 범례. 의미 색 3개가 이 페이지에서 무엇을 뜻하는지 쓴다. -->
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--actor)"></i>__주인공 의미__</span>
+      <span><i style="background:var(--bound)"></i>__경계 의미__</span>
+      <span><i style="background:var(--matter)"></i>__재료 의미__</span>
+    </div>
+    <div class="hint" aria-hidden="true">드래그해서 돌려 보기</div>
+    <p class="fallback">이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.</p>
+  </aside>
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* =====================================================================
+   ENGINE — 장면을 쓰는 데 필요한 것은 전부 여기 있다. 고치지 않는다.
+   API 설명: references/engine-api.md
+   ===================================================================== */
+const COLOR = {
+  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
+  actor: 0xD2364A, actorEdge: 0x7A1422,
+  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
+  matter: 0xC4921F, matterEdge: 0x6B4B0E,
+};
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CANCEL = Symbol('cancel');
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+const stageEl = document.querySelector('.stage');
+const wrap = document.querySelector('.canvas-wrap');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+} catch (e) {
+  stageEl.classList.add('no-webgl');
+  throw e;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+wrap.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = 'labels';
+wrap.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 300);
+// 카메라 방향(축측 시점). 화면 오른쪽 벡터는 SCREEN_RIGHT — 두 대상을 나란히 놓을 때 쓴다.
+const HOME_DIR = V(1, 1.15, 1.22).normalize();
+const SCREEN_RIGHT = V(HOME_DIR.z, 0, -HOME_DIR.x).normalize();
+const DIST = 60;
+
+const controls = new OrbitControls(camera, labelRenderer.domElement);
+controls.enablePan = false;
+controls.enableZoom = false; // 휠 확대를 켜면 무대 위에서 페이지 스크롤이 막힌다.
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minPolarAngle = 0.2;
+controls.maxPolarAngle = 1.38;
+// 터치: 세로로 쓸면 브라우저가 페이지를 스크롤하고(pan-y), 가로로 밀 때만 모형이 돈다.
+// OrbitControls 는 기본으로 touch-action:none 을 걸어 무대 위 스와이프가 스크롤을 먹는다. 생성 뒤에 덮어쓴다.
+labelRenderer.domElement.style.touchAction = 'pan-y';
+controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: undefined };
+
+// 장면이 요구하는 가로(fitW)·세로(fitH) 월드 폭이 무대에 다 들어오게 직교 카메라 범위를 정한다.
+const fit = { w: 17, h: 11.5 };
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+  const aspect = w / h;
+  const v = Math.max(fit.h, fit.w / aspect);
+  camera.left = -v * aspect / 2; camera.right = v * aspect / 2;
+  camera.top = v / 2; camera.bottom = -v / 2;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(wrap);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xc9d0ca, 2.1));
+const sun = new THREE.DirectionalLight(0xffffff, 1.7);
+sun.position.set(-7, 20, 11);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 70 });
+sun.shadow.bias = -0.0006;
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.ShadowMaterial({ opacity: 0.1 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+function mat(color, opacity = 1) {
+  const m = new THREE.MeshLambertMaterial({ color, transparent: true, opacity, depthWrite: opacity >= 0.99 });
+  m.userData.base = opacity;
+  m.userData.color = new THREE.Color(color);
+  return m;
+}
+function lineMat(color = COLOR.ink, opacity = 0.85, dashed = false) {
+  const m = dashed
+    ? new THREE.LineDashedMaterial({ color, transparent: true, opacity, dashSize: 0.2, gapSize: 0.14 })
+    : new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+  m.userData.base = opacity;
+  return m;
+}
+// 직육면체. pos 의 y 는 "바닥 높이"다(만든 뒤 group.position 은 중심).
+function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.ink, edgeOpacity = 0.85, dashed = false, cast = true } = {}) {
+  const g = new THREE.Group();
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, mat(color, opacity));
+  mesh.castShadow = cast && opacity > 0.6;
+  mesh.receiveShadow = opacity > 0.6;
+  g.add(mesh);
+  if (edge !== null) {
+    const lines = new THREE.LineSegments(new THREE.EdgesGeometry(geo), lineMat(edge, edgeOpacity, dashed));
+    if (dashed) lines.computeLineDistances();
+    g.add(lines);
+  }
+  g.position.set(pos[0], pos[1] + h / 2, pos[2]);
+  g.userData.mesh = mesh;
+  g.userData.h = h;
+  return g;
+}
+const allTags = [];
+// 화면 라벨. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
+function tag(text, pos, kind = '') {
+  const el = document.createElement('div');
+  el.className = 'tag' + (kind ? ' ' + kind : '');
+  el.textContent = text;
+  const o = new CSS2DObject(el);
+  o.position.set(pos[0], pos[1], pos[2]);
+  allTags.push(o);
+  return o;
+}
+// 주인공 정육면체(0.6). label 을 null 로 주면 라벨 없이.
+function actorCube(pos, label = '__주인공__') {
+  const c = block(0.6, 0.6, 0.6, pos, { color: COLOR.actor, edge: COLOR.actorEdge });
+  if (label) c.add(tag(label, [0, 0.72, 0], 'actor'));
+  return c;
+}
+function matterBlock(pos, h = 0.9, w = 0.75) {
+  return block(w, h, w, pos, { color: COLOR.matter, edge: COLOR.matterEdge });
+}
+// 유리방(경계). 투명도는 0.08~0.13 사이가 겹쳐도 탁해지지 않는다.
+function glass(w, h, d, pos, opts = {}) {
+  return block(w, h, d, pos, { color: COLOR.bound, opacity: 0.08, edge: COLOR.bound, edgeOpacity: 0.95, cast: false, ...opts });
+}
+function line(points, color = COLOR.ink, opacity = 0.6, dashed = false) {
+  const geo = new THREE.BufferGeometry().setFromPoints(points.map(p => V(...p)));
+  const l = new THREE.Line(geo, lineMat(color, opacity, dashed));
+  if (dashed) l.computeLineDistances();
+  return l;
+}
+function tube(from, to, r = 0.1, color = COLOR.ink) {
+  const a = V(...from), b = V(...to);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 14), mat(color));
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(V(0, 1, 0), b.clone().sub(a).normalize());
+  m.castShadow = true;
+  return m;
+}
+function arrow(from, to, color = COLOR.ink) {
+  const g = new THREE.Group();
+  g.add(line([from, to], color, 0.85));
+  const dir = V(...to).sub(V(...from)).normalize();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.45, 18), mat(color));
+  cone.position.set(...to);
+  cone.quaternion.setFromUnitVectors(V(0, 1, 0), dir);
+  g.add(cone);
+  return g;
+}
+// 움직이는 공(요청·신호). 장면의 temp 그룹에 넣었다가 끝나면 뺀다.
+function packet(color, pos, r = 0.2) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
+  m.position.set(...pos);
+  m.castShadow = true;
+  m.userData.mesh = m;
+  return m;
+}
+function setFade(root, k) {
+  root.visible = k > 0.001;
+  root.traverse(o => {
+    const m = o.material;
+    if (m && m.userData.base !== undefined) m.opacity = m.userData.base * k;
+    if (o.isCSS2DObject) o.element.style.opacity = k;
+  });
+}
+function resetLook(root) {
+  root.traverse(o => {
+    const m = o.material;
+    if (m && m.userData.color) { m.color.copy(m.userData.color); m.opacity = m.userData.base; }
+  });
+}
+// CSS2DRenderer 는 부모가 숨어도 라벨을 그린다. 매 프레임 조상 가시성과 크기를 보고 감춘다.
+// 부모를 scene 에서 떼어 내도 자식 라벨의 DOM 은 마지막 자리에 남는다. scene 에 붙어 있지 않으면 숨긴다.
+function syncTags() {
+  for (const o of allTags) {
+    let vis = true, node = o;
+    while (node.parent) {
+      node = node.parent;
+      if (!node.visible || node.scale.x < 0.3 || node.scale.y < 0.3) vis = false;
+    }
+    if (node !== scene) { o.element.style.display = 'none'; continue; }
+    o.visible = vis;
+  }
+}
+
+// 좁은 무대(휴대폰)에서는 모형이 줄어드는데 라벨 글자는 줄지 않아 서로 겹치고 가장자리에서 잘린다.
+// 화면 좌표에서 라벨을 무대 안쪽으로 끌어오고, 겹치면 가까운 빈자리로 비켜 놓는다(CSS translate, 상한 DECLUTTER_MAX).
+// 넓은 무대(데스크톱)에서는 아무것도 하지 않는다.
+const DECLUTTER_BELOW = 700, DECLUTTER_MAX = 56, DECLUTTER_EDGE = 3, DECLUTTER_GAP = 2;
+const labelState = new Map();
+const labelVec = V(0, 0, 0);
+const labelShown = o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5;
+const boxHit = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+function clampBox(b, W, H) {
+  const dx = Math.max(DECLUTTER_EDGE - b.l, 0) + Math.min(W - DECLUTTER_EDGE - b.r, 0);
+  const dy = Math.max(DECLUTTER_EDGE - b.t, 0) + Math.min(H - DECLUTTER_EDGE - b.b, 0);
+  return { l: b.l + dx, r: b.r + dx, t: b.t + dy, b: b.b + dy, dx, dy };
+}
+function placeLabel(box, placed, W, H) {
+  let cur = clampBox(box, W, H);
+  for (let i = 0; i < 6; i++) {
+    const hit = placed.find(p => boxHit(cur, p));
+    if (!hit) break;
+    const g = DECLUTTER_GAP;
+    const pushes = [
+      { dx: 0, dy: hit.t - cur.b - g }, { dx: 0, dy: hit.b - cur.t + g },
+      { dx: hit.l - cur.r - g, dy: 0 }, { dx: hit.r - cur.l + g, dy: 0 },
+    ].map(d => {
+      const moved = clampBox({ l: cur.l + d.dx, r: cur.r + d.dx, t: cur.t + d.dy, b: cur.b + d.dy }, W, H);
+      return { moved, clear: !placed.some(p => boxHit(moved, p)), cost: Math.hypot(d.dx, d.dy) };
+    }).sort((a, b) => (b.clear - a.clear) || (a.cost - b.cost));
+    cur = pushes[0].moved;
+  }
+  const total = Math.hypot(cur.l - box.l, cur.t - box.t);
+  return total <= DECLUTTER_MAX ? cur : clampBox(box, W, H);
+}
+function declutter() {
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const on = W > 0 && W < DECLUTTER_BELOW;
+  const placed = [];
+  for (const o of allTags) {
+    const el = o.element;
+    const st = labelState.get(o) || { x: 0, y: 0 };
+    labelState.set(o, st);
+    let tx = 0, ty = 0;
+    if (on && labelShown(o)) {
+      labelVec.setFromMatrixPosition(o.matrixWorld).project(camera);
+      const w = el.offsetWidth, h = el.offsetHeight;
+      const cx = (labelVec.x + 1) / 2 * W, cy = (1 - labelVec.y) / 2 * H;
+      if (w && h) {
+        const box = { l: cx - w / 2, r: cx + w / 2, t: cy - h / 2, b: cy + h / 2 };
+        const fin = placeLabel(box, placed, W, H);
+        tx = fin.l - box.l; ty = fin.t - box.t;
+        placed.push(fin);
+      }
+    }
+    st.x += (tx - st.x) * 0.5; st.y += (ty - st.y) * 0.5;
+    if (Math.abs(tx - st.x) < 0.3) st.x = tx;
+    if (Math.abs(ty - st.y) < 0.3) st.y = ty;
+    const css = st.x || st.y ? `${st.x.toFixed(1)}px ${st.y.toFixed(1)}px` : '';
+    if (el.style.translate !== css) el.style.translate = css;
+  }
+}
+
+const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+let runToken = 0;
+// 실행마다 하나. 다른 장으로 넘어가면 진행 중인 애니메이션이 CANCEL 로 끊긴다.
+function animator() {
+  const tok = ++runToken;
+  const live = () => tok === runToken;
+  const tw = (ms, fn) => new Promise((resolve, reject) => {
+    if (!live()) return reject(CANCEL);
+    if (REDUCE || ms <= 0) { fn(1); resolve(); return; }
+    const t0 = performance.now();
+    const frame = now => {
+      if (!live()) return reject(CANCEL);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(frame); else resolve();
+    };
+    requestAnimationFrame(frame);
+  });
+  return {
+    live,
+    tween: tw,
+    wait: ms => new Promise((res, rej) => setTimeout(() => (live() ? res() : rej(CANCEL)), REDUCE ? 0 : ms)),
+    // obj 의 중심을 to 로 옮긴다. lift 를 주면 포물선으로 넘어간다.
+    move(obj, to, ms = 700, lift = 0) {
+      const from = obj.position.clone();
+      const target = Array.isArray(to) ? V(...to) : to.clone();
+      return tw(ms, t => {
+        obj.position.lerpVectors(from, target, t);
+        if (lift) obj.position.y += Math.sin(Math.PI * t) * lift;
+      });
+    },
+    // 색이 잠깐 바뀌었다 돌아온다. hold=true 면 바뀐 채로 둔다(reset 에서 resetLook 이 되돌린다).
+    async flash(obj, color, ms = 700, hold = false) {
+      const m = (obj.userData.mesh || obj).material;
+      const c0 = m.userData.color, c1 = new THREE.Color(color);
+      const o0 = m.userData.base, peak = Math.min(1, o0 + 0.45);
+      await tw(ms * 0.35, t => { m.color.lerpColors(c0, c1, t); m.opacity = o0 + (peak - o0) * t; });
+      if (hold) return;
+      await tw(ms * 0.65, t => { m.color.lerpColors(c1, c0, t); m.opacity = peak + (o0 - peak) * t; });
+    },
+    // 크기를 바꾼다. 생성은 scale 0.001 → 1, 소멸은 1 → 0.001 후 visible=false.
+    scaleTo(obj, to, ms = 500) {
+      obj.visible = true;
+      const from = obj.scale.clone();
+      const target = typeof to === 'number' ? V(to, to, to) : V(...to);
+      return tw(ms, t => obj.scale.lerpVectors(from, target, t));
+    },
+  };
+}
+
+// 모든 장면이 공유하는 바닥(장면 옵션 base:true 일 때 보인다). 내용은 SCENES 에서 채운다.
+const base = new THREE.Group();
+scene.add(base);
+const baseState = { group: base, k: 1, target: 1 };
+
+const scenes = {};
+function defineScene(name, opts) {
+  const built = opts.build();
+  scene.add(built.group);
+  setFade(built.group, 0);
+  scenes[name] = { name, base: true, zoom: 1, target: [0.3, 1.1, 0], fitW: 17, fitH: 11.5, ...opts, ...built, k: 0, targetK: 0 };
+}
+
+/* =====================================================================
+   SCENES — 주제에 맞게 바꾸는 부분. 아래 두 장면은 패턴 예시다.
+   패턴 모음: references/scene-patterns.md, 완성 예시: assets/example-sandbox.html
+   ===================================================================== */
+const FLOOR = 0.6; // 공용 바닥 윗면 높이
+base.add(block(13, FLOOR, 8, [0, 0, 0], { color: COLOR.boundSoft }));
+base.add(tag('__공용 바닥__', [-5.6, FLOOR / 2, 4.05], 'bound'));
+base.add(matterBlock([-4.2, FLOOR, -2.6], 1.0));
+base.add(tag('__방 밖의 자원__', [-4.2, FLOOR + 1.5, -2.6], 'matter'));
+
+// 패턴: 경계 넘기 시도 — 주인공이 벽으로 갔다가 벽이 깜빡이고 되돌아온다.
+defineScene('s1', {
+  title: '1  __장 제목__',
+  build() {
+    const g = new THREE.Group();
+    const temp = new THREE.Group(); g.add(temp);
+    const room = glass(3.2, 2.4, 3.0, [1.0, FLOOR, 1.0]);
+    g.add(room);
+    g.add(tag('__격리된 방__', [1.0, FLOOR + 2.75, 1.0], 'bound'));
+    const actor = actorCube([1.0, FLOOR, 1.0]);
+    g.add(actor);
+    const home = actor.position.clone();
+    return {
+      group: g,
+      reset() { actor.position.copy(home); temp.clear(); },
+      async run(a, say) {
+        say('__주인공이 방 밖으로 나가려고 합니다.__');
+        await a.move(actor, [-0.25, FLOOR + 0.9, 1.0], 700, 0.5);
+        await a.flash(room, COLOR.bound);
+        await a.move(actor, home, 500);
+        say('__벽에 막혔습니다. 방 밖의 자원에는 닿지 못했습니다.__');
+      },
+    };
+  },
+});
+
+// 패턴: 요청 경로 — 블록 사이로 공이 오가고, 중개자가 확인하고, 결과가 생긴다.
+defineScene('s2', {
+  title: '2  __장 제목__',
+  base: false,
+  target: [0.6, 0.8, 0],
+  fitW: 17,
+  fitH: 11,
+  build() {
+    const g = new THREE.Group();
+    const temp = new THREE.Group(); g.add(temp);
+    const Y = 0.4;
+    g.add(block(12.5, Y, 6.5, [0.6, 0, -0.2]));
+    const A = block(2.2, 1.3, 1.8, [-3.6, Y, 0.8]);
+    const B = block(2.2, 1.3, 1.8, [0.6, Y, 0.8]);
+    const C = block(2.2, 1.3, 1.8, [4.8, Y, 0.8]);
+    g.add(A, B, C);
+    g.add(tag('__보내는 쪽__', [-3.6, Y + 1.65, 0.8]), tag('__중개자__', [0.6, Y + 1.65, 0.8]), tag('__받는 쪽__', [4.8, Y + 1.65, 0.8]));
+    const result = block(1.4, 0.14, 1.0, [4.8, Y, -2.1], { color: COLOR.matter, edge: COLOR.matterEdge });
+    result.add(tag('__결과__', [0, 0.5, 0], 'matter'));
+    g.add(result);
+    const top = o => [o.position.x, o.position.y + o.userData.h / 2 + 0.5, o.position.z];
+    return {
+      group: g,
+      reset() { temp.clear(); result.visible = false; result.scale.setScalar(1); },
+      async run(a, say) {
+        const send = async (color, from, to, ms = 800, r = 0.2) => {
+          const p = packet(color, from, r);
+          temp.add(p);
+          await a.move(p, to, ms, 1.0);
+          temp.remove(p);
+        };
+        say('1. __보내는 쪽이 요청을 보냅니다.__');
+        await send(COLOR.actor, top(A), top(B));
+        say('2. __중개자가 요청을 확인합니다.__');
+        await a.flash(B, COLOR.bound, 800);
+        say('3. __확인된 요청만 받는 쪽으로 넘어갑니다.__');
+        await send(COLOR.matter, top(B), top(C));
+        result.scale.setScalar(0.001);
+        await a.scaleTo(result, 1, 500);
+        say('__받는 쪽이 결과를 만들었습니다.__');
+      },
+    };
+  },
+});
+
+/* =====================================================================
+   ENGINE (계속) — 장 전환, 실행, 렌더 루프, 검증 훅. 고치지 않는다.
+   ===================================================================== */
+const hudNow = document.querySelector('.hud .now');
+let current = null;
+let camGoal = null;
+function setCamGoal(s) {
+  fit.w = s.fitW; fit.h = s.fitH;
+  resize();
+  camGoal = { zoom: s.zoom, target: V(...s.target) };
+  if (REDUCE) { camera.zoom = s.zoom; controls.target.copy(camGoal.target); camera.updateProjectionMatrix(); camGoal = null; }
+}
+function homeCamera(s) {
+  controls.target.set(...s.target);
+  camera.position.copy(HOME_DIR).multiplyScalar(DIST).add(controls.target);
+  camera.lookAt(controls.target);
+}
+function resultFor(name) {
+  const b = document.querySelector(`[data-run="${name}"]`);
+  return b ? b.parentElement.querySelector('.result') : null;
+}
+function activate(name) {
+  if (!scenes[name] || current === name) return;
+  runToken++;
+  const s = scenes[name];
+  for (const other of Object.values(scenes)) other.targetK = other === s ? 1 : 0;
+  baseState.target = s.base ? 1 : 0;
+  resetLook(base);
+  setFade(base, baseState.k);
+  resetLook(s.group);
+  s.reset();
+  setFade(s.group, s.k);
+  const r = resultFor(name);
+  if (r) r.textContent = '';
+  current = name;
+  hudNow.textContent = s.title;
+  document.querySelectorAll('.chapter').forEach(c => c.classList.toggle('is-active', c.dataset.scene === name));
+  setCamGoal(s);
+}
+async function runScene(name) {
+  activate(name);
+  const s = scenes[name];
+  const resultEl = resultFor(name);
+  const a = animator();
+  const mine = runToken; // animator() 가 올린 값. 이 실행 뒤로 다른 실행이나 장 전환이 없었으면 끝날 때도 같다.
+  resetLook(base);
+  resetLook(s.group);
+  s.reset();
+  const say = t => { if (a.live() && resultEl) resultEl.textContent = t; };
+  try {
+    await s.run(a, say);
+  } catch (e) {
+    if (e !== CANCEL) { console.error(e); say('애니메이션을 재생하지 못했습니다. 새로고침한 뒤 다시 눌러 보세요.'); }
+    return;
+  }
+  if (mine === runToken) onSceneDone(name, mine); // 자동 실행이 켜져 있으면 반복을 이어 간다.
+}
+// 장면을 처음 상태로 되돌리고 결과 문장도 비운다(자동 실행 반복에서 쓴다).
+function resetScene(name) {
+  const s = scenes[name];
+  if (!s) return;
+  resetLook(base);
+  resetLook(s.group);
+  s.reset();
+  const r = resultFor(name);
+  if (r) r.textContent = '';
+}
+document.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => runScene(b.dataset.run)));
+document.querySelector('.reset-view').addEventListener('click', () => {
+  const s = scenes[current];
+  if (!s) return;
+  homeCamera(s);
+  camera.zoom = s.zoom;
+  camera.updateProjectionMatrix();
+});
+controls.addEventListener('start', () => { camGoal = null; });
+
+// 지금 읽는 장을 가리는 "읽는 줄". 세로로 쌓은 배치(무대가 위에 붙어 있음)에서는 무대 바로 아래 글 영역의 위쪽 30% 지점,
+// 나란한 배치(데스크톱·가로 모드)에서는 화면 세로 45~50% 띠다.
+// ---- 자동 실행. 기본은 꺼짐이고, 켜 두면 읽는 장의 동작을 반복 재생한다. ----
+//   장에 들어선 뒤 AUTORUN_DELAY → 실행 → 끝 상태와 마지막 문장을 AUTORUN_HOLD 동안 보여 줌 → reset(결과 문장도 비움)
+//   → 처음 상태를 AUTORUN_DELAY 동안 보여 줌 → 다시 실행 → ... 다른 장으로 넘어가면 기존 CANCEL 로 끊기고 새 장에서 처음부터 돈다.
+// 버튼이 없는 요소(도입부)와 페이지 맨 위에서는 실행하지 않는다. 탭이 숨겨지면 멈췄다가 다시 보이면 이어서 돈다.
+const AUTORUN_KEY = 'plz-3d-explain:autorun';
+const AUTORUN_DELAY = 600; // 장면 전환(페이드 0.45초)이 끝난 뒤, 또 reset 뒤에 처음 상태를 볼 시간(ms)
+const AUTORUN_HOLD = 2800; // 동작이 끝난 뒤 결과 상태와 마지막 결과 문장을 읽을 시간(ms)
+const autorunBtn = document.querySelector('.autorun');
+// localStorage 는 막힐 수 있다(사생활 보호 창, 사이트 데이터 차단). 읽거나 쓰지 못하면 이번 방문에서만 유지한다.
+function readAutorun() { try { return localStorage.getItem(AUTORUN_KEY) === '1'; } catch (e) { return false; } }
+function writeAutorun(on) { try { localStorage.setItem(AUTORUN_KEY, on ? '1' : '0'); } catch (e) { /* 저장 실패는 기능에 영향 없음 */ } }
+let autorunOn = readAutorun();
+let readingEl = null; // 읽는 줄에 걸린 [data-scene] 요소
+let autoEl = null;    // 가장 최근에 읽는 줄에 들어온 요소(같은 요소로 다시 시작하지 않기 위해)
+let autoPending = false; // autoEl 의 첫 실행이 아직 예약되지 않았는가
+const TOP_HOLD = 40;  // 페이지 맨 위(px). 나란한 배치에서는 도입부 아래 1장이 읽는 줄에 걸려 있어도 여기서는 실행하지 않는다.
+let autoTimer = 0;    // 자동 실행 타이머는 armAuto 로만 걸어서 항상 하나 이하다.
+let autoWait = null;  // 타이머가 기다리는 장면 이름
+let autoPaused = null; // 탭이 숨겨져 멈춘 장면 이름
+const runnerOf = el => (el ? el.querySelector('[data-run]') : null);
+function renderAutorun() { autorunBtn.setAttribute('aria-checked', String(autorunOn)); }
+function armAuto(name, ms, fn) {
+  clearTimeout(autoTimer);
+  autoWait = name;
+  autoTimer = setTimeout(() => {
+    autoTimer = 0; autoWait = null;
+    if (document.hidden) { autoPaused = name; return; }
+    fn();
+  }, ms);
+}
+function stopAuto() { clearTimeout(autoTimer); autoTimer = 0; autoWait = null; autoPaused = null; }
+// 지금도 이 장면을 반복해야 하는가. token 을 주면 그 사이 다른 실행(버튼 포함)이나 장 전환이 없었어야 한다.
+const loopOk = (name, token) => autorunOn && current === name && scrollY > TOP_HOLD && (token === undefined || token === runToken);
+function startCycle(name) { // reset → 처음 상태 → 실행
+  resetScene(name);
+  const t = runToken;
+  armAuto(name, AUTORUN_DELAY, () => { if (loopOk(name, t)) runScene(name); });
+}
+function onSceneDone(name, token) { // 동작이 끝까지 갔을 때 runScene 이 부른다. 버튼으로 시작한 실행도 이어서 반복한다.
+  if (!loopOk(name, token)) return;
+  if (document.hidden) { autoPaused = name; return; }
+  armAuto(name, AUTORUN_HOLD, () => { if (loopOk(name, token)) startCycle(name); });
+}
+function tryAutorun() { // 읽는 장의 첫 실행 예약
+  const el = autoEl, btn = runnerOf(el);
+  if (!autoPending || !autorunOn || !btn || scrollY <= TOP_HOLD) return;
+  autoPending = false;
+  const name = btn.dataset.run, t = runToken;
+  armAuto(name, AUTORUN_DELAY, () => {
+    if (autoEl !== el) return;
+    if (scrollY <= TOP_HOLD) { autoPending = true; return; } // 그 사이 맨 위로 돌아갔다
+    if (loopOk(name, t)) runScene(name);
+  });
+}
+function scheduleAutorun(el) {
+  if (el === autoEl) return; // 화면 크기 변경으로 관찰자를 다시 만들었을 때 같은 장을 또 시작하지 않는다.
+  stopAuto();
+  autoEl = el;
+  autoPending = true;
+  tryAutorun();
+}
+function setAutorun(on) {
+  autorunOn = Boolean(on);
+  writeAutorun(autorunOn);
+  renderAutorun();
+  stopAuto(); // 끄면 대기 중인 반복이 사라진다. 이미 도는 동작은 끝까지 가고, 끝나도 이어 가지 않는다.
+  autoPending = false;
+  const btn = runnerOf(readingEl);
+  if (!autorunOn || !btn) return;
+  autoEl = readingEl;
+  if (scrollY > TOP_HOLD) runScene(btn.dataset.run); // 켠 순간 읽는 장을 바로 실행
+  else autoPending = true;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (autoTimer) { autoPaused = autoWait; clearTimeout(autoTimer); autoTimer = 0; autoWait = null; }
+    return;
+  }
+  const name = autoPaused;
+  autoPaused = null;
+  if (name && loopOk(name)) startCycle(name); // 다시 보이면 처음 상태부터 이어서 돈다
+});
+addEventListener('scroll', tryAutorun, { passive: true });
+autorunBtn.addEventListener('click', () => setAutorun(!autorunOn));
+renderAutorun();
+
+let io = null;
+function readingMargin() {
+  const vh = innerHeight, st = stageEl.getBoundingClientRect();
+  const stacked = st.width >= innerWidth - 1 && st.height < vh - 1;
+  if (!stacked) return '-45% 0px -50% 0px';
+  const stageBottom = Math.min(st.height, vh);
+  const line = Math.round(stageBottom + (vh - stageBottom) * 0.3);
+  return `-${line}px 0px -${Math.max(0, vh - line - 2)}px 0px`;
+}
+function observe() {
+  if (io) io.disconnect();
+  io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      readingEl = e.target;
+      activate(e.target.dataset.scene);
+      scheduleAutorun(e.target);
+    });
+  }, { rootMargin: readingMargin() });
+  document.querySelectorAll('[data-scene]').forEach(el => io.observe(el));
+}
+let observeTimer = 0;
+addEventListener('resize', () => { clearTimeout(observeTimer); observeTimer = setTimeout(observe, 150); });
+observe();
+
+function stepFade(st, target, dt) {
+  if (st.k === target) return;
+  const step = REDUCE ? 1 : dt / 0.45;
+  st.k = st.k < target ? Math.min(target, st.k + step) : Math.max(target, st.k - step);
+  setFade(st.group, st.k);
+}
+const clock = new THREE.Clock();
+function loop() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  for (const s of Object.values(scenes)) stepFade(s, s.targetK, dt);
+  stepFade(baseState, baseState.target, dt);
+  if (camGoal) {
+    const k = Math.min(1, dt * 5);
+    camera.zoom += (camGoal.zoom - camera.zoom) * k;
+    controls.target.lerp(camGoal.target, k);
+    camera.updateProjectionMatrix();
+    if (Math.abs(camera.zoom - camGoal.zoom) < 0.002 && controls.target.distanceTo(camGoal.target) < 0.01) camGoal = null;
+  }
+  controls.update();
+  syncTags();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  declutter();
+  requestAnimationFrame(loop);
+}
+
+// 검증 훅: playwright 의 browser_evaluate 에서 쓴다.
+//   await window.__explainer.run('s1')   → 그 장면 동작이 끝날 때까지 기다린다
+//   window.__explainer.overlaps()         → 지금 보이는 라벨 중 서로 겹치는 쌍
+window.__explainer = {
+  scenes: () => Object.keys(scenes),
+  current: () => current,                       // 무대가 지금 보여 주는 장면 이름
+  autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // 자동 실행 상태를 읽는다. 값을 주면 바꾸고(저장 포함) 새 상태를 돌려준다
+  azimuth: () => controls.getAzimuthalAngle(),  // 모형이 돌았는지 확인할 때
+  async run(name) {
+    // 세로로 쌓은 배치에서는 장의 맨 위가 무대 바로 아래에 오게(CSS scroll-margin-top), 나란한 배치에서는 가운데로 스크롤한다.
+    const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
+    document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center' });
+    await new Promise(r => setTimeout(r, 900));
+    await runScene(name);
+    await new Promise(r => setTimeout(r, 200));
+    return resultFor(name)?.textContent ?? '';
+  },
+  overlaps(minArea = 24) {
+    const boxes = allTags
+      .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
+      .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
+      .filter(b => b.r.width > 0);
+    const out = [];
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i].r, b = boxes[j].r;
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (w > 0 && h > 0 && w * h >= minArea) out.push([boxes[i].text, boxes[j].text, Math.round(w * h)]);
+      }
+    }
+    return out;
+  },
+  clipped() {
+    const s = wrap.getBoundingClientRect(); // 휴대폰에서는 캔버스 칸(제목줄·범례줄 제외)이 기준이다. 데스크톱에서는 무대와 같다.
+    return allTags
+      .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
+      .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
+      .filter(b => b.r.width > 0 && (b.r.left < s.left || b.r.right > s.right || b.r.top < s.top || b.r.bottom > s.bottom))
+      .map(b => b.text);
+  },
+};
+
+const first = Object.keys(scenes)[0];
+homeCamera(scenes[first]);
+resize();
+activate(first);
+loop();
+</script>
+</body>
+</html>

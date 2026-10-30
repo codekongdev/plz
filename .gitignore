@@ -1,0 +1,3 @@
+.DS_Store
+# 개인 설정. 견본은 각 스킬의 references/preferences.example.md
+skills/*/references/preferences.md
