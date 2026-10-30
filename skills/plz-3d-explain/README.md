@@ -13,7 +13,7 @@ The page includes a mobile layout and loads three.js and fonts from CDNs.
 
 ## 미리 보기
 
-[AI 에이전트 코드 샌드박스 데모](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) — GitHub Pages로 공개 예정입니다. 컨테이너, 마이크로VM, WASM, OS 샌드박스의 격리 방식을 10장으로 설명합니다. [예제 HTML](assets/example-agent-sandbox.html)도 저장소에 있습니다.
+[AI 에이전트 코드 샌드박스 데모](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)를 브라우저에서 바로 열어 볼 수 있습니다. 컨테이너, 마이크로VM, WASM, OS 샌드박스의 격리 방식을 10장으로 설명합니다. [예제 HTML](assets/example-agent-sandbox.html)도 저장소에 있습니다.
 
 데스크톱: 4장 컨테이너
 
@@ -29,6 +29,12 @@ The page includes a mobile layout and loads three.js and fonts from CDNs.
 
 ```sh
 npx skills add codekongdev/plz --skill plz-3d-explain -g
+```
+
+Codex에서 쓰려면 `-a codex`를 붙입니다. 아래 명령은 지금 프로젝트의 `.agents/skills/`에 설치합니다.
+
+```sh
+npx skills add codekongdev/plz --skill plz-3d-explain -a codex
 ```
 
 Claude Code에 수동으로 설치하려면 저장소를 내려받은 뒤 `skills/plz-3d-explain` 폴더를 `~/.claude/skills/plz-3d-explain`에 복사하거나 링크합니다.
