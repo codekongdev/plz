@@ -29,6 +29,18 @@
     --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, monospace;
   }
+  /* 일본어·중국어 페이지: Hahmlet, IBM Plex Sans KR, Pretendard 에는 가나나 간체 글자가 없거나 부족하다.
+     한자가 한국식 자형으로 나오지 않게 시스템 CJK 글꼴을 앞에 둔다(웹폰트를 새로 받지 않는다). */
+  :lang(ja) {
+    --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Noto Serif CJK JP", "Source Han Serif JP", serif;
+    --title: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", "Source Han Sans JP", system-ui, sans-serif;
+    --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", "Source Han Sans JP", system-ui, sans-serif;
+  }
+  :lang(zh) {
+    --serif: "Songti SC", "STSong", "Noto Serif SC", "Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif;
+    --title: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+  }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
@@ -40,6 +52,7 @@
     overflow-wrap: break-word;
     -webkit-font-smoothing: antialiased;
   }
+  body:lang(ja), body:lang(zh) { word-break: normal; line-break: strict; }
   a { color: var(--bound); text-underline-offset: 3px; }
   a:focus-visible, button:focus-visible { outline: 3px solid var(--bound); outline-offset: 3px; }
 
@@ -67,6 +80,7 @@
     background: #E2E5E0; border-radius: 6px; overflow-x: auto; white-space: pre-wrap;
     font: 500 0.8rem/1.7 "IBM Plex Mono", "IBM Plex Sans KR", monospace;
   }
+  :lang(ja) pre.code, :lang(zh) pre.code { font-family: "IBM Plex Mono", var(--sans), monospace; }
   pre.code code { background: none; padding: 0; font: inherit; }
   pre.code .c { color: var(--ink-soft); }
   /* 문서에 숨은 지시처럼 "바깥에서 들어온 입력"을 인용할 때 */
@@ -115,6 +129,8 @@
   .hud button { pointer-events: auto; font: 500 0.85rem/1 var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 0.55rem 0.75rem; cursor: pointer; }
   /* 자동 실행 스위치: 켜면 장에 들어설 때 그 장의 동작을 한 번 실행한다. 색 의미 3개와 겹치지 않게 잉크색으로만 그린다. */
   .hud .autorun { display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  /* 스위치 글자는 언어별로 긴 문구(.long)와 짧은 문구(.short)를 따로 둔다. 폭 430px 이하에서 짧은 쪽으로 바꾼다. */
+  .hud .autorun .short { display: none; }
   .autorun .track { position: relative; flex: none; width: 1.9rem; height: 0.95rem; border: 1.5px solid var(--ink-soft); border-radius: 999px; transition: background .2s, border-color .2s; }
   .autorun .track::after { content: ""; position: absolute; top: 50%; left: 2px; width: 0.6rem; height: 0.6rem; margin-top: -0.3rem; border-radius: 50%; background: var(--ink-soft); transition: transform .2s, background .2s; }
   .autorun[aria-checked="true"] .track { background: var(--ink); border-color: var(--ink); }
@@ -166,9 +182,10 @@
     .chapter { min-height: auto; padding-top: 2.5rem; }
     .chapter h2 { font-size: 1.4rem; }
   }
-  /* 폭 430px 이하: 스위치 글자를 "자동"으로 줄여 장 제목에 폭을 준다(접근 가능한 이름은 aria-label 로 "자동 실행"). */
+  /* 폭 430px 이하: 스위치 글자를 짧은 문구(autorunShort)로 바꿔 장 제목에 폭을 준다(접근 가능한 이름은 aria-label 로 긴 문구). */
   @media (max-width: 430px) {
-    .hud .autorun .more { display: none; }
+    .hud .autorun .long { display: none; }
+    .hud .autorun .short { display: inline; }
     .hud .tools { gap: 0.3rem; }
     .hud button { padding-left: 0.55rem; padding-right: 0.55rem; }
     .hud .autorun { gap: 0.35rem; }
@@ -200,7 +217,7 @@
     <header class="intro" data-scene="bare">
       <h1>에이전트가 짠 코드는<br>어디서 돌려야 할까</h1>
       <p class="lead">Claude Code 같은 코딩 에이전트는 코드를 직접 짜고 그 자리에서 실행합니다. 이 코드는 사람이 한 줄씩 검토한 코드가 아닙니다. 그래서 처음 보는 사람이 보낸 프로그램처럼 다뤄야 합니다. 이 페이지는 그런 코드를 가두는 네 가지 방법(컨테이너, 마이크로VM, WASM, OS 샌드박스)이 각각 어디에 벽을 세우는지 모형으로 보여 줍니다.</p>
-      <p class="note"><span class="wide">오른쪽 모형은 드래그하면</span><span class="narrow" hidden>모형은 좌우로 밀면</span> 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.</p>
+      <p class="note"><span class="wide" data-ui="noteWide">오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.</span><span class="narrow" data-ui="noteNarrow" hidden>모형은 좌우로 밀면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.</span></p>
     </header>
 
     <!-- TEXT: 장 하나 = section 하나. data-scene 과 버튼의 data-run 은 defineScene 이름과 같아야 한다. -->
@@ -414,7 +431,7 @@ pivot = df.pivot_table(index="month", values="amount")
 
     <!-- TEXT: 용어 정리와 출처. 확인한 날짜를 적는다. 출처가 없으면 sources 블록을 지운다. -->
     <section class="chapter terms">
-      <h2>용어 정리</h2>
+      <h2 data-ui="terms">용어 정리</h2>
       <dl class="terms-list">
         <dt>샌드박스</dt><dd>코드를 가둬 허락된 일만 하게 만드는 실행 환경입니다.</dd>
         <dt>프롬프트 인젝션</dt><dd>모델이 읽는 글에 지시를 숨겨 모델을 조종하는 공격입니다.</dd>
@@ -434,7 +451,7 @@ pivot = df.pivot_table(index="month", values="amount")
         <dt>프록시</dt><dd>요청을 대신 받아 전달하는 중계 서버. 여기서는 허용 목록에 있는 도메인으로만 연결을 넘깁니다.</dd>
       </dl>
       <div class="sources">
-        <h3>출처 (2026-10-28 확인)</h3>
+        <h3 data-ui="sources" data-date="2026-10-28">출처 (2026-10-28 확인)</h3>
         <ul>
           <li><a href="https://code.claude.com/docs/en/sandboxing">Claude Code 문서: Sandboxing</a> — Seatbelt·bubblewrap, 기본 쓰기 경로, 바깥 프록시와 허용 목록, 권한 모드별 처리, 셸 명령에만 적용, 기본 읽기 범위(<code>~/.ssh</code> 포함), 막힌 쓰기의 오류 문구, TLS 미검사와 넓은 도메인 경고, docker 소켓 경고, <code>/sandbox</code>와 설정 키</li>
           <li><a href="https://www.anthropic.com/engineering/claude-code-sandboxing">Anthropic 엔지니어링 블로그: Beyond permission prompts (2025-10-20)</a> — 파일 시스템·네트워크 두 경계, 샌드박스 밖 프록시</li>
@@ -456,15 +473,15 @@ pivot = df.pivot_table(index="month", values="amount")
 
   <aside class="stage" aria-label="샌드박스 3D 모형">
     <div class="canvas-wrap"></div>
-    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" class="autorun" role="switch" aria-checked="false" aria-label="자동 실행"><span class="track" aria-hidden="true"></span><span aria-hidden="true">자동<span class="more"> 실행</span></span></button><button type="button" class="reset-view">시점 되돌리기</button></div></div>
+    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" class="autorun" role="switch" aria-checked="false" aria-label="자동 실행" data-ui-aria="autorun"><span class="track" aria-hidden="true"></span><span aria-hidden="true"><span class="long" data-ui="autorun">자동 실행</span><span class="short" data-ui="autorunShort">자동</span></span></button><button type="button" class="reset-view" data-ui="resetView">시점 되돌리기</button></div></div>
     <!-- TEXT: 범례. 의미 색 3개가 이 페이지에서 무엇을 뜻하는지 쓴다. -->
     <div class="legend" aria-hidden="true">
       <span><i style="background:var(--actor)"></i>에이전트가 짠 코드</span>
       <span><i style="background:var(--bound)"></i>격리 경계·커널·프록시</span>
       <span><i style="background:var(--matter)"></i>데이터·비밀·파일</span>
     </div>
-    <div class="hint" aria-hidden="true">드래그해서 돌려 보기</div>
-    <p class="fallback">이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.</p>
+    <div class="hint" aria-hidden="true" data-ui="hint">드래그해서 돌려 보기</div>
+    <p class="fallback" data-ui="fallback">이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.</p>
   </aside>
 </main>
 
@@ -486,6 +503,94 @@ const COLOR = {
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const CANCEL = Symbol('cancel');
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+/* ---- 화면 문구 사전 ----
+   영어(en)가 정본이고 최종 대체 언어다. <html lang> 으로 언어를 고른다: ko* → ko, ja* → ja, zh* → zh-CN, 그 밖 → en.
+   페이지 쪽 덮어쓰기: 본문 아래의 <script> 에서 window.UI_OVERRIDES = { es: { hint: '...' } } 처럼 키를 덮어쓰거나 새 언어를 더한다.
+   찾는 순서: UI_OVERRIDES[언어] → 내장 사전[언어] → en. {date} 는 data-date 속성값으로 바뀐다. */
+const UI_TEXT = {
+  en: {
+    noteWide: 'Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model.',
+    noteNarrow: 'Swipe the model left or right to rotate it. The button in each chapter makes that event actually happen in the model.',
+    resetView: 'Reset view',
+    autorun: 'Auto-play',
+    autorunShort: 'Auto',
+    hint: 'Drag to rotate',
+    fallback: "This browser can't draw the 3D model. You can still follow the content from the text alone.",
+    stageAria: '3D model',
+    terms: 'Glossary',
+    sources: 'Sources (checked {date})',
+    runError: "Couldn't play the animation. Reload the page and try again.",
+  },
+  ko: {
+    noteWide: '오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
+    noteNarrow: '모형은 좌우로 밀면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
+    resetView: '시점 되돌리기',
+    autorun: '자동 실행',
+    autorunShort: '자동',
+    hint: '드래그해서 돌려 보기',
+    fallback: '이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.',
+    stageAria: '3D 모형',
+    terms: '용어 정리',
+    sources: '출처 ({date} 확인)',
+    runError: '애니메이션을 재생하지 못했습니다. 새로고침한 뒤 다시 눌러 보세요.',
+  },
+  ja: {
+    noteWide: '右のモデルはドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
+    noteNarrow: 'モデルは左右にスワイプすると回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
+    resetView: '視点をリセット',
+    autorun: '自動再生',
+    autorunShort: '自動',
+    hint: 'ドラッグで回転',
+    fallback: 'このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。',
+    stageAria: '3Dモデル',
+    terms: '用語集',
+    sources: '出典（{date} 確認）',
+    runError: 'アニメーションを再生できませんでした。ページを再読み込みして、もう一度お試しください。',
+  },
+  'zh-CN': {
+    noteWide: '拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
+    noteNarrow: '左右滑动模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
+    resetView: '重置视角',
+    autorun: '自动播放',
+    autorunShort: '自动',
+    hint: '拖动旋转',
+    fallback: '此浏览器无法显示 3D 模型。只看正文也能理解内容。',
+    stageAria: '3D 模型',
+    terms: '术语表',
+    sources: '来源（{date} 核对）',
+    runError: '无法播放动画。请刷新页面后重试。',
+  },
+};
+// <html lang> 에서 내장 언어와 덮어쓰기 키를 고른다. 덮어쓰기 키는 lang 전체(es-MX), 앞부분(es), 내장 언어 이름(zh-CN) 순으로 맞춘다.
+function pickUiLang(tag, overrideKeys) {
+  const t = String(tag || '').trim().toLowerCase();
+  const primary = t.split('-')[0];
+  const builtin = primary === 'ko' ? 'ko' : primary === 'ja' ? 'ja' : primary === 'zh' ? 'zh-CN' : 'en';
+  const find = name => overrideKeys.find(k => k.toLowerCase() === name.toLowerCase());
+  const key = (t && find(t)) || (primary && find(primary)) || find(builtin);
+  return { builtin, key };
+}
+const UI_OVER = (typeof window.UI_OVERRIDES === 'object' && window.UI_OVERRIDES) || {};
+const UI_PICK = pickUiLang(document.documentElement.lang, Object.keys(UI_OVER));
+const UI_LANG = UI_PICK.key || UI_PICK.builtin;
+const UI_STR = { ...UI_TEXT.en, ...UI_TEXT[UI_PICK.builtin], ...(UI_PICK.key ? UI_OVER[UI_PICK.key] : {}) };
+// 덮어쓰기에서 긴 문구만 주면 짧은 문구도 같은 글자로 둔다(영어 "Auto" 가 섞이지 않게).
+if (UI_PICK.key && UI_OVER[UI_PICK.key].autorun && !UI_OVER[UI_PICK.key].autorunShort) UI_STR.autorunShort = UI_OVER[UI_PICK.key].autorun;
+const uiStr = key => UI_STR[key] ?? '';
+function applyUiText() {
+  document.querySelectorAll('[data-ui]').forEach(el => {
+    const key = el.dataset.ui;
+    if (!(key in UI_STR)) { console.warn('[plz] 알 수 없는 data-ui 키:', key); return; }
+    el.textContent = uiStr(key).replace('{date}', el.dataset.date ?? '');
+  });
+  document.querySelectorAll('[data-ui-aria]').forEach(el => {
+    const key = el.dataset.uiAria;
+    if (!(key in UI_STR)) { console.warn('[plz] 알 수 없는 data-ui-aria 키:', key); return; }
+    el.setAttribute('aria-label', uiStr(key));
+  });
+}
+applyUiText(); // WebGL 이 없어 아래에서 멈추더라도 대체 안내(.fallback)는 이미 그 언어로 채워져 있다.
 
 const stageEl = document.querySelector('.stage');
 const wrap = document.querySelector('.canvas-wrap');
@@ -1492,7 +1597,7 @@ async function runScene(name) {
   try {
     await s.run(a, say);
   } catch (e) {
-    if (e !== CANCEL) { console.error(e); say('애니메이션을 재생하지 못했습니다. 새로고침한 뒤 다시 눌러 보세요.'); }
+    if (e !== CANCEL) { console.error(e); say(uiStr('runError')); }
     return;
   }
   if (mine === runToken) onSceneDone(name, mine); // 자동 실행이 켜져 있으면 반복을 이어 간다.
@@ -1661,6 +1766,7 @@ function loop() {
 //   window.__explainer.overlaps()         → 지금 보이는 라벨 중 서로 겹치는 쌍
 window.__explainer = {
   scenes: () => Object.keys(scenes),
+  lang: () => UI_LANG,                          // 화면 문구에 쓰인 언어 (en | ko | ja | zh-CN | 덮어쓰기 키)
   current: () => current,                       // 무대가 지금 보여 주는 장면 이름
   autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // 자동 실행 상태를 읽는다. 값을 주면 바꾸고(저장 포함) 새 상태를 돌려준다
   azimuth: () => controls.getAzimuthalAngle(),  // 모형이 돌았는지 확인할 때

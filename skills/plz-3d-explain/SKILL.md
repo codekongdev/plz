@@ -1,16 +1,17 @@
 ---
 name: plz-3d-explain
 description: |
-  기술 개념·원리·시스템 구조를 3D 모형으로 공부하게 만드는 단일 HTML 학습 페이지를 만든다.
-  왼쪽 글을 스크롤하면 오른쪽 three.js 축측 모형이 장마다 바뀌고, 장마다 있는 버튼을 누르면
-  원인과 결과가 모형 위에서 재생된다(예: 코드가 빠져나가려다 어느 벽에서 막히는지, 요청이 어떤
-  경로로 흐르는지, 자원이 언제 생기고 사라지는지).
-  트리거: "3D로 공부하게 만들어줘", "3D 그래픽으로 설명해줘", "개념을 3D로 보여줘",
-  "원리를 모형으로 보여줘", "인터랙티브하게 이해되게 HTML로", "작동 원리 시각화 페이지",
-  "explain X in 3D", "3D explainer". 사용자가 어떤 개념을 "아예 모른다", "그림으로 이해하고
-  싶다"며 학습 자료를 원할 때도 쓴다.
-  정적 아키텍처·시퀀스 다이어그램(archify), 데이터 차트(dataviz), Blender 3D 모델링,
-  제품 랜딩이나 앱 UI 디자인에는 쓰지 않는다.
+  Builds a single-file HTML study page that teaches a technical concept, mechanism, or system structure
+  with a 3D model. Scrolling the text on the left switches a three.js axonometric model on the right,
+  chapter by chapter, and a button in each chapter plays out cause and effect on the model (where code is
+  blocked, how a request flows, when a resource is created and destroyed). The page is written in the
+  user's language; screen text is built in for en, ko, ja, zh-CN. Use when someone wants to learn or
+  understand a concept visually, or knows nothing about a topic and wants interactive study material.
+  Not for static architecture or sequence diagrams (archify), data charts, Blender modeling, or product
+  landing pages and app UI.
+  Triggers: "explain X in 3D", "3D explainer", "show how X works as a 3D model";
+  "3D로 공부하게 만들어줘", "개념을 3D로 보여줘", "원리를 모형으로 보여줘", "3D 그래픽으로 설명해줘";
+  "3Dで解説して", "仕組みを3Dモデルで見せて"; "用3D讲解这个概念", "做成3D模型演示原理".
 ---
 
 # 3D 개념 설명 페이지
@@ -28,6 +29,21 @@ description: |
   무대 오른쪽 위의 "자동 실행" 스위치를 켜면 읽고 있는 장의 동작이 반복 재생된다(기본은 꺼짐, 켠 상태는 브라우저에 기억).
 - 완성 예시: `assets/example-agent-sandbox.html` (AI 에이전트 코드 샌드박스의 격리 방식, 10장). 비슷한
   장면이 필요하면 이 파일에서 먼저 찾는다.
+
+## 페이지 언어
+
+페이지 언어는 아래 순서로 정한다. 앞의 것이 있으면 뒤의 것은 보지 않는다.
+
+1. 사용자가 명시한 언어("일본어로 만들어 줘")
+2. 요청한 말의 언어
+3. 대화에서 주로 쓰는 언어
+
+- `<html lang>`을 그 언어로 바꾼다(`ko`, `en`, `ja`, `zh-CN` 등). 템플릿의 기본값은 `en`이다.
+- 본문, 장 제목, 결과 문장(`say`), 라벨, 범례, 장면 `title`은 그 언어로 직접 쓴다. 한국어로 쓴 뒤 번역하지 않는다. 이 문서가 한국어라고 해서 만드는 페이지까지 한국어로 두지 않는다.
+- 화면 문구(버튼, 안내, "용어 정리"·"출처" 제목, 오류 문구)는 ENGINE의 문구 사전에서 `<html lang>`에 맞게 자동으로 나온다. 내장 언어는 영어(`en`, 정본), 한국어(`ko`), 일본어(`ja`), 중국어 간체(`zh-CN`)다. `ko*`는 `ko`, `ja*`는 `ja`, `zh*`는 `zh-CN`, 그 밖은 `en`이다.
+- 사전에 없는 언어(예: 스페인어)면 템플릿의 `window.UI_OVERRIDES`에 그 언어 문구를 채운다. 채우지 않은 키는 영어로 나온다. 엔진은 고치지 않는다. 키 목록과 쓰는 법은 `references/engine-api.md`의 "화면 문구와 언어".
+- 출처 제목의 날짜는 `<h3 data-ui="sources" data-date="YYYY-MM-DD">`의 `data-date`에 적는다. 제목 글자("출처 (… 확인)")는 엔진이 만든다.
+- 일본어·중국어 페이지에서는 글꼴이 시스템 CJK 글꼴로 이어지고 줄바꿈이 글자 단위로 바뀐다(템플릿 CSS에 들어 있다). 확인은 `__explainer.lang()`로 한다.
 
 ## 작업 순서
 
@@ -61,7 +77,7 @@ description: |
   잉크로 그린다. 범례에 이 페이지에서의 의미를 쓴다.
 - 모션은 기본으로 버튼을 눌렀을 때와 장이 바뀔 때만 일어난다. 사용자가 "자동 실행"을 켜면 지금 장의 동작을 반복 재생한다(실행, 결과 보여 주기, reset, 처음 상태 보여 주기 순서). 자동 실행을 켜지 않았을 때는 자동 재생이나 반복 애니메이션을 쓰지 않는다.
 - 라벨은 짧은 명사구로 쓰고(15자 안팎), 서로 겹치지 않게 한다.
-- 글꼴은 대표 제목(h1)은 Pretendard Variable(2.2rem, 휴대폰 1.7rem, 굵기 700), 장 제목(h2)과 무대 제목은 Hahmlet, 본문은 IBM Plex Sans KR, 코드 식별자에만 IBM Plex Mono를 쓴다. 다른 글꼴을 쓰고 싶으면 preferences에서 바꿀 수 있다.
+- 글꼴은 대표 제목(h1)은 Pretendard Variable(2.2rem, 휴대폰 1.7rem, 굵기 700), 장 제목(h2)과 무대 제목은 Hahmlet, 본문은 IBM Plex Sans KR, 코드 식별자에만 IBM Plex Mono를 쓴다. 다른 글꼴을 쓰고 싶으면 preferences에서 바꿀 수 있다. 일본어·중국어 페이지(`:lang(ja)`, `:lang(zh)`)는 이 웹폰트에 가나·간체 글자가 부족하므로 Hiragino Sans·Yu Gothic·PingFang SC·Noto Sans CJK 같은 시스템 글꼴로 이어지고(템플릿 CSS에 들어 있음), CDN 글꼴은 더하지 않는다.
 
 ### 3. 템플릿으로 만든다
 
@@ -74,7 +90,7 @@ description: |
 - `build()`는 `{ group, reset, run }`을 돌려준다. `reset()`은 `run()`이 바꾼 것(위치, 크기,
   표시 여부, 라벨 글자)을 전부 되돌린다. 색은 엔진이 `resetLook`으로 되돌린다.
 - 자동 실행은 ENGINE이 처리한다. 장 본문의 `.act` 안에 `data-run` 버튼이 있는 장만 반복 실행되고, 버튼이 없는 요소(도입부, 용어 정리)에서는 실행되지 않는다. 페이지 맨 위(스크롤 40px 이하)에서도 실행하지 않는다. 반복하려면 장면의 `reset()`이 `run()`이 바꾼 것을 전부 되돌려야 한다(결과 문장과 라벨 글자 포함).
-- 도입부 `.note`의 `.wide`와 `.narrow` 두 span은 데스크톱과 휴대폰용 문장이다. 문구를 바꿀 때 둘 다 바꾼다.
+- 화면 문구 요소(도입부 `.note`의 `.wide`·`.narrow`, HUD 버튼, `.hint`, `.fallback`, 용어 정리·출처 제목)에는 `data-ui="키"`나 `data-ui-aria="키"`가 달려 있고 엔진이 페이지 언어로 채운다. 이 글자는 TEXT에서 직접 고치지 않는다. 바꾸고 싶으면 `UI_OVERRIDES`로 덮어쓴다. 무대의 `aria-label`(`data-ui-aria="stageAria"`)은 "3D model"이라는 기본 문구라서, 주제를 넣고 싶으면 그 속성을 지우고 `aria-label`을 직접 쓴다.
 - API: `references/engine-api.md`
 - 개념 종류별 장면 패턴(층, 경계, 흐름, 수명, 비교 등): `references/scene-patterns.md`
 
@@ -112,13 +128,14 @@ description: |
    도구가 허용하는 폴더 안의 절대 경로로 준다(gotchas 참고).
 5. 자동 실행을 확인한다. `__explainer.autorun(true)`로 켜고 장으로 스크롤해, 한 장에서 반복이 세 번 이상 도는지, 매번 결과 문장이 마지막 단계 문장까지 가고 reset으로 비워지는지, 마지막 상태마다 `overlaps()`와 `clipped()`가 비었는지 본다. 꺼 둔 채 스크롤하면 아무것도 실행되지 않아야 하고, 실행 중 다음 장으로 넘기면 앞 장 반복이 멈추고 새 장 반복이 시작되어야 한다.
 6. 휴대폰에서도 확인한다. 390×844와 360×800(deviceScaleFactor 3, isMobile, hasTouch)에서 모든 장의 `overlaps()`와 `clipped()`가 빈 배열인지, 가로 스크롤이 없는지(`document.documentElement.scrollWidth === innerWidth`), 가로 모드 844×390에서 레이아웃이 깨지지 않는지 본다. 스크롤하며 `__explainer.current()`가 화면에서 읽는 장과 맞는지 본다. 무대 위 세로 스와이프로 페이지가 스크롤되고 가로 스와이프로 모형이 도는지 확인한다.
-7. 고친 뒤 3번, 5번, 6번을 다시 돌린다.
+7. 한국어가 아닌 페이지(`en`, `ja`, `zh-CN`, 덮어쓰기 언어)를 만들었으면 `__explainer.lang()`이 그 언어인지, 화면 문구(HUD, 힌트, 용어 정리·출처 제목)가 그 언어로 나오는지 보고, 390×844와 360×800에서 HUD의 장 제목·스위치·시점 되돌리기가 서로 겹치지 않는지 본다.
+8. 고친 뒤 3번, 5번, 6번, 7번을 다시 돌린다.
 
 휴대폰 레이아웃은 템플릿에 들어 있다.
 
 - 세로 휴대폰(폭 860px 이하): 무대가 위에 붙고(높이 44svh) 글은 그 아래에서 스크롤된다. 무대는 제목줄, 3D 캔버스, 범례줄로 나뉘어 제목줄과 범례가 모형 위에 얹히지 않는다.
 - 가로 휴대폰(높이 520px 이하): 데스크톱처럼 왼쪽 글, 오른쪽 무대(화면 높이 전체)로 놓인다.
-- 무대 제목줄 한 줄에 장 제목, 자동 실행 스위치, 시점 되돌리기가 들어간다(장 제목은 두 줄까지, 넘치면 말줄임). 폭 430px 이하에서는 스위치 글자가 "자동"으로 줄고(접근 가능한 이름은 "자동 실행"), 누르는 영역은 44px 이상이다. 코드 블록은 줄을 접지 않고 블록 안에서만 가로로 스크롤한다.
+- 무대 제목줄 한 줄에 장 제목, 자동 실행 스위치, 시점 되돌리기가 들어간다(장 제목은 두 줄까지, 넘치면 말줄임). 폭 430px 이하에서는 스위치 글자가 언어별 짧은 문구로 줄고(한국어 "자동", 영어 "Auto". 접근 가능한 이름은 긴 문구 "자동 실행"), 누르는 영역은 44px 이상이다. 코드 블록은 줄을 접지 않고 블록 안에서만 가로로 스크롤한다.
 - 터치: 무대 위에서 세로로 쓸면 페이지가 스크롤되고, 가로로 밀면 모형이 돈다. 위아래 기울이기는 되지 않는다.
 - 무대 폭이 700px 미만이면 엔진이 라벨을 캔버스 안쪽으로 당기고 겹치면 비켜 놓는다. 상한(56px)을 넘는 겹침은 남는다.
 - 페이지를 만드는 사람은 라벨을 짧게 쓰고, 긴 라벨 둘을 가까이 두지 않는다.

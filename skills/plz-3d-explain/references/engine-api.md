@@ -115,3 +115,74 @@ defineScene('name', {
 - `[data-run]` 버튼이 없는 요소(도입부, 용어 정리)에서는 실행하지 않는다. 페이지 맨 위(스크롤 40px 이하, `TOP_HOLD`)에서도 실행하지 않는다. 나란한 배치에서는 도입부 바로 아래 1장이 읽는 줄에 걸려 있기 때문이다.
 - 장이 활성인 상태에서 스위치를 켜면 그 장을 바로 실행한다(맨 위가 아닐 때). 끄면 대기 중인 반복은 사라지고, 진행 중인 동작은 끝까지 간 뒤 더 반복하지 않는다.
 - 장마다 있는 버튼은 스위치와 상관없이 늘 동작한다. `__explainer.run(name)`도 마찬가지다.
+
+## 화면 문구와 언어
+
+도입 안내, HUD 버튼, 힌트, 대체 안내, 용어 정리·출처 제목, 오류 문구는 페이지 언어에 맞게 ENGINE의 문구 사전(`UI_TEXT`)에서 나온다. 페이지 본문·장 제목·라벨·범례·장면 `title`은 페이지를 쓰는 사람이 그 언어로 직접 쓴다.
+
+### 언어 고르는 규칙
+
+`<html lang>` 값으로 정한다(대소문자 무시). 엔진은 시작할 때 한 번 고른다.
+
+| `lang` | 쓰는 사전 |
+|---|---|
+| `ko`, `ko-KR` 등 `ko*` | `ko` |
+| `ja`, `ja-JP` 등 `ja*` | `ja` |
+| `zh`, `zh-CN`, `zh-Hans`, `zh-TW` 등 `zh*` | `zh-CN` |
+| 그 밖(`en`, `es`, `fr`, 비어 있음 포함) | `en` |
+
+영어(`en`)가 정본이다. 선택한 언어 사전에 없는 키는 영어로 나온다. 고른 언어는 `__explainer.lang()`로 읽는다(`en`, `ko`, `ja`, `zh-CN`, 또는 덮어쓰기 키).
+
+### 문구 키
+
+| 키 | 쓰이는 곳 | en | ko | ja | zh-CN |
+|---|---|---|---|---|---|
+| `noteWide` | 도입부 `.note .wide`(데스크톱) | Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model. | 오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다. | 右のモデルはドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。 | 拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。 |
+| `noteNarrow` | 도입부 `.note .narrow`(휴대폰) | Swipe the model left or right to rotate it. (뒤 문장은 같음) | 모형은 좌우로 밀면 돌려 볼 수 있습니다. (뒤 문장은 같음) | モデルは左右にスワイプすると回転できます。(後ろは同じ) | 左右滑动模型即可旋转查看。(后句相同) |
+| `resetView` | `.reset-view` 버튼 | Reset view | 시점 되돌리기 | 視点をリセット | 重置视角 |
+| `autorun` | 자동 실행 스위치 긴 문구, `aria-label` | Auto-play | 자동 실행 | 自動再生 | 自动播放 |
+| `autorunShort` | 같은 스위치의 짧은 문구(폭 430px 이하) | Auto | 자동 | 自動 | 自动 |
+| `hint` | `.hint` | Drag to rotate | 드래그해서 돌려 보기 | ドラッグで回転 | 拖动旋转 |
+| `fallback` | `.fallback`(WebGL 없음) | This browser can't draw the 3D model. You can still follow the content from the text alone. | 이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다. | このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。 | 此浏览器无法显示 3D 模型。只看正文也能理解内容。 |
+| `stageAria` | `aside.stage`의 `aria-label` | 3D model | 3D 모형 | 3Dモデル | 3D 模型 |
+| `terms` | "용어 정리" 제목 | Glossary | 용어 정리 | 用語集 | 术语表 |
+| `sources` | 출처 제목. `{date}` 자리에 `data-date` 값 | Sources (checked {date}) | 출처 ({date} 확인) | 出典（{date} 確認） | 来源（{date} 核对） |
+| `runError` | 장면 실행 중 오류 시 결과 문장 | Couldn't play the animation. Reload the page and try again. | 애니메이션을 재생하지 못했습니다. 새로고침한 뒤 다시 눌러 보세요. | アニメーションを再生できませんでした。ページを再読み込みして、もう一度お試しください。 | 无法播放动画。请刷新页面后重试。 |
+
+### 마크업 속성
+
+- `data-ui="키"`: 그 요소의 글자(`textContent`)를 사전 값으로 채운다. `data-date="YYYY-MM-DD"`가 함께 있으면 값의 `{date}`를 그 날짜로 바꾼다.
+- `data-ui-aria="키"`: 그 요소의 `aria-label`을 사전 값으로 채운다.
+- 요소 안에 적어 둔 글자는 JS가 돌기 전(또는 three.js CDN 로딩이 실패했을 때) 보이는 기본 글자다. 템플릿은 영어, 데모는 한국어다. 엔진이 시작하면 사전 값으로 바뀐다.
+- 사전에 없는 키를 쓰면 `console.warn`을 남기고 요소는 그대로 둔다.
+- 자동 실행 스위치는 `<span class="long" data-ui="autorun">`과 `<span class="short" data-ui="autorunShort">`를 함께 둔다. CSS가 폭 430px 이하에서 `.short`만 보이게 한다. 접근 가능한 이름은 `data-ui-aria="autorun"`(긴 문구)이다.
+- 데모는 `aside.stage`에 `data-ui-aria`를 달지 않고 `aria-label="샌드박스 3D 모형"`처럼 주제를 넣은 문구를 직접 쓴다.
+
+### 덮어쓰기: `window.UI_OVERRIDES`
+
+템플릿 본문 아래의 일반 `<script>`(모듈 스크립트보다 앞)에서 정한다. 엔진은 고치지 않는다.
+
+```html
+<html lang="es">
+<script>
+window.UI_OVERRIDES = {
+  es: {
+    resetView: 'Restablecer vista',
+    autorun: 'Reproducción automática',   // autorunShort 를 안 주면 짧은 문구도 이 글자
+    hint: 'Arrastra para girar',
+    terms: 'Glosario',
+    sources: 'Fuentes (verificadas el {date})',
+  },
+};
+</script>
+```
+
+- 키는 `lang` 전체(`es-MX`), 앞부분(`es`), 내장 언어 이름(`zh-CN`) 순으로 맞춘다. 내장 언어(`ko` 등)의 키를 덮어써서 문구 하나만 바꿔도 된다.
+- 찾는 순서: `UI_OVERRIDES[언어]` → 내장 사전[언어] → `en`. 새 언어는 쓰고 싶은 키만 채우고 나머지는 영어로 둬도 되지만, 학습자가 보는 문구이므로 `noteWide`, `noteNarrow`, `fallback`, `runError`까지 채우는 것이 좋다.
+- `autorun`만 주고 `autorunShort`를 안 주면 짧은 문구에도 `autorun` 글자를 쓴다(영어 "Auto"가 섞이지 않게).
+- 내장 언어가 아닌 페이지에는 `:lang(ja)`·`:lang(zh)` 글꼴 규칙이 걸리지 않는다. 라틴 문자 언어(스페인어, 프랑스어 등)는 기본 글꼴로 충분하다. 아랍어·태국어처럼 글꼴이 필요한 문자는 이 템플릿이 다루지 않는다(CSS는 데모와 같아야 하므로 엔진 쪽을 바꾸지 말고 판단을 사용자에게 묻는다).
+
+### 글꼴
+
+- `:lang(ja)`, `:lang(zh)`에서는 `--serif`, `--title`, `--sans`가 시스템 CJK 글꼴로 바뀐다. 일본어는 Hiragino Sans·Yu Gothic·Noto Sans JP 계열(제목은 Hiragino Mincho·Yu Mincho 계열), 중국어 간체는 PingFang SC·Microsoft YaHei·Noto Sans SC 계열(제목은 Songti SC·Noto Serif SC 계열)이다. CDN 글꼴은 더하지 않는다.
+- ja·zh에서는 `word-break: keep-all`을 풀고 `line-break: strict`로 글자 단위로 줄을 바꾼다.
