@@ -2,7 +2,8 @@
 
 Each kind of concept has a model that fits it. When designing a chapter, first decide "which pattern is this chapter?".
 Assume all code is written inside `build()` of `defineScene` (for `g`, `temp`, `a`, and `say`, see
-engine-api.md).
+engine-api.md). Put one-shot objects in `temporaryGroup()` and use `disposeObject()` or
+`clearGroup(temp)` to release them; an ordinary `remove()` or `clear()` does not free their resources.
 
 The example chapters are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters). The same example exists in English as `assets/example-agent-sandbox.en.html`; look at that one when building an English page.
 
@@ -44,7 +45,7 @@ await a.move(p, [x, inner + 0.15, z], 500);
 await a.flash(innerFloor, COLOR.actor, 800);   // the inside was breached (red)
 await a.move(p, [x, midTop + 0.12, z], 500);
 await a.flash(midLayer, COLOR.bound, 800);     // blocked on the outside (blue)
-await a.move(p, [x, inner + 0.6, z], 500); temp.remove(p);
+await a.move(p, [x, inner + 0.6, z], 500); disposeObject(p);
 ```
 
 Tell the result with color: the breached place is actor, the place that blocked is bound.
@@ -75,7 +76,7 @@ for (const c of calls) {
   await a.flash(kernel, COLOR.bound, 600);
   await a.move(p, [c.target[0], FLOOR + 0.08, c.target[2]], 800);   // travels along over the intermediary layer
   await a.move(p, c.target, 400);
-  temp.remove(p);
+  disposeObject(p);
 }
 ```
 
@@ -153,7 +154,7 @@ const side = offset => {
   s.position.copy(SCREEN_RIGHT.clone().multiplyScalar(offset));
   s.add(block(5.8, 0.5, 5.8, [0, 0, 0]));
   const k = block(5.8, 0.4, 5.8, [0, 0.5, 0], { color: COLOR.boundSoft }); s.add(k);
-  const temp = new THREE.Group(); s.add(temp);
+  const temp = temporaryGroup(); s.add(temp);
   g.add(s);
   return { s, k, temp };
 };

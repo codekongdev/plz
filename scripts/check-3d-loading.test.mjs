@@ -50,9 +50,9 @@ after(async () => {
 
 // Serve the pinned npm copy at the real CDN URLs. Browser tests never need the
 // live CDN or web fonts, and every unexpected external request is rejected.
-async function openPage(t, file, { viewport = { width: 390, height: 844 }, cdn = () => 'serve', noWebGL = false } = {}) {
+async function openPage(t, file, { viewport = { width: 390, height: 844 }, cdn = () => 'serve', noWebGL = false, reducedMotion = 'reduce' } = {}) {
   const context = await browser.newContext({
-    viewport, reducedMotion: 'reduce',
+    viewport, reducedMotion,
     ...(viewport.width <= 430 ? { deviceScaleFactor: 3, isMobile: true, hasTouch: true } : {}),
   });
   t.after(() => context.close());
@@ -209,6 +209,57 @@ for (const { file, lang } of pages) {
         assert.ok(await page.locator('.stage').evaluate(stage => stage.getBoundingClientRect().bottom <= 0), 'the failed stage should scroll out of the reading area');
       });
     }
+  });
+
+  test(`${file}: repeated playback keeps label and GPU resource counts stable`, { timeout: 30_000 }, async t => {
+    const { page, errors } = await openPage(t, file);
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await state(page, 'ready');
+    const result = await page.evaluate(async () => {
+      const api = window.__explainer;
+      const name = api.scenes().includes('kernel') ? 'kernel' : 's2';
+      await api.run(name); // Warm renderer allocations and persistent label state first.
+      const baseline = api.resources();
+      const runs = [];
+      for (let i = 0; i < 8; i += 1) {
+        const text = await api.run(name);
+        runs.push({ text, resources: api.resources() });
+      }
+      return { baseline, runs };
+    });
+    assert.ok(result.baseline.labels > 0);
+    for (const run of result.runs) {
+      assert.ok(run.text.length > 0);
+      assert.deepEqual(run.resources, result.baseline, 'temporary labels, state, and renderer geometries must not accumulate');
+    }
+    assert.deepEqual(errors, []);
+  });
+
+  test(`${file}: a chapter change releases a request interrupted during animation`, { timeout: 30_000 }, async t => {
+    const { page, errors } = await openPage(t, file, { reducedMotion: 'no-preference' });
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await state(page, 'ready');
+    const setup = await page.evaluate(async () => {
+      const api = window.__explainer;
+      const name = api.scenes().includes('kernel') ? 'kernel' : 's2';
+      await api.run(name);
+      return { name, next: api.scenes()[0], baseline: api.resources() };
+    });
+    await page.locator(`[data-run="${setup.name}"]`).click();
+    await page.waitForFunction(baseline => {
+      const resources = window.__explainer.resources();
+      return resources.labels > baseline.labels || resources.geometries > baseline.geometries;
+    }, setup.baseline);
+    await page.locator(`[data-run="${setup.next}"]`).click();
+    await page.waitForFunction(name => window.__explainer.current() === name, setup.next);
+    const resources = await page.evaluate(async () => {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return window.__explainer.resources();
+    });
+    assert.equal(resources.labels, setup.baseline.labels, 'interrupted request labels must be unregistered immediately');
+    assert.equal(resources.labelStates, setup.baseline.labelStates);
+    assert.equal(resources.geometries, setup.baseline.geometries, 'the interrupted request geometry must be released too');
+    assert.deepEqual(errors, []);
   });
 
   test(`${file}: WebGL initialization failure keeps text and recovery available`, async t => {

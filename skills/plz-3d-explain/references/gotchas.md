@@ -28,9 +28,11 @@ Things we ran into while building real pages. Read this before verifying.
   red, like a color bug. Do not wait a fixed time; use `await __explainer.run(name)`.
 - **State you forgot in `reset()` shows up on the second run.** If you changed a label's text (`tag.element.textContent`),
   restore it, and hide again in reset anything that must start with `visible = false`. Run each chapter twice.
-- **A CSS2D label stays even if you hide or detach its parent.** When a ball or slab carrying a label was detached with `temp.remove()` or `temp.clear()`,
-  the label's DOM stayed at its last position and even showed up in the next scene. The engine's `syncTags` checks every frame the ancestors' visible and scale,
-  and whether the object is attached to the scene, and hides the label. Do not delete a label's `element` yourself.
+- **Detaching a temporary object does not release its labels or GPU resources.** Put one-shot objects in `temporaryGroup()`,
+  remove a finished object with `disposeObject()`, and use `clearGroup(temp)` in reset. These helpers unregister labels, remove their
+  DOM/state, and dispose owned geometry/materials. The engine clears temporary groups on chapter changes too. List borrowed geometry
+  and materials in the temporary group's shared-resource argument so cleanup leaves their external owner in control.
+  `syncTags` still hides persistent labels when an ancestor is hidden or scaled down; do not delete their elements yourself.
 - **Turning on wheel zoom blocks page scrolling over the stage.** The template allows rotation only.
 - **OrbitControls sets `touch-action: none`, so a swipe on the stage blocks page scrolling.** The template overrides it with
   `touch-action: pan-y` after construction. Do not delete that line.
