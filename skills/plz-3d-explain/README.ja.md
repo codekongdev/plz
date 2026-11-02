@@ -83,7 +83,7 @@ cp references/preferences.example.md references/preferences.md
 
 ## コントリビュート
 
-英語版 README を正本とします。翻訳を更新する際は、コマンド、コード、リンクを英語版と同じにしてください。翻訳への貢献を歓迎します。リポジトリのルートで `node scripts/check-readme-translations.mjs` を実行すると、翻訳間の整合性と相対リンクを確認できます。
+コントリビュートや翻訳を歓迎します。詳しくは [CONTRIBUTING.md](../../CONTRIBUTING.md) を参照してください。
 
 ## ライセンス
 

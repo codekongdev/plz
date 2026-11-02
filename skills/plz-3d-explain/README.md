@@ -83,7 +83,7 @@ Use the copied file to record fonts, colors, validation tools, the output locati
 
 ## Contributing
 
-The English README is the source of truth. When updating a translation, keep commands, code, and links identical to the English version. Translation contributions are welcome. Run `node scripts/check-readme-translations.mjs` from the repository root to check consistency and relative links.
+Contributions and translations are welcome. See [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## License
 

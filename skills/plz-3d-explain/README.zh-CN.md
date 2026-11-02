@@ -83,7 +83,7 @@ cp references/preferences.example.md references/preferences.md
 
 ## 参与贡献
 
-英文 README 为准。更新翻译时，请保持命令、代码和链接与英文版完全一致。欢迎贡献翻译。在仓库根目录运行 `node scripts/check-readme-translations.mjs`，即可检查各语言版本的一致性和相对链接。
+欢迎贡献代码和翻译。详情请参阅 [CONTRIBUTING.md](../../CONTRIBUTING.md)。
 
 ## 许可证
 

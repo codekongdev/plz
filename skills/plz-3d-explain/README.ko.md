@@ -83,7 +83,7 @@ cp references/preferences.example.md references/preferences.md
 
 ## 기여
 
-영어 README가 정본입니다. 번역을 고칠 때 명령, 코드, 링크는 영어판과 똑같이 유지해 주세요. 번역 기여를 환영합니다. 저장소 루트에서 `node scripts/check-readme-translations.mjs`를 실행하면 번역 간 일치 여부와 상대 링크를 확인할 수 있습니다.
+기여와 번역을 환영합니다. 자세한 내용은 [CONTRIBUTING.md](../../CONTRIBUTING.md)를 참고해 주세요.
 
 ## 라이선스
 

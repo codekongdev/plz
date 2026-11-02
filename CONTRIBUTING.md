@@ -20,6 +20,8 @@ Thanks for your interest in plz. This repository is a collection of agent skills
 README.md, README.ko.md, README.ja.md, README.zh-CN.md   repository overview
 CONTRIBUTING.md
 scripts/check-readme-translations.mjs                     translation consistency check
+scripts/check-templates.mjs                               template ENGINE and UI_TEXT consistency check
+scripts/check-templates.test.mjs                          tests for the template check
 skills/<skill-name>/
   SKILL.md          instructions the agent follows (frontmatter: name, description)
   README*.md        English README plus ko, ja, and zh-CN translations
@@ -51,8 +53,9 @@ Run the check that matches what you changed. If a change fits more than one row,
 | Any `README.md` or translation | Run `node scripts/check-readme-translations.mjs` from the repository root. It needs Node.js. CI runs it on Node 22. |
 | `SKILL.md` or `references/` | There is no automated check. A maintainer reviews the change in the pull request, so explain what you changed and why. |
 | `TEXT` or `SCENES` in `assets/template.html` | Follow the validation procedure in the validation section of `SKILL.md`: serve the page from a local server, open it with a browser automation tool, check that `__explainer.overlaps()` and `__explainer.clipped()` return empty arrays for every chapter, check auto-play, and check the layout on a phone-sized screen. |
-| `ENGINE` in `assets/template.html` | Apply the same change to `assets/example-agent-sandbox.html`. The two `ENGINE` sections of the template (the block that starts at the `ENGINE` banner comment and ends before the `SCENES` banner, and the block from the `ENGINE (continued)` banner to the end of the file) are copied into the example verbatim. No automated check exists yet, so verify it yourself and say in the pull request that you did. Then run the validation procedure above on both files. |
-| A new key in `UI_TEXT` | Add the key to all four languages: `en`, `ko`, `ja`, and `zh-CN`. |
+| `ENGINE` in `assets/template.html` | Apply the same change to `assets/example-agent-sandbox.html`. The two `ENGINE` sections of the template (the block that starts at the `ENGINE` banner comment and ends before the `SCENES` banner, and the block from the `ENGINE (continued)` banner to the end of the file) are copied into the example verbatim. Run `node scripts/check-templates.mjs` from the repository root to confirm they still match; CI runs it too. Then run the validation procedure above on both files. |
+| Anything in `scripts/` | Run `node --test scripts/*.test.mjs` from the repository root, and add or update tests for the behavior you changed. CI runs the same command. |
+| A new key in `UI_TEXT` | Add the key to all four languages: `en`, `ko`, `ja`, and `zh-CN`. Run `node scripts/check-templates.mjs` from the repository root; it reports keys that are missing from or extra in a language compared with `en`, and CI runs it too. |
 
 Because the `ENGINE` sections ship inside every generated page, treat them as stable. Skill instructions tell the agent not to edit them when building a page, and changes to them should be deliberate and explained.
 
