@@ -27,7 +27,7 @@ of the explanation, not decoration.
 - Left: title, intro, numbered chapters, glossary, sources. Right: a fixed 3D stage (current chapter title, reset-view button, auto-play switch, semantic color legend).
 - Scrolling switches the stage to the scene of the chapter crossing the middle of the screen. Each chapter has one button and a result sentence.
   The "Auto-play" switch at the top right of the stage repeats the action of the chapter being read (off by default; the on state is remembered in the browser).
-- Finished example: `assets/example-agent-sandbox.html` (how AI-agent code sandboxes isolate code, 10 chapters). When you need a similar scene, look in this file first.
+- Finished example: `assets/example-agent-sandbox.html` (how AI-agent code sandboxes isolate code, 10 chapters; the same example exists in English as `assets/example-agent-sandbox.en.html`, so look at that one when building an English page). When you need a similar scene, look in this file first.
 
 ## Page language
 

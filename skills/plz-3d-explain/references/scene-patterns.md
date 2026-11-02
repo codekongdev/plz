@@ -4,7 +4,7 @@ Each kind of concept has a model that fits it. When designing a chapter, first d
 Assume all code is written inside `build()` of `defineScene` (for `g`, `temp`, `a`, and `say`, see
 engine-api.md).
 
-The example chapters are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters).
+The example chapters are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters). The same example exists in English as `assets/example-agent-sandbox.en.html`; look at that one when building an English page.
 
 | Shape of the concept | Pattern | Example chapter (example-agent-sandbox) |
 |---|---|---|

@@ -11,7 +11,7 @@
 
 <img src="docs/demo-mobile.png" alt="휴대폰에서 위쪽 OS 샌드박스 3D 모형과 아래쪽 설명을 보는 화면" width="360">
 
-[AI 에이전트 코드 샌드박스 데모(한국어)](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)를 브라우저에서 바로 열어 볼 수 있습니다. 컨테이너, 마이크로VM, WASM, OS 샌드박스의 격리 방식을 10장으로 설명합니다. [예제 HTML](assets/example-agent-sandbox.html)도 저장소에 있습니다. codekongdev(코드콩)가 만드는 [plz](../../README.md) 시리즈의 스킬입니다.
+AI 에이전트 코드 샌드박스 데모를 [한국어](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)나 [영어](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html)로 브라우저에서 바로 열어 볼 수 있습니다. 컨테이너, 마이크로VM, WASM, OS 샌드박스의 격리 방식을 10장으로 설명합니다. 예제 HTML([한국어](assets/example-agent-sandbox.html), [영어](assets/example-agent-sandbox.en.html))도 저장소에 있습니다. codekongdev(코드콩)가 만드는 [plz](../../README.md) 시리즈의 스킬입니다.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
 

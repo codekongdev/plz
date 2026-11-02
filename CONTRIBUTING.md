@@ -42,7 +42,7 @@ skills/<skill-name>/
 - Pages that a skill generates are written in the user's language.
 - Some non-English text is intentional. Do not translate it:
   - the `ko`, `ja`, and `zh-CN` dictionaries inside `UI_TEXT` in `assets/template.html`
-  - the body of the Korean demo page `assets/example-agent-sandbox.html`
+  - the body of the Korean demo page `assets/example-agent-sandbox.html`; `assets/example-agent-sandbox.en.html` is its intentional English counterpart. Do not translate either into another language, and mirror a content change to one of the two pages in the other
   - the multilingual trigger phrases in the `description` of the `SKILL.md` frontmatter
 
 ## Checks to run
@@ -54,7 +54,7 @@ Run the check that matches what you changed. If a change fits more than one row,
 | Any `README.md` or translation | Run `node scripts/check-readme-translations.mjs` from the repository root. It needs Node.js. CI runs it on Node 22. |
 | `SKILL.md` or `references/` | There is no automated check. A maintainer reviews the change in the pull request, so explain what you changed and why. |
 | `TEXT` or `SCENES` in `assets/template.html` | Follow the validation procedure in the validation section of `SKILL.md`: serve the page from a local server, open it with a browser automation tool, check that `__explainer.overlaps()` and `__explainer.clipped()` return empty arrays for every chapter, check auto-play, and check the layout on a phone-sized screen. |
-| `ENGINE` in `assets/template.html` | Apply the same change to `assets/example-agent-sandbox.html`. The two `ENGINE` sections of the template (the block that starts at the `ENGINE` banner comment and ends before the `SCENES` banner, and the block from the `ENGINE (continued)` banner to the end of the file) are copied into the example verbatim. Run `node scripts/check-templates.mjs` from the repository root to confirm they still match; CI runs it too. Then run the validation procedure above on both files. |
+| `ENGINE` in `assets/template.html` | Apply the same change to every `assets/example-*.html` (currently the Korean and the English example). The two `ENGINE` sections of the template (the block that starts at the `ENGINE` banner comment and ends before the `SCENES` banner, and the block from the `ENGINE (continued)` banner to the end of the file) are copied into each example verbatim. Run `node scripts/check-templates.mjs` from the repository root to confirm they still match; CI runs it too. Then run the validation procedure above on the template and every example. |
 | Anything in `scripts/` | Run `node --test scripts/*.test.mjs` from the repository root, and add or update tests for the behavior you changed. CI runs the same command. |
 | A new key in `UI_TEXT` | Add the key to all four languages: `en`, `ko`, `ja`, and `zh-CN`. Run `node scripts/check-templates.mjs` from the repository root; it reports keys that are missing from or extra in a language compared with `en`, and CI runs it too. |
 

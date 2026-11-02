@@ -11,7 +11,7 @@ Mobile: chapter 8, OS sandboxing.
 
 <img src="docs/demo-mobile.png" alt="Mobile view with an OS sandbox model above the explanatory text" width="360">
 
-Open the [AI agent code sandbox demo (Korean)](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html): ten chapters on isolation with containers, microVMs, WASM, and OS sandboxes. The [example HTML](assets/example-agent-sandbox.html) is also in the repository. This skill is part of [plz](../../README.md), by codekongdev.
+Open the AI agent code sandbox demo in [English](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) or [Korean](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html): ten chapters on isolation with containers, microVMs, WASM, and OS sandboxes. The example HTML files ([English](assets/example-agent-sandbox.en.html), [Korean](assets/example-agent-sandbox.html)) are also in the repository. This skill is part of [plz](../../README.md), by codekongdev.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
 

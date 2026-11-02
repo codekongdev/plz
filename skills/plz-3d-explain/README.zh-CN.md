@@ -11,7 +11,7 @@
 
 <img src="docs/demo-mobile.png" alt="手机端画面：上方为 OS 沙箱的 3D 模型，下方为讲解文字" width="360">
 
-可以直接在浏览器中打开 [AI 代理代码沙箱演示（韩语）](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)。演示共 10 章，介绍容器、microVM、WASM 和 OS 沙箱的隔离机制。仓库中也提供了[示例 HTML](assets/example-agent-sandbox.html)。本技能属于 codekongdev 编写的 [plz](../../README.md) 系列。
+可以直接在浏览器中打开 AI 代理代码沙箱演示的[英文版](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html)或[韩文版](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)。演示共 10 章，介绍容器、microVM、WASM 和 OS 沙箱的隔离机制。仓库中也提供了示例 HTML（[英文版](assets/example-agent-sandbox.en.html)、[韩文版](assets/example-agent-sandbox.html)）。本技能属于 codekongdev 编写的 [plz](../../README.md) 系列。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
 

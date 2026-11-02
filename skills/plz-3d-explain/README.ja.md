@@ -11,7 +11,7 @@
 
 <img src="docs/demo-mobile.png" alt="上部に OS サンドボックスの 3D モデル、下部に解説を表示したスマートフォン画面" width="360">
 
-[AI エージェントのコードサンドボックスのデモ（韓国語）](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)をブラウザで開けます。コンテナ、microVM、WASM、OS サンドボックスによる隔離の仕組みを全10章で解説しています。[サンプル HTML](assets/example-agent-sandbox.html)もリポジトリに含まれています。codekongdev による [plz](../../README.md) シリーズのスキルです。
+AI エージェントのコードサンドボックスのデモを[英語](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html)または[韓国語](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)でブラウザから開けます。コンテナ、microVM、WASM、OS サンドボックスによる隔離の仕組みを全10章で解説しています。サンプル HTML（[英語](assets/example-agent-sandbox.en.html)、[韓国語](assets/example-agent-sandbox.html)）もリポジトリに含まれています。codekongdev による [plz](../../README.md) シリーズのスキルです。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
 
