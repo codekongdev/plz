@@ -66,6 +66,7 @@ For a manual Claude Code installation, clone the repository, then copy or symlin
 
 ```sh
 git clone https://github.com/codekongdev/plz.git
+mkdir -p ~/.claude/skills
 cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 ```
 

@@ -33,6 +33,7 @@ Claude Code에 수동으로 설치하려면 저장소를 내려받은 뒤 `skill
 
 ```sh
 git clone https://github.com/codekongdev/plz.git
+mkdir -p ~/.claude/skills
 cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 ```
 
