@@ -5,7 +5,7 @@ AI coding agent skills for Claude Code and Codex, by codekongdev. The first skil
 
 Each `plz-<task>` name reads like a request to your agent: “please do this.”
 
-[Live demo](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) · [Install](#install) · [Usage](#usage) · [Skills](#skills)
+[Live demo](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) · [Install](#install) · [Usage](#usage) · [Skills](#skills)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0a0a0a.svg?labelColor=000000)](LICENSE) [![skills.sh](https://skills.sh/b/codekongdev/plz)](https://skills.sh/codekongdev/plz) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-0a0a0a.svg?labelColor=000000)
 
