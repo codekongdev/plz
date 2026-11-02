@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { realpathSync } from 'node:fs';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -241,7 +242,12 @@ async function main() {
   console.log(`Relative links OK: ${checkedLinks} targets across ${checkedFiles} READMEs.`);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Compare real paths so a symbolic link to this file still runs it. A missing or unresolvable argv[1] means it was imported.
+function isMain() {
+  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
+}
+
+if (isMain()) {
   main().catch(error => {
     console.error(`README translation check failed: ${error.message}`);
     process.exitCode = 1;
