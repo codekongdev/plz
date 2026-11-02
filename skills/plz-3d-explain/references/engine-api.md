@@ -1,166 +1,166 @@
-# 엔진 API
+# Engine API
 
-`assets/template.html`의 `ENGINE` 구역이 제공하는 것. 장면은 `SCENES` 구역에서 이 함수들만으로 만든다.
+What the `ENGINE` section of `assets/template.html` provides. Build scenes in the `SCENES` section with only these functions.
 
-## 좌표와 크기
+## Coordinates and size
 
-- 단위는 임의의 월드 단위다. 공용 바닥은 13×8, 블록은 보통 2~3 크기, 주인공 정육면체는 0.6이다.
-- y가 위쪽이다. 카메라는 `HOME_DIR = (1, 1.15, 1.22)` 방향에서 원점을 내려다본다. 그래서 화면에서
-  +x는 오른쪽 아래, -z는 오른쪽 위, +z는 왼쪽 아래로 간다.
-- `SCREEN_RIGHT`는 화면 가로 방향의 월드 벡터다. 두 대상을 화면에서 나란히 놓을 때 쓴다(scene-patterns의 비교 패턴).
-- **`block`·`glass`·`actorCube`·`matterBlock`의 `pos` y는 바닥 높이다.** 만든 뒤 `group.position`은
-  중심이다. 그래서 `a.move`로 옮길 때는 중심 좌표를 준다. 높이 h인 물체를 윗면 Y인 판 위에 올리려면
-  y = Y + h/2 로 준다.
+- Units are arbitrary world units. The shared floor is 13×8, blocks are usually 2-3 in size, and the actor cube is 0.6.
+- y is up. The camera looks down at the origin from the direction `HOME_DIR = (1, 1.15, 1.22)`. So on screen,
+  +x goes to the lower right, -z to the upper right, and +z to the lower left.
+- `SCREEN_RIGHT` is the world vector for the screen's horizontal direction. Use it to place two things side by side on screen (the comparison pattern in scene-patterns).
+- **The `pos` y of `block`, `glass`, `actorCube`, and `matterBlock` is the floor height.** After creation, `group.position` is the
+  center. So when you move something with `a.move`, give center coordinates. To put an object of height h on a slab whose top surface is Y,
+  give y = Y + h/2.
 
-## 색
+## Color
 
 ```js
-COLOR.model, COLOR.ink, COLOR.outside, COLOR.muted          // 중립: 흰 모형, 잉크, 바깥 시스템, 멈춘 것
-COLOR.actor, COLOR.actorEdge                                // 주인공(빨강)
-COLOR.bound, COLOR.boundSoft, COLOR.boundMid                // 경계(파랑), 옅은 판, 중간 판
-COLOR.matter, COLOR.matterEdge                              // 재료(황동)
+COLOR.model, COLOR.ink, COLOR.outside, COLOR.muted          // neutral: white model, ink, outside system, stopped things
+COLOR.actor, COLOR.actorEdge                                // actor (red)
+COLOR.bound, COLOR.boundSoft, COLOR.boundMid                // bound (blue), light slab, mid slab
+COLOR.matter, COLOR.matterEdge                              // matter (brass)
 ```
 
-층을 구분할 때는 `boundSoft`(커널 같은 기반층)와 `boundMid`(그 위의 얇은 중개층)를 쓴다.
-CSS 변수(`--actor` 등)를 바꾸면 `COLOR`도 같이 바꾼다.
+To tell layers apart, use `boundSoft` (a base layer such as a kernel) and `boundMid` (a thin intermediary layer on top of it).
+If you change a CSS variable (such as `--actor`), change `COLOR` with it.
 
-## 부품
+## Parts
 
-| 함수 | 반환 | 용도 |
+| Function | Returns | Use |
 |---|---|---|
-| `block(w, h, d, pos, opts)` | Group | 직육면체. opts: `color`, `opacity`, `edge`(null이면 윤곽선 없음), `edgeOpacity`, `dashed`, `cast` |
-| `glass(w, h, d, pos, opts)` | Group | 유리방(경계). 기본 투명도 0.08. `dashed: true, opacity: 0.04`면 "있으나 마나 한 벽" |
-| `actorCube(pos, label)` | Group | 주인공 정육면체. 라벨이 자식으로 붙어 함께 움직인다. `label=null`이면 라벨 없음 |
-| `matterBlock(pos, h, w)` | Group | 데이터·파일 더미 |
-| `packet(color, pos, r)` | Mesh | 움직이는 공(요청, 신호, 시스템 콜) |
-| `tube(from, to, r, color)` | Mesh | 두 점을 잇는 관(소켓, 전용 통로) |
-| `arrow(from, to, color)` | Group | 선 + 원뿔(바깥으로 나가는 출구 표시) |
-| `line(points, color, opacity, dashed)` | Line | 점선 슬롯, 제어선, 균열 |
-| `tag(text, pos, kind)` | CSS2DObject | 라벨. kind: `''`, `'actor'`, `'bound'`, `'matter'`, `'warn'`(검은 바탕), `'big'`(세리프 큰 제목) |
+| `block(w, h, d, pos, opts)` | Group | Cuboid. opts: `color`, `opacity`, `edge` (no outline if null), `edgeOpacity`, `dashed`, `cast` |
+| `glass(w, h, d, pos, opts)` | Group | Glass room (boundary). Default opacity 0.08. `dashed: true, opacity: 0.04` gives a "wall that is barely there" |
+| `actorCube(pos, label)` | Group | Actor cube. The label is attached as a child and moves with it. `label=null` means no label |
+| `matterBlock(pos, h, w)` | Group | A pile of data or files |
+| `packet(color, pos, r)` | Mesh | Moving ball (request, signal, system call) |
+| `tube(from, to, r, color)` | Mesh | A pipe joining two points (socket, dedicated passage) |
+| `arrow(from, to, color)` | Group | Line + cone (marks an exit going outward) |
+| `line(points, color, opacity, dashed)` | Line | Dashed slot, control line, crack |
+| `tag(text, pos, kind)` | CSS2DObject | Label. kind: `''`, `'actor'`, `'bound'`, `'matter'`, `'warn'` (black background), `'big'` (large serif title) |
 
-모든 Group은 `userData.mesh`(색을 바꿀 메시)와 `userData.h`(높이)를 가진다.
+Every Group has `userData.mesh` (the mesh whose color changes) and `userData.h` (height).
 
-## 장면 정의
+## Scene definition
 
 ```js
 defineScene('name', {
-  title: '3  컨테이너',      // 무대 왼쪽 위에 보이는 제목. "번호 두 칸 띄우고 제목"
-  base: true,               // 공용 바닥(base 그룹)을 보일지
-  target: [0.3, 1.1, 0],    // 카메라가 바라볼 점
-  fitW: 17, fitH: 11.5,     // 무대에 반드시 들어와야 하는 가로·세로 월드 폭
+  title: '3  Container',    // title shown at the top left of the stage. "number, two spaces, title"
+  base: true,               // whether to show the shared floor (the base group)
+  target: [0.3, 1.1, 0],    // the point the camera looks at
+  fitW: 17, fitH: 11.5,     // world width and height that must fit in the stage
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);   // 실행 중에 생겼다 사라지는 것
-    // ... 부품을 g 에 추가
+    const temp = new THREE.Group(); g.add(temp);   // things that appear and disappear during a run
+    // ... add parts to g
     return {
       group: g,
-      reset() { /* run 이 바꾼 위치·크기·visible·라벨 글자를 되돌린다. temp.clear() */ },
-      async run(a, say) { /* a: 애니메이터, say(text): 결과 문장 */ },
+      reset() { /* restore the position, size, visible, and label text that run changed. temp.clear() */ },
+      async run(a, say) { /* a: animator, say(text): result sentence */ },
     };
   },
 });
 ```
 
-- 공용 바닥은 `base` 그룹에 `SCENES` 구역 맨 앞에서 한 번만 채운다. 여러 장이 같은 서버, 같은 바닥을
-  공유할 때 장 전환이 매끄러워진다. 전혀 다른 무대가 필요한 장은 `base: false`로 두고 자기 바닥을 만든다.
-- 공용 바닥의 물체를 장면에서 깜빡이게 해도 된다. 장이 바뀌거나 다시 실행될 때 엔진이 색을 되돌린다.
-- 장 순서는 `defineScene`을 부른 순서와 상관없다. 본문의 `data-scene`이 순서를 정한다.
+- Fill the shared floor into the `base` group once, at the very start of the `SCENES` section. When several chapters share the same server and the same floor,
+  chapter transitions get smoother. For a chapter that needs a completely different stage, set `base: false` and build its own floor.
+- A scene may make objects on the shared floor flash. The engine restores the colors when the chapter changes or the scene runs again.
+- Chapter order does not depend on the order you call `defineScene`. The `data-scene` in the body sets the order.
 
-## 애니메이터 `a`
+## Animator `a`
 
-| 메서드 | 설명 |
+| Method | Description |
 |---|---|
-| `await a.move(obj, to, ms=700, lift=0)` | 중심을 `to`([x,y,z] 또는 Vector3)로 옮긴다. `lift`를 주면 포물선으로 넘어간다 |
-| `await a.flash(obj, color, ms=700, hold=false)` | 색이 바뀌었다 돌아온다. 투명한 유리도 잠깐 진해진다. "막혔다", "확인했다", "뚫렸다" 표시에 쓴다. `hold`면 바뀐 채로 둔다 |
-| `await a.scaleTo(obj, s, ms=500)` | 크기를 바꾼다. 생성: `obj.scale.setScalar(0.001)` 후 `scaleTo(obj, 1)`. 소멸: `scaleTo(obj, 0.001)` 후 `obj.visible = false` |
-| `await a.wait(ms)` | 다음 단계 전에 읽을 시간을 준다. 결과 문장 하나당 1000~1300ms가 적당하다 |
-| `await a.tween(ms, t => ...)` | 그 밖의 값 보간(0→1, ease 적용) |
-| `a.live()` | 이 실행이 아직 유효한지 |
+| `await a.move(obj, to, ms=700, lift=0)` | Moves the center to `to` ([x,y,z] or Vector3). With `lift`, it goes over in an arc |
+| `await a.flash(obj, color, ms=700, hold=false)` | The color changes and comes back. Transparent glass also darkens briefly. Use it to show "blocked", "checked", "breached". With `hold`, it stays changed |
+| `await a.scaleTo(obj, s, ms=500)` | Changes the size. To create: `obj.scale.setScalar(0.001)` then `scaleTo(obj, 1)`. To remove: `scaleTo(obj, 0.001)` then `obj.visible = false` |
+| `await a.wait(ms)` | Gives reading time before the next step. 1000-1300ms per result sentence is about right |
+| `await a.tween(ms, t => ...)` | Any other value interpolation (0→1, eased) |
+| `a.live()` | Whether this run is still valid |
 
-- 동시에 일어나는 일은 `await Promise.all([...])`로 묶는다.
-- 사용자가 다른 장으로 넘어가면 진행 중인 실행이 끊긴다(CANCEL). 직접 처리할 것은 없다.
-- 줄어든 동작 설정(`prefers-reduced-motion`)이면 모든 보간이 즉시 끝난다.
+- Wrap things that happen at the same time in `await Promise.all([...])`.
+- When the user moves to another chapter, the run in progress is cut off (CANCEL). You do not need to handle it.
+- With reduced motion (`prefers-reduced-motion`), every interpolation finishes immediately.
 
-## 검증 훅 `window.__explainer`
+## Verification hooks `window.__explainer`
 
-| 메서드 | 반환 |
+| Method | Returns |
 |---|---|
-| `scenes()` | 장면 이름 배열 |
-| `current()` | 무대가 지금 보여 주는 장면 이름. 스크롤했을 때 화면에서 읽는 장과 맞는지 본다 |
-| `autorun(on?)` | 자동 실행 상태(true/false)를 돌려준다. 불리언을 주면 그 값으로 바꾸고(켜면 읽고 있는 장을 바로 실행하고 반복, `localStorage`에 저장) 새 상태를 돌려준다 |
-| `azimuth()` | 카메라 방위각(라디안). 모형이 돌았는지 확인할 때 쓴다 |
-| `await run(name)` | 그 장으로 스크롤하고, 동작을 끝까지 실행한 뒤 마지막 결과 문장을 돌려준다. 나란한 배치에서는 장을 화면 가운데로, 세로 휴대폰에서는 장 맨 위를 무대 바로 아래로 스크롤한다 |
-| `overlaps(minArea=24)` | 지금 보이는 라벨 중 서로 겹치는 쌍 `[글자, 글자, 겹친 면적px²]` |
-| `clipped()` | 캔버스 칸(`wrap`) 밖으로 나간 라벨의 글자 목록. 데스크톱에서는 캔버스 칸이 무대 전체와 같고, 휴대폰에서는 제목줄과 범례줄을 뺀 칸이다 |
+| `scenes()` | Array of scene names |
+| `current()` | The scene name the stage is showing now. After scrolling, check that it matches the chapter being read on screen |
+| `autorun(on?)` | Returns the auto-play state (true/false). Given a boolean, it changes to that value (turning on runs the chapter being read right away and loops it; saved in `localStorage`) and returns the new state |
+| `azimuth()` | Camera azimuth (radians). Use it to check whether the model rotated |
+| `await run(name)` | Scrolls to that chapter, runs the action to the end, and returns the last result sentence. In the side-by-side layout it scrolls the chapter to the middle of the screen; on a portrait phone it scrolls the top of the chapter just below the stage |
+| `overlaps(minArea=24)` | Pairs of currently visible labels that overlap each other: `[text, text, overlap area px²]` |
+| `clipped()` | List of the text of labels that went outside the canvas cell (`wrap`). On desktop the canvas cell equals the whole stage; on phones it is the cell without the title bar and legend bar |
 
-- 무대 폭이 700px 미만이면 엔진의 `declutter()`가 라벨을 캔버스 안쪽으로 당기고, 겹치면 비켜 놓는다(상한 56px).
-  상한을 넘는 겹침은 그대로 남아 `overlaps()`에 잡힌다.
+- When the stage is narrower than 700px, the engine's `declutter()` pulls labels toward the inside of the canvas and shifts them apart when they overlap (cap 56px).
+  Overlaps beyond the cap remain and are caught by `overlaps()`.
 
-## 자동 실행
+## Auto-play
 
-무대 제목줄(HUD) 오른쪽의 "자동 실행" 스위치(`button.autorun`, `role="switch"`, `aria-checked`)다.
+The "Auto-play" switch (`button.autorun`, `role="switch"`, `aria-checked`) at the right of the stage title bar (HUD).
 
-- 기본은 꺼짐이다. 켠 상태는 `localStorage`(`plz-3d-explain:autorun`)에 기억한다. 읽기·쓰기가 막혀도 오류 없이 그 방문에서만 유지된다.
-- 켜져 있으면 읽는 장의 동작을 반복 재생한다. 한 바퀴는 이 순서다.
-  1. 장이 읽는 줄에 들어선 뒤 `AUTORUN_DELAY`(600ms, 장면 전환이 끝나고 처음 상태를 볼 시간)를 기다린다.
-  2. 그 장의 `[data-run]` 버튼을 누른 것과 같은 동작을 끝까지 실행한다.
-  3. 끝 상태와 마지막 결과 문장을 `AUTORUN_HOLD`(2800ms) 동안 보여 준다.
-  4. `reset()`으로 장면을 되돌리고 결과 문장(`.result`)도 비운다. 처음 상태를 `AUTORUN_DELAY`(600ms) 동안 보여 준다.
-  5. 2번으로 돌아간다. 한 바퀴는 동작 시간 + 약 3.4초다(동작이 6.5초면 약 9.9초).
-- 두 시간 상수는 `ENGINE`의 `AUTORUN_DELAY`, `AUTORUN_HOLD`다. 장면을 짜는 쪽은 `reset()`이 `run()`이 바꾼 것(위치, 크기, 표시 여부, 라벨 글자)을 전부 되돌리게만 만든다.
-- 타이머는 `armAuto` 하나로만 걸어서 항상 하나 이하다. 반복이 쌓이거나 같은 장이 겹쳐 실행되지 않는다.
-- 다른 장으로 넘어가면 기존 CANCEL로 끊기고 새 장에서 처음부터 돈다. 짧은 시간에 여러 장을 지나가면 마지막 장만 시작한다. 같은 장에 계속 머무는 동안에는 시작을 다시 걸지 않고 반복만 이어진다.
-- 반복 중에 장의 버튼을 누르면 그 자리에서 처음부터 다시 실행하고, 그 실행이 끝나면 반복이 이어진다.
-- 탭이 숨겨지면(`document.hidden`) 대기 중인 타이머를 멈추고, 다시 보이면 reset 상태에서 이어서 돈다. 숨겨진 동안 끝난 동작 뒤에도 reset하지 않는다.
-- `[data-run]` 버튼이 없는 요소(도입부, 용어 정리)에서는 실행하지 않는다. 페이지 맨 위(스크롤 40px 이하, `TOP_HOLD`)에서도 실행하지 않는다. 나란한 배치에서는 도입부 바로 아래 1장이 읽는 줄에 걸려 있기 때문이다.
-- 장이 활성인 상태에서 스위치를 켜면 그 장을 바로 실행한다(맨 위가 아닐 때). 끄면 대기 중인 반복은 사라지고, 진행 중인 동작은 끝까지 간 뒤 더 반복하지 않는다.
-- 장마다 있는 버튼은 스위치와 상관없이 늘 동작한다. `__explainer.run(name)`도 마찬가지다.
+- Off by default. The on state is remembered in `localStorage` (`plz-3d-explain:autorun`). If reading or writing is blocked, it stays for that visit only, without an error.
+- When on, it replays the action of the chapter being read in a loop. One cycle goes in this order.
+  1. After the chapter enters the reading line, wait `AUTORUN_DELAY` (600ms, time for the scene transition to finish and to see the initial state).
+  2. Run the same action as pressing that chapter's `[data-run]` button, to the end.
+  3. Show the end state and the last result sentence for `AUTORUN_HOLD` (2800ms).
+  4. Reset the scene with `reset()` and clear the result sentence (`.result`) too. Show the initial state for `AUTORUN_DELAY` (600ms).
+  5. Go back to step 2. One cycle is the action time + about 3.4 seconds (about 9.9 seconds for a 6.5-second action).
+- The two time constants are `AUTORUN_DELAY` and `AUTORUN_HOLD` in the `ENGINE`. The scene author only needs to make `reset()` restore everything `run()` changed (position, size, visibility, label text).
+- The timer is set only through `armAuto`, so there is always at most one. Loops do not pile up and the same chapter never runs twice at once.
+- When the reader moves to another chapter, the existing CANCEL cuts it off and the loop starts from the beginning in the new chapter. If the reader passes through several chapters in a short time, only the last chapter starts. While the reader stays on the same chapter, the start is not scheduled again and only the loop continues.
+- If a chapter's button is pressed during the loop, the run restarts from the beginning right there, and the loop continues after that run ends.
+- When the tab is hidden (`document.hidden`), the pending timer stops, and when it is visible again the loop continues from the reset state. It does not reset after an action that ended while hidden.
+- Elements without a `[data-run]` button (intro, glossary) do not run. It does not run at the very top of the page either (scroll 40px or less, `TOP_HOLD`), because in the side-by-side layout chapter 1, just below the intro, sits on the reading line.
+- Turning the switch on while a chapter is active runs that chapter right away (when not at the very top). Turning it off removes the pending loop; the action in progress goes to the end and does not repeat.
+- The button in each chapter always works regardless of the switch. So does `__explainer.run(name)`.
 
-## 화면 문구와 언어
+## Screen text and language
 
-도입 안내, HUD 버튼, 힌트, 대체 안내, 용어 정리·출처 제목, 오류 문구는 페이지 언어에 맞게 ENGINE의 문구 사전(`UI_TEXT`)에서 나온다. 페이지 본문·장 제목·라벨·범례·장면 `title`은 페이지를 쓰는 사람이 그 언어로 직접 쓴다.
+The intro notice, HUD buttons, hint, fallback notice, glossary and sources headings, and error text come from the ENGINE's text dictionary (`UI_TEXT`) in the page language. The page author writes the body, chapter titles, labels, legend, and scene `title` directly in that language.
 
-### 언어 고르는 규칙
+### How the language is chosen
 
-`<html lang>` 값으로 정한다(대소문자 무시). 엔진은 시작할 때 한 번 고른다.
+It is decided by the `<html lang>` value (case-insensitive). The engine picks once, at startup.
 
-| `lang` | 쓰는 사전 |
+| `lang` | Dictionary used |
 |---|---|
-| `ko`, `ko-KR` 등 `ko*` | `ko` |
-| `ja`, `ja-JP` 등 `ja*` | `ja` |
-| `zh`, `zh-CN`, `zh-Hans`, `zh-TW` 등 `zh*` | `zh-CN` |
-| 그 밖(`en`, `es`, `fr`, 비어 있음 포함) | `en` |
+| `ko`, `ko*` such as `ko-KR` | `ko` |
+| `ja`, `ja*` such as `ja-JP` | `ja` |
+| `zh`, `zh*` such as `zh-CN`, `zh-Hans`, `zh-TW` | `zh-CN` |
+| anything else (including `en`, `es`, `fr`, empty) | `en` |
 
-영어(`en`)가 정본이다. 선택한 언어 사전에 없는 키는 영어로 나온다. 고른 언어는 `__explainer.lang()`로 읽는다(`en`, `ko`, `ja`, `zh-CN`, 또는 덮어쓰기 키).
+English (`en`) is canonical. A key missing from the chosen language's dictionary comes out in English. Read the chosen language with `__explainer.lang()` (`en`, `ko`, `ja`, `zh-CN`, or an override key).
 
-### 문구 키
+### Text keys
 
-| 키 | 쓰이는 곳 | en | ko | ja | zh-CN |
+| Key | Where it is used | en | ko | ja | zh-CN |
 |---|---|---|---|---|---|
-| `noteWide` | 도입부 `.note .wide`(데스크톱) | Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model. | 오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다. | 右のモデルはドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。 | 拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。 |
-| `noteNarrow` | 도입부 `.note .narrow`(휴대폰) | Swipe the model left or right to rotate it. (뒤 문장은 같음) | 모형은 좌우로 밀면 돌려 볼 수 있습니다. (뒤 문장은 같음) | モデルは左右にスワイプすると回転できます。(後ろは同じ) | 左右滑动模型即可旋转查看。(后句相同) |
-| `resetView` | `.reset-view` 버튼 | Reset view | 시점 되돌리기 | 視点をリセット | 重置视角 |
-| `autorun` | 자동 실행 스위치 긴 문구, `aria-label` | Auto-play | 자동 실행 | 自動再生 | 自动播放 |
-| `autorunShort` | 같은 스위치의 짧은 문구(폭 430px 이하) | Auto | 자동 | 自動 | 自动 |
+| `noteWide` | Intro `.note .wide` (desktop) | Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model. | 오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다. | 右のモデルはドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。 | 拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。 |
+| `noteNarrow` | Intro `.note .narrow` (phone) | Swipe the model left or right to rotate it. (the rest of the sentence is the same) | 모형은 좌우로 밀면 돌려 볼 수 있습니다. (뒤 문장은 같음) | モデルは左右にスワイプすると回転できます。(後ろは同じ) | 左右滑动模型即可旋转查看。(后句相同) |
+| `resetView` | `.reset-view` button | Reset view | 시점 되돌리기 | 視点をリセット | 重置视角 |
+| `autorun` | Long text of the auto-play switch, `aria-label` | Auto-play | 자동 실행 | 自動再生 | 自动播放 |
+| `autorunShort` | Short text of the same switch (width 430px and below) | Auto | 자동 | 自動 | 自动 |
 | `hint` | `.hint` | Drag to rotate | 드래그해서 돌려 보기 | ドラッグで回転 | 拖动旋转 |
-| `fallback` | `.fallback`(WebGL 없음) | This browser can't draw the 3D model. You can still follow the content from the text alone. | 이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다. | このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。 | 此浏览器无法显示 3D 模型。只看正文也能理解内容。 |
-| `stageAria` | `aside.stage`의 `aria-label` | 3D model | 3D 모형 | 3Dモデル | 3D 模型 |
-| `terms` | "용어 정리" 제목 | Glossary | 용어 정리 | 用語集 | 术语表 |
-| `sources` | 출처 제목. `{date}` 자리에 `data-date` 값 | Sources (checked {date}) | 출처 ({date} 확인) | 出典（{date} 確認） | 来源（{date} 核对） |
-| `runError` | 장면 실행 중 오류 시 결과 문장 | Couldn't play the animation. Reload the page and try again. | 애니메이션을 재생하지 못했습니다. 새로고침한 뒤 다시 눌러 보세요. | アニメーションを再生できませんでした。ページを再読み込みして、もう一度お試しください。 | 无法播放动画。请刷新页面后重试。 |
+| `fallback` | `.fallback` (no WebGL) | This browser can't draw the 3D model. You can still follow the content from the text alone. | 이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다. | このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。 | 此浏览器无法显示 3D 模型。只看正文也能理解内容。 |
+| `stageAria` | `aria-label` of `aside.stage` | 3D model | 3D 모형 | 3Dモデル | 3D 模型 |
+| `terms` | "Glossary" heading | Glossary | 용어 정리 | 用語集 | 术语表 |
+| `sources` | Sources heading. The `data-date` value goes in `{date}` | Sources (checked {date}) | 출처 ({date} 확인) | 出典（{date} 確認） | 来源（{date} 核对） |
+| `runError` | Result sentence when a scene run fails | Couldn't play the animation. Reload the page and try again. | 애니메이션을 재생하지 못했습니다. 새로고침한 뒤 다시 눌러 보세요. | アニメーションを再生できませんでした。ページを再読み込みして、もう一度お試しください。 | 无法播放动画。请刷新页面后重试。 |
 
-### 마크업 속성
+### Markup attributes
 
-- `data-ui="키"`: 그 요소의 글자(`textContent`)를 사전 값으로 채운다. `data-date="YYYY-MM-DD"`가 함께 있으면 값의 `{date}`를 그 날짜로 바꾼다.
-- `data-ui-aria="키"`: 그 요소의 `aria-label`을 사전 값으로 채운다.
-- 요소 안에 적어 둔 글자는 JS가 돌기 전(또는 three.js CDN 로딩이 실패했을 때) 보이는 기본 글자다. 템플릿은 영어, 데모는 한국어다. 엔진이 시작하면 사전 값으로 바뀐다.
-- 사전에 없는 키를 쓰면 `console.warn`을 남기고 요소는 그대로 둔다.
-- 자동 실행 스위치는 `<span class="long" data-ui="autorun">`과 `<span class="short" data-ui="autorunShort">`를 함께 둔다. CSS가 폭 430px 이하에서 `.short`만 보이게 한다. 접근 가능한 이름은 `data-ui-aria="autorun"`(긴 문구)이다.
-- 데모는 `aside.stage`에 `data-ui-aria`를 달지 않고 `aria-label="샌드박스 3D 모형"`처럼 주제를 넣은 문구를 직접 쓴다.
+- `data-ui="key"`: fills that element's text (`textContent`) with the dictionary value. If `data-date="YYYY-MM-DD"` is also present, `{date}` in the value is replaced with that date.
+- `data-ui-aria="key"`: fills that element's `aria-label` with the dictionary value.
+- The text written inside the element is the default text shown before JS runs (or when the three.js CDN fails to load). It is English in the template and Korean in the demo. When the engine starts, it is replaced with the dictionary value.
+- A key that is not in the dictionary leaves a `console.warn` and the element stays as it is.
+- The auto-play switch holds both `<span class="long" data-ui="autorun">` and `<span class="short" data-ui="autorunShort">`. CSS shows only `.short` at 430px wide and below. The accessible name is `data-ui-aria="autorun"` (the long text).
+- The demo has no `data-ui-aria` on `aside.stage`; it writes a topic-specific `aria-label` directly, such as `aria-label="샌드박스 3D 모형"`.
 
-### 덮어쓰기: `window.UI_OVERRIDES`
+### Overrides: `window.UI_OVERRIDES`
 
-템플릿 본문 아래의 일반 `<script>`(모듈 스크립트보다 앞)에서 정한다. 엔진은 고치지 않는다.
+Set it in the plain `<script>` below the template body (before the module script). Do not edit the engine.
 
 ```html
 <html lang="es">
@@ -168,7 +168,7 @@ defineScene('name', {
 window.UI_OVERRIDES = {
   es: {
     resetView: 'Restablecer vista',
-    autorun: 'Reproducción automática',   // autorunShort 를 안 주면 짧은 문구도 이 글자
+    autorun: 'Reproducción automática',   // if autorunShort is not given, the short text is this too
     hint: 'Arrastra para girar',
     terms: 'Glosario',
     sources: 'Fuentes (verificadas el {date})',
@@ -177,12 +177,12 @@ window.UI_OVERRIDES = {
 </script>
 ```
 
-- 키는 `lang` 전체(`es-MX`), 앞부분(`es`), 내장 언어 이름(`zh-CN`) 순으로 맞춘다. 내장 언어(`ko` 등)의 키를 덮어써서 문구 하나만 바꿔도 된다.
-- 찾는 순서: `UI_OVERRIDES[언어]` → 내장 사전[언어] → `en`. 새 언어는 쓰고 싶은 키만 채우고 나머지는 영어로 둬도 되지만, 학습자가 보는 문구이므로 `noteWide`, `noteNarrow`, `fallback`, `runError`까지 채우는 것이 좋다.
-- `autorun`만 주고 `autorunShort`를 안 주면 짧은 문구에도 `autorun` 글자를 쓴다(영어 "Auto"가 섞이지 않게).
-- 내장 언어가 아닌 페이지에는 `:lang(ja)`·`:lang(zh)` 글꼴 규칙이 걸리지 않는다. 라틴 문자 언어(스페인어, 프랑스어 등)는 기본 글꼴로 충분하다. 아랍어·태국어처럼 글꼴이 필요한 문자는 이 템플릿이 다루지 않는다(CSS는 데모와 같아야 하므로 엔진 쪽을 바꾸지 말고 판단을 사용자에게 묻는다).
+- Keys are matched in this order: the full `lang` (`es-MX`), its prefix (`es`), the built-in language name (`zh-CN`). You can also override a key of a built-in language (such as `ko`) to change just one string.
+- Lookup order: `UI_OVERRIDES[language]` → built-in dictionary[language] → `en`. For a new language you may fill in only the keys you want and leave the rest in English, but these are strings the learner sees, so fill in `noteWide`, `noteNarrow`, `fallback`, and `runError` too.
+- If you give only `autorun` and not `autorunShort`, the short text uses the `autorun` text too (so English "Auto" does not get mixed in).
+- The `:lang(ja)` and `:lang(zh)` font rules do not apply to a page in a non-built-in language. For Latin-script languages (Spanish, French, and so on) the default fonts are enough. For scripts that need their own fonts, such as Arabic or Thai, this template does not cover them (the CSS must stay the same as the demo's, so do not change the engine side; ask the user to decide).
 
-### 글꼴
+### Fonts
 
-- `:lang(ja)`, `:lang(zh)`에서는 `--serif`, `--title`, `--sans`가 시스템 CJK 글꼴로 바뀐다. 일본어는 Hiragino Sans·Yu Gothic·Noto Sans JP 계열(제목은 Hiragino Mincho·Yu Mincho 계열), 중국어 간체는 PingFang SC·Microsoft YaHei·Noto Sans SC 계열(제목은 Songti SC·Noto Serif SC 계열)이다. CDN 글꼴은 더하지 않는다.
-- ja·zh에서는 `word-break: keep-all`을 풀고 `line-break: strict`로 글자 단위로 줄을 바꾼다.
+- Under `:lang(ja)` and `:lang(zh)`, `--serif`, `--title`, and `--sans` switch to system CJK fonts. Japanese uses the Hiragino Sans, Yu Gothic, and Noto Sans JP families (titles use the Hiragino Mincho and Yu Mincho families); Simplified Chinese uses the PingFang SC, Microsoft YaHei, and Noto Sans SC families (titles use the Songti SC and Noto Serif SC families). No CDN fonts are added.
+- For ja and zh, `word-break: keep-all` is released and `line-break: strict` breaks lines per character.

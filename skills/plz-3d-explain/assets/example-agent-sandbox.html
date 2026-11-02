@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- TEXT: 페이지 제목 -->
+<!-- TEXT: page title -->
 <title>AI 코드 샌드박스</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- 대표 제목(h1) 글꼴 Pretendard Variable. 한글과 영문이 한 글꼴로 맞고 가독성이 좋다. -->
+<!-- Headline (h1) font: Pretendard Variable. One typeface covers both Hangul and Latin text and reads well. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-  /* 의미 색 3개: actor(움직이며 일을 일으키는 주인공) · bound(경계·규칙·중개자) · matter(데이터·자원·재료).
-     한 색에는 의미 하나만 둔다. 값을 바꾸면 아래 <script>의 COLOR 도 같이 바꾼다. */
+  /* 3 semantic colors: actor (the protagonist that moves and causes things) · bound (boundary, rule, intermediary) · matter (data, resource, material).
+     Give each color exactly one meaning. If you change a value, change COLOR in the <script> below too. */
   :root {
     --paper: #ECEEEA;
     --table: #E1E4DF;
@@ -29,8 +29,8 @@
     --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, monospace;
   }
-  /* 일본어·중국어 페이지: Hahmlet, IBM Plex Sans KR, Pretendard 에는 가나나 간체 글자가 없거나 부족하다.
-     한자가 한국식 자형으로 나오지 않게 시스템 CJK 글꼴을 앞에 둔다(웹폰트를 새로 받지 않는다). */
+  /* Japanese and Chinese pages: Hahmlet, IBM Plex Sans KR, and Pretendard lack kana and Simplified Chinese glyphs, or cover them poorly.
+     Put system CJK fonts first so Han characters do not render in Korean letterforms (no new web fonts are downloaded). */
   :lang(ja) {
     --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Noto Serif CJK JP", "Source Han Serif JP", serif;
     --title: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", "Source Han Sans JP", system-ui, sans-serif;
@@ -74,7 +74,7 @@
   .chapter p { margin: 0 0 1rem; }
   .chapter .gist { margin: 1.5rem 0 0; padding-left: 1rem; border-left: 3px solid var(--ink); font: 500 1.06rem/1.7 var(--serif); }
   .chapter h3 { font: 700 1.15rem/1.45 var(--serif); margin: 2.25rem 0 0.75rem; }
-  /* 예시 코드. 한글 주석은 고정폭에서 넓어지므로 줄을 접는다. */
+  /* Example code. Korean comments get wide in a monospace font, so lines wrap. */
   pre.code {
     margin: 0 0 1.25rem; padding: 0.95rem 1.05rem;
     background: #E2E5E0; border-radius: 6px; overflow-x: auto; white-space: pre-wrap;
@@ -83,7 +83,7 @@
   :lang(ja) pre.code, :lang(zh) pre.code { font-family: "IBM Plex Mono", var(--sans), monospace; }
   pre.code code { background: none; padding: 0; font: inherit; }
   pre.code .c { color: var(--ink-soft); }
-  /* 문서에 숨은 지시처럼 "바깥에서 들어온 입력"을 인용할 때 */
+  /* For quoting "input that came from outside", such as an instruction hidden in a document */
   blockquote.planted {
     margin: 0 0 1rem; padding: 0.75rem 1rem;
     border: 1px dashed var(--ink-soft); border-radius: 6px;
@@ -96,7 +96,7 @@
   .act button:hover { background: #33444F; }
   .result { flex: 1 1 13rem; margin: 0; min-height: 3.2em; color: var(--ink-soft); font-size: 0.95rem; line-height: 1.6; }
 
-  /* 단계 목록: li 를 grid 로 만들면 글과 <code> 가 칸으로 갈라진다. 번호는 absolute 로 단다. */
+  /* Step list: making li a grid splits the text and <code> into separate cells. Attach the number with absolute positioning. */
   ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 1.25rem 0 0; }
   ol.steps li { counter-increment: s; position: relative; padding-left: 2rem; margin-bottom: 0.55rem; font-size: 0.97rem; line-height: 1.65; }
   ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; font: 500 1rem/1.65 var(--serif); color: var(--ink-soft); }
@@ -127,9 +127,9 @@
   .hud .now { font: 700 1.05rem/1.35 var(--serif); }
   .hud .tools { display: flex; align-items: flex-start; gap: 0.5rem; flex: none; }
   .hud button { pointer-events: auto; font: 500 0.85rem/1 var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 0.55rem 0.75rem; cursor: pointer; }
-  /* 자동 실행 스위치: 켜면 장에 들어설 때 그 장의 동작을 한 번 실행한다. 색 의미 3개와 겹치지 않게 잉크색으로만 그린다. */
+  /* Auto-play switch: when on, replays the current chapter's action in a loop. Draw it in ink color only so it does not collide with the 3 semantic colors. */
   .hud .autorun { display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding-top: 0.5rem; padding-bottom: 0.5rem; }
-  /* 스위치 글자는 언어별로 긴 문구(.long)와 짧은 문구(.short)를 따로 둔다. 폭 430px 이하에서 짧은 쪽으로 바꾼다. */
+  /* Switch text has a long form (.long) and a short form (.short) per language. At 430px wide and below, the short form is used. */
   .hud .autorun .short { display: none; }
   .autorun .track { position: relative; flex: none; width: 1.9rem; height: 0.95rem; border: 1.5px solid var(--ink-soft); border-radius: 999px; transition: background .2s, border-color .2s; }
   .autorun .track::after { content: ""; position: absolute; top: 50%; left: 2px; width: 0.6rem; height: 0.6rem; margin-top: -0.3rem; border-radius: 50%; background: var(--ink-soft); transition: transform .2s, background .2s; }
@@ -141,8 +141,8 @@
   .fallback { position: absolute; inset: 0; display: none; place-items: center; padding: 2rem; text-align: center; color: var(--ink-soft); }
   .stage.no-webgl .fallback { display: grid; }
 
-  /* 휴대폰·좁은 화면 공통(세로로 쌓은 배치와 가로 모드 둘 다).
-     무대를 "제목줄 / 3D 캔버스 / 범례줄" 세 칸으로 나눠, 제목·버튼·범례가 모형 위에 얹히지 않게 한다. */
+  /* Shared by phones and narrow screens (both the stacked layout and landscape mode).
+     Split the stage into 3 rows, "title bar / 3D canvas / legend bar", so the title, buttons, and legend never sit on top of the model. */
   @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
     body { font-size: 16px; line-height: 1.75; }
     .stage { display: flex; flex-direction: column; }
@@ -155,13 +155,13 @@
     .tag { font-size: 11px; padding: 2px 5px; }
     .tag.big { font-size: 12px; padding: 3px 6px; }
     .chapter .gist { font-size: 1rem; }
-    /* 휴대폰의 코드 블록은 줄을 접지 않고 블록 안에서만 가로로 스크롤한다(접으면 URL이 단어 중간에서 꺾이고 들여쓰기가 빈 줄처럼 보인다). */
+    /* On phones, code blocks do not wrap; they scroll horizontally inside the block only (wrapping breaks URLs mid-word and makes indentation look like blank lines). */
     pre.code { white-space: pre; font-size: 0.74rem; line-height: 1.65; overscroll-behavior-x: contain; tab-size: 4; }
     .intro .lead { font-size: 1.02rem; }
     .intro .note .wide { display: none; }
     .intro .note .narrow { display: inline; }
   }
-  /* 세로 휴대폰: 무대를 위에 붙여 두고(sticky) 글을 아래에서 스크롤한다. 무대 44svh, 글 56svh. */
+  /* Portrait phone: pin the stage to the top (sticky) and scroll the text below it. Stage 44svh, text 56svh. */
   @media (max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px) {
     :root { --stage-h: 44vh; }
     @supports (height: 1svh) { :root { --stage-h: 44svh; } }
@@ -173,7 +173,7 @@
     .chapter h2 { font-size: 1.45rem; }
     [data-scene] { scroll-margin-top: var(--stage-h); }
   }
-  /* 가로 휴대폰: 데스크톱처럼 왼쪽 글, 오른쪽 무대. 무대는 화면 높이 전체. */
+  /* Landscape phone: text on the left, stage on the right, as on desktop. The stage takes the full screen height. */
   @media (orientation: landscape) and (max-height: 520px) {
     .layout { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
     .stage { height: 100vh; height: 100svh; }
@@ -182,7 +182,7 @@
     .chapter { min-height: auto; padding-top: 2.5rem; }
     .chapter h2 { font-size: 1.4rem; }
   }
-  /* 폭 430px 이하: 스위치 글자를 짧은 문구(autorunShort)로 바꿔 장 제목에 폭을 준다(접근 가능한 이름은 aria-label 로 긴 문구). */
+  /* At 430px wide and below: switch the switch text to the short form (autorunShort) to give the chapter title more width (the accessible name stays the long form via aria-label). */
   @media (max-width: 430px) {
     .hud .autorun .long { display: none; }
     .hud .autorun .short { display: inline; }
@@ -190,7 +190,7 @@
     .hud button { padding-left: 0.55rem; padding-right: 0.55rem; }
     .hud .autorun { gap: 0.35rem; }
   }
-  /* 터치 기기: 누르는 것은 44px 이상. */
+  /* Touch devices: tap targets are at least 44px. */
   @media (pointer: coarse), (max-width: 860px), (max-height: 520px) {
     .act button, .hud button { min-height: 44px; min-width: 44px; }
     .hud button { padding: 0.5rem 0.7rem; font-size: 0.85rem; }
@@ -491,8 +491,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 /* =====================================================================
-   ENGINE — 장면을 쓰는 데 필요한 것은 전부 여기 있다. 고치지 않는다.
-   API 설명: references/engine-api.md
+   ENGINE — everything you need to write scenes is here. Do not edit.
+   API reference: references/engine-api.md
    ===================================================================== */
 const COLOR = {
   model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
@@ -504,10 +504,10 @@ const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const CANCEL = Symbol('cancel');
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-/* ---- 화면 문구 사전 ----
-   영어(en)가 정본이고 최종 대체 언어다. <html lang> 으로 언어를 고른다: ko* → ko, ja* → ja, zh* → zh-CN, 그 밖 → en.
-   페이지 쪽 덮어쓰기: 본문 아래의 <script> 에서 window.UI_OVERRIDES = { es: { hint: '...' } } 처럼 키를 덮어쓰거나 새 언어를 더한다.
-   찾는 순서: UI_OVERRIDES[언어] → 내장 사전[언어] → en. {date} 는 data-date 속성값으로 바뀐다. */
+/* ---- Screen text dictionary ----
+   English (en) is the canonical text and the final fallback. <html lang> picks the language: ko* → ko, ja* → ja, zh* → zh-CN, anything else → en.
+   Page-side overrides: in a <script> below the body, override keys or add a new language with window.UI_OVERRIDES = { es: { hint: '...' } }.
+   Lookup order: UI_OVERRIDES[language] → built-in dictionary[language] → en. {date} is replaced with the data-date attribute value. */
 const UI_TEXT = {
   en: {
     noteWide: 'Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model.',
@@ -562,7 +562,7 @@ const UI_TEXT = {
     runError: '无法播放动画。请刷新页面后重试。',
   },
 };
-// <html lang> 에서 내장 언어와 덮어쓰기 키를 고른다. 덮어쓰기 키는 lang 전체(es-MX), 앞부분(es), 내장 언어 이름(zh-CN) 순으로 맞춘다.
+// Pick the built-in language and the override key from <html lang>. The override key is matched in this order: the full lang (es-MX), its prefix (es), the built-in language name (zh-CN).
 function pickUiLang(tag, overrideKeys) {
   const t = String(tag || '').trim().toLowerCase();
   const primary = t.split('-')[0];
@@ -575,22 +575,22 @@ const UI_OVER = (typeof window.UI_OVERRIDES === 'object' && window.UI_OVERRIDES)
 const UI_PICK = pickUiLang(document.documentElement.lang, Object.keys(UI_OVER));
 const UI_LANG = UI_PICK.key || UI_PICK.builtin;
 const UI_STR = { ...UI_TEXT.en, ...UI_TEXT[UI_PICK.builtin], ...(UI_PICK.key ? UI_OVER[UI_PICK.key] : {}) };
-// 덮어쓰기에서 긴 문구만 주면 짧은 문구도 같은 글자로 둔다(영어 "Auto" 가 섞이지 않게).
+// If an override gives only the long text, use the same text for the short one (so English "Auto" does not get mixed in).
 if (UI_PICK.key && UI_OVER[UI_PICK.key].autorun && !UI_OVER[UI_PICK.key].autorunShort) UI_STR.autorunShort = UI_OVER[UI_PICK.key].autorun;
 const uiStr = key => UI_STR[key] ?? '';
 function applyUiText() {
   document.querySelectorAll('[data-ui]').forEach(el => {
     const key = el.dataset.ui;
-    if (!(key in UI_STR)) { console.warn('[plz] 알 수 없는 data-ui 키:', key); return; }
+    if (!(key in UI_STR)) { console.warn('[plz] unknown data-ui key:', key); return; }
     el.textContent = uiStr(key).replace('{date}', el.dataset.date ?? '');
   });
   document.querySelectorAll('[data-ui-aria]').forEach(el => {
     const key = el.dataset.uiAria;
-    if (!(key in UI_STR)) { console.warn('[plz] 알 수 없는 data-ui-aria 키:', key); return; }
+    if (!(key in UI_STR)) { console.warn('[plz] unknown data-ui-aria key:', key); return; }
     el.setAttribute('aria-label', uiStr(key));
   });
 }
-applyUiText(); // WebGL 이 없어 아래에서 멈추더라도 대체 안내(.fallback)는 이미 그 언어로 채워져 있다.
+applyUiText(); // Even if the script stops below because WebGL is missing, the fallback notice (.fallback) is already filled in that language.
 
 const stageEl = document.querySelector('.stage');
 const wrap = document.querySelector('.canvas-wrap');
@@ -612,24 +612,24 @@ wrap.appendChild(labelRenderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 300);
-// 카메라 방향(축측 시점). 화면 오른쪽 벡터는 SCREEN_RIGHT — 두 대상을 나란히 놓을 때 쓴다.
+// Camera direction (axonometric view). The screen-right vector is SCREEN_RIGHT — use it to place two things side by side.
 const HOME_DIR = V(1, 1.15, 1.22).normalize();
 const SCREEN_RIGHT = V(HOME_DIR.z, 0, -HOME_DIR.x).normalize();
 const DIST = 60;
 
 const controls = new OrbitControls(camera, labelRenderer.domElement);
 controls.enablePan = false;
-controls.enableZoom = false; // 휠 확대를 켜면 무대 위에서 페이지 스크롤이 막힌다.
+controls.enableZoom = false; // Enabling wheel zoom would block page scrolling over the stage.
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minPolarAngle = 0.2;
 controls.maxPolarAngle = 1.38;
-// 터치: 세로로 쓸면 브라우저가 페이지를 스크롤하고(pan-y), 가로로 밀 때만 모형이 돈다.
-// OrbitControls 는 기본으로 touch-action:none 을 걸어 무대 위 스와이프가 스크롤을 먹는다. 생성 뒤에 덮어쓴다.
+// Touch: a vertical swipe lets the browser scroll the page (pan-y); only a horizontal drag rotates the model.
+// OrbitControls sets touch-action:none by default, so a swipe on the stage would swallow page scrolling. Override it after construction.
 labelRenderer.domElement.style.touchAction = 'pan-y';
 controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: undefined };
 
-// 장면이 요구하는 가로(fitW)·세로(fitH) 월드 폭이 무대에 다 들어오게 직교 카메라 범위를 정한다.
+// Set the orthographic camera range so the scene's required width (fitW) and height (fitH) in world units both fit in the stage.
 const fit = { w: 17, h: 11.5 };
 function resize() {
   const w = wrap.clientWidth, h = wrap.clientHeight;
@@ -670,7 +670,7 @@ function lineMat(color = COLOR.ink, opacity = 0.85, dashed = false) {
   m.userData.base = opacity;
   return m;
 }
-// 직육면체. pos 의 y 는 "바닥 높이"다(만든 뒤 group.position 은 중심).
+// Cuboid. The y of pos is the "floor height" (after creation, group.position is the center).
 function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.ink, edgeOpacity = 0.85, dashed = false, cast = true } = {}) {
   const g = new THREE.Group();
   const geo = new THREE.BoxGeometry(w, h, d);
@@ -689,7 +689,7 @@ function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.in
   return g;
 }
 const allTags = [];
-// 화면 라벨. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
+// On-screen label. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
 function tag(text, pos, kind = '') {
   const el = document.createElement('div');
   el.className = 'tag' + (kind ? ' ' + kind : '');
@@ -699,8 +699,8 @@ function tag(text, pos, kind = '') {
   allTags.push(o);
   return o;
 }
-// 주인공 정육면체(0.6). label 을 null 로 주면 라벨 없이.
-function actorCube(pos, label = '__주인공__') {
+// Actor cube (0.6). Pass label as null for no label.
+function actorCube(pos, label = '__actor__') {
   const c = block(0.6, 0.6, 0.6, pos, { color: COLOR.actor, edge: COLOR.actorEdge });
   if (label) c.add(tag(label, [0, 0.72, 0], 'actor'));
   return c;
@@ -708,7 +708,7 @@ function actorCube(pos, label = '__주인공__') {
 function matterBlock(pos, h = 0.9, w = 0.75) {
   return block(w, h, w, pos, { color: COLOR.matter, edge: COLOR.matterEdge });
 }
-// 유리방(경계). 투명도는 0.08~0.13 사이가 겹쳐도 탁해지지 않는다.
+// Glass room (boundary). Opacity between 0.08 and 0.13 stays clear even when layers overlap.
 function glass(w, h, d, pos, opts = {}) {
   return block(w, h, d, pos, { color: COLOR.bound, opacity: 0.08, edge: COLOR.bound, edgeOpacity: 0.95, cast: false, ...opts });
 }
@@ -736,7 +736,7 @@ function arrow(from, to, color = COLOR.ink) {
   g.add(cone);
   return g;
 }
-// 움직이는 공(요청·신호). 장면의 temp 그룹에 넣었다가 끝나면 뺀다.
+// Moving ball (request, signal). Put it in the scene's temp group and remove it when done.
 function packet(color, pos, r = 0.2) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
   m.position.set(...pos);
@@ -758,8 +758,8 @@ function resetLook(root) {
     if (m && m.userData.color) { m.color.copy(m.userData.color); m.opacity = m.userData.base; }
   });
 }
-// CSS2DRenderer 는 부모가 숨어도 라벨을 그린다. 매 프레임 조상 가시성과 크기를 보고 감춘다.
-// 부모를 scene 에서 떼어 내도 자식 라벨의 DOM 은 마지막 자리에 남는다. scene 에 붙어 있지 않으면 숨긴다.
+// CSS2DRenderer draws labels even when the parent is hidden. Every frame, check ancestor visibility and scale, and hide the label.
+// Even after a parent is detached from the scene, the child label's DOM stays at its last position. Hide it when it is not attached to the scene.
 function syncTags() {
   for (const o of allTags) {
     let vis = true, node = o;
@@ -772,9 +772,9 @@ function syncTags() {
   }
 }
 
-// 좁은 무대(휴대폰)에서는 모형이 줄어드는데 라벨 글자는 줄지 않아 서로 겹치고 가장자리에서 잘린다.
-// 화면 좌표에서 라벨을 무대 안쪽으로 끌어오고, 겹치면 가까운 빈자리로 비켜 놓는다(CSS translate, 상한 DECLUTTER_MAX).
-// 넓은 무대(데스크톱)에서는 아무것도 하지 않는다.
+// On a narrow stage (phone) the model shrinks but label text does not, so labels overlap each other and get clipped at the edges.
+// In screen coordinates, pull labels toward the inside of the stage, and when they overlap, shift them to the nearest free spot (CSS translate, capped at DECLUTTER_MAX).
+// On a wide stage (desktop) this does nothing.
 const DECLUTTER_BELOW = 700, DECLUTTER_MAX = 56, DECLUTTER_EDGE = 3, DECLUTTER_GAP = 2;
 const labelState = new Map();
 const labelVec = V(0, 0, 0);
@@ -833,7 +833,7 @@ function declutter() {
 
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 let runToken = 0;
-// 실행마다 하나. 다른 장으로 넘어가면 진행 중인 애니메이션이 CANCEL 로 끊긴다.
+// One per run. When the user moves to another chapter, the running animation is cut off by CANCEL.
 function animator() {
   const tok = ++runToken;
   const live = () => tok === runToken;
@@ -853,7 +853,7 @@ function animator() {
     live,
     tween: tw,
     wait: ms => new Promise((res, rej) => setTimeout(() => (live() ? res() : rej(CANCEL)), REDUCE ? 0 : ms)),
-    // obj 의 중심을 to 로 옮긴다. lift 를 주면 포물선으로 넘어간다.
+    // Move the center of obj to `to`. With lift, it goes over in an arc.
     move(obj, to, ms = 700, lift = 0) {
       const from = obj.position.clone();
       const target = Array.isArray(to) ? V(...to) : to.clone();
@@ -862,7 +862,7 @@ function animator() {
         if (lift) obj.position.y += Math.sin(Math.PI * t) * lift;
       });
     },
-    // 색이 잠깐 바뀌었다 돌아온다. hold=true 면 바뀐 채로 둔다(reset 에서 resetLook 이 되돌린다).
+    // The color changes briefly and comes back. With hold=true it stays changed (resetLook restores it in reset).
     async flash(obj, color, ms = 700, hold = false) {
       const m = (obj.userData.mesh || obj).material;
       const c0 = m.userData.color, c1 = new THREE.Color(color);
@@ -871,7 +871,7 @@ function animator() {
       if (hold) return;
       await tw(ms * 0.65, t => { m.color.lerpColors(c1, c0, t); m.opacity = peak + (o0 - peak) * t; });
     },
-    // 크기를 바꾼다. 생성은 scale 0.001 → 1, 소멸은 1 → 0.001 후 visible=false.
+    // Change the size. To create: scale 0.001 → 1. To remove: 1 → 0.001, then visible=false.
     scaleTo(obj, to, ms = 500) {
       obj.visible = true;
       const from = obj.scale.clone();
@@ -881,7 +881,7 @@ function animator() {
   };
 }
 
-// 모든 장면이 공유하는 바닥(장면 옵션 base:true 일 때 보인다). 내용은 SCENES 에서 채운다.
+// The floor shared by all scenes (shown when the scene option is base:true). Fill it in SCENES.
 const base = new THREE.Group();
 scene.add(base);
 const baseState = { group: base, k: 1, target: 1 };
@@ -895,8 +895,8 @@ function defineScene(name, opts) {
 }
 
 /* =====================================================================
-   SCENES — 주제에 맞게 바꾸는 부분. 아래 두 장면은 패턴 예시다.
-   패턴 모음: references/scene-patterns.md, 완성 예시: assets/example-sandbox.html
+   SCENES — the part you change for your topic. The two scenes below are pattern examples.
+   Pattern catalog: references/scene-patterns.md, finished example: assets/example-agent-sandbox.html
    ===================================================================== */
 // 공용 바닥: 하드웨어, 호스트 커널, 비밀 파일, 인터넷 출구. 1·2·4~9장이 함께 쓴다.
 const FLOOR = 1.05; // 호스트 커널 윗면 높이
@@ -1546,7 +1546,7 @@ defineScene('compare', {
 });
 
 /* =====================================================================
-   ENGINE (계속) — 장 전환, 실행, 렌더 루프, 검증 훅. 고치지 않는다.
+   ENGINE (continued) — scene switching, running, render loop, verification hooks. Do not edit.
    ===================================================================== */
 const hudNow = document.querySelector('.hud .now');
 let current = null;
@@ -1589,7 +1589,7 @@ async function runScene(name) {
   const s = scenes[name];
   const resultEl = resultFor(name);
   const a = animator();
-  const mine = runToken; // animator() 가 올린 값. 이 실행 뒤로 다른 실행이나 장 전환이 없었으면 끝날 때도 같다.
+  const mine = runToken; // The value animator() raised. If no other run or chapter switch happened after this run, it is still the same when the run ends.
   resetLook(base);
   resetLook(s.group);
   s.reset();
@@ -1600,9 +1600,9 @@ async function runScene(name) {
     if (e !== CANCEL) { console.error(e); say(uiStr('runError')); }
     return;
   }
-  if (mine === runToken) onSceneDone(name, mine); // 자동 실행이 켜져 있으면 반복을 이어 간다.
+  if (mine === runToken) onSceneDone(name, mine); // If auto-play is on, continue the loop.
 }
-// 장면을 처음 상태로 되돌리고 결과 문장도 비운다(자동 실행 반복에서 쓴다).
+// Return the scene to its initial state and clear the result sentence too (used by the auto-play loop).
 function resetScene(name) {
   const s = scenes[name];
   if (!s) return;
@@ -1622,27 +1622,27 @@ document.querySelector('.reset-view').addEventListener('click', () => {
 });
 controls.addEventListener('start', () => { camGoal = null; });
 
-// 지금 읽는 장을 가리는 "읽는 줄". 세로로 쌓은 배치(무대가 위에 붙어 있음)에서는 무대 바로 아래 글 영역의 위쪽 30% 지점,
-// 나란한 배치(데스크톱·가로 모드)에서는 화면 세로 45~50% 띠다.
-// ---- 자동 실행. 기본은 꺼짐이고, 켜 두면 읽는 장의 동작을 반복 재생한다. ----
-//   장에 들어선 뒤 AUTORUN_DELAY → 실행 → 끝 상태와 마지막 문장을 AUTORUN_HOLD 동안 보여 줌 → reset(결과 문장도 비움)
-//   → 처음 상태를 AUTORUN_DELAY 동안 보여 줌 → 다시 실행 → ... 다른 장으로 넘어가면 기존 CANCEL 로 끊기고 새 장에서 처음부터 돈다.
-// 버튼이 없는 요소(도입부)와 페이지 맨 위에서는 실행하지 않는다. 탭이 숨겨지면 멈췄다가 다시 보이면 이어서 돈다.
+// The "reading line" that decides which chapter is being read. In the stacked layout (stage pinned on top) it is the point 30% down the text area just below the stage;
+// in the side-by-side layout (desktop, landscape) it is a band at 45-50% of the screen height.
+// ---- Auto-play. Off by default; when on, it replays the action of the chapter being read in a loop. ----
+//   after entering a chapter, wait AUTORUN_DELAY → run → show the end state and last sentence for AUTORUN_HOLD → reset (clear the result sentence too)
+//   → show the initial state for AUTORUN_DELAY → run again → ... When the reader moves to another chapter, the old loop is cut off by CANCEL and a new loop starts from the beginning in the new chapter.
+// It does not run on elements without a button (the intro) or at the very top of the page. It pauses when the tab is hidden and resumes when it is visible again.
 const AUTORUN_KEY = 'plz-3d-explain:autorun';
-const AUTORUN_DELAY = 600; // 장면 전환(페이드 0.45초)이 끝난 뒤, 또 reset 뒤에 처음 상태를 볼 시간(ms)
-const AUTORUN_HOLD = 2800; // 동작이 끝난 뒤 결과 상태와 마지막 결과 문장을 읽을 시간(ms)
+const AUTORUN_DELAY = 600; // Time (ms) to see the initial state after a scene switch (0.45s fade) ends, and again after reset
+const AUTORUN_HOLD = 2800; // Time (ms) to read the end state and the last result sentence after the action ends
 const autorunBtn = document.querySelector('.autorun');
-// localStorage 는 막힐 수 있다(사생활 보호 창, 사이트 데이터 차단). 읽거나 쓰지 못하면 이번 방문에서만 유지한다.
+// localStorage can be blocked (private windows, blocked site data). If it cannot be read or written, the setting lasts for this visit only.
 function readAutorun() { try { return localStorage.getItem(AUTORUN_KEY) === '1'; } catch (e) { return false; } }
-function writeAutorun(on) { try { localStorage.setItem(AUTORUN_KEY, on ? '1' : '0'); } catch (e) { /* 저장 실패는 기능에 영향 없음 */ } }
+function writeAutorun(on) { try { localStorage.setItem(AUTORUN_KEY, on ? '1' : '0'); } catch (e) { /* a failed save does not affect the feature */ } }
 let autorunOn = readAutorun();
-let readingEl = null; // 읽는 줄에 걸린 [data-scene] 요소
-let autoEl = null;    // 가장 최근에 읽는 줄에 들어온 요소(같은 요소로 다시 시작하지 않기 위해)
-let autoPending = false; // autoEl 의 첫 실행이 아직 예약되지 않았는가
-const TOP_HOLD = 40;  // 페이지 맨 위(px). 나란한 배치에서는 도입부 아래 1장이 읽는 줄에 걸려 있어도 여기서는 실행하지 않는다.
-let autoTimer = 0;    // 자동 실행 타이머는 armAuto 로만 걸어서 항상 하나 이하다.
-let autoWait = null;  // 타이머가 기다리는 장면 이름
-let autoPaused = null; // 탭이 숨겨져 멈춘 장면 이름
+let readingEl = null; // the [data-scene] element on the reading line
+let autoEl = null;    // the element that most recently entered the reading line (so the same element does not restart)
+let autoPending = false; // whether the first run of autoEl is not yet scheduled
+const TOP_HOLD = 40;  // Top of the page (px). In the side-by-side layout, chapter 1 just below the intro sits on the reading line, but nothing runs here.
+let autoTimer = 0;    // The auto-play timer is set only through armAuto, so there is always at most one.
+let autoWait = null;  // name of the scene the timer is waiting for
+let autoPaused = null; // name of the scene paused because the tab was hidden
 const runnerOf = el => (el ? el.querySelector('[data-run]') : null);
 function renderAutorun() { autorunBtn.setAttribute('aria-checked', String(autorunOn)); }
 function armAuto(name, ms, fn) {
@@ -1655,31 +1655,31 @@ function armAuto(name, ms, fn) {
   }, ms);
 }
 function stopAuto() { clearTimeout(autoTimer); autoTimer = 0; autoWait = null; autoPaused = null; }
-// 지금도 이 장면을 반복해야 하는가. token 을 주면 그 사이 다른 실행(버튼 포함)이나 장 전환이 없었어야 한다.
+// Whether this scene should still be looped. If a token is given, no other run (button included) or chapter switch may have happened in between.
 const loopOk = (name, token) => autorunOn && current === name && scrollY > TOP_HOLD && (token === undefined || token === runToken);
-function startCycle(name) { // reset → 처음 상태 → 실행
+function startCycle(name) { // reset → initial state → run
   resetScene(name);
   const t = runToken;
   armAuto(name, AUTORUN_DELAY, () => { if (loopOk(name, t)) runScene(name); });
 }
-function onSceneDone(name, token) { // 동작이 끝까지 갔을 때 runScene 이 부른다. 버튼으로 시작한 실행도 이어서 반복한다.
+function onSceneDone(name, token) { // Called by runScene when the action ran to the end. A run started by the button continues into the loop too.
   if (!loopOk(name, token)) return;
   if (document.hidden) { autoPaused = name; return; }
   armAuto(name, AUTORUN_HOLD, () => { if (loopOk(name, token)) startCycle(name); });
 }
-function tryAutorun() { // 읽는 장의 첫 실행 예약
+function tryAutorun() { // schedule the first run of the chapter being read
   const el = autoEl, btn = runnerOf(el);
   if (!autoPending || !autorunOn || !btn || scrollY <= TOP_HOLD) return;
   autoPending = false;
   const name = btn.dataset.run, t = runToken;
   armAuto(name, AUTORUN_DELAY, () => {
     if (autoEl !== el) return;
-    if (scrollY <= TOP_HOLD) { autoPending = true; return; } // 그 사이 맨 위로 돌아갔다
+    if (scrollY <= TOP_HOLD) { autoPending = true; return; } // the reader went back to the top in the meantime
     if (loopOk(name, t)) runScene(name);
   });
 }
 function scheduleAutorun(el) {
-  if (el === autoEl) return; // 화면 크기 변경으로 관찰자를 다시 만들었을 때 같은 장을 또 시작하지 않는다.
+  if (el === autoEl) return; // When the observer is recreated by a screen size change, do not start the same chapter again.
   stopAuto();
   autoEl = el;
   autoPending = true;
@@ -1689,12 +1689,12 @@ function setAutorun(on) {
   autorunOn = Boolean(on);
   writeAutorun(autorunOn);
   renderAutorun();
-  stopAuto(); // 끄면 대기 중인 반복이 사라진다. 이미 도는 동작은 끝까지 가고, 끝나도 이어 가지 않는다.
+  stopAuto(); // Turning it off removes the pending loop. An action already running goes to the end and does not continue after it ends.
   autoPending = false;
   const btn = runnerOf(readingEl);
   if (!autorunOn || !btn) return;
   autoEl = readingEl;
-  if (scrollY > TOP_HOLD) runScene(btn.dataset.run); // 켠 순간 읽는 장을 바로 실행
+  if (scrollY > TOP_HOLD) runScene(btn.dataset.run); // run the chapter being read right when it is turned on
   else autoPending = true;
 }
 document.addEventListener('visibilitychange', () => {
@@ -1704,7 +1704,7 @@ document.addEventListener('visibilitychange', () => {
   }
   const name = autoPaused;
   autoPaused = null;
-  if (name && loopOk(name)) startCycle(name); // 다시 보이면 처음 상태부터 이어서 돈다
+  if (name && loopOk(name)) startCycle(name); // when visible again, the loop resumes from the initial state
 });
 addEventListener('scroll', tryAutorun, { passive: true });
 autorunBtn.addEventListener('click', () => setAutorun(!autorunOn));
@@ -1761,17 +1761,17 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// 검증 훅: playwright 의 browser_evaluate 에서 쓴다.
-//   await window.__explainer.run('s1')   → 그 장면 동작이 끝날 때까지 기다린다
-//   window.__explainer.overlaps()         → 지금 보이는 라벨 중 서로 겹치는 쌍
+// Verification hooks: for use from Playwright's browser_evaluate.
+//   await window.__explainer.run('s1')   → waits until that scene's action finishes
+//   window.__explainer.overlaps()         → pairs of currently visible labels that overlap each other
 window.__explainer = {
   scenes: () => Object.keys(scenes),
-  lang: () => UI_LANG,                          // 화면 문구에 쓰인 언어 (en | ko | ja | zh-CN | 덮어쓰기 키)
-  current: () => current,                       // 무대가 지금 보여 주는 장면 이름
-  autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // 자동 실행 상태를 읽는다. 값을 주면 바꾸고(저장 포함) 새 상태를 돌려준다
-  azimuth: () => controls.getAzimuthalAngle(),  // 모형이 돌았는지 확인할 때
+  lang: () => UI_LANG,                          // language used for screen text (en | ko | ja | zh-CN | override key)
+  current: () => current,                       // name of the scene the stage is showing now
+  autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // Reads the auto-play state. If a value is given, changes it (and saves it) and returns the new state
+  azimuth: () => controls.getAzimuthalAngle(),  // for checking whether the model rotated
   async run(name) {
-    // 세로로 쌓은 배치에서는 장의 맨 위가 무대 바로 아래에 오게(CSS scroll-margin-top), 나란한 배치에서는 가운데로 스크롤한다.
+    // In the stacked layout, scroll so the chapter's top sits just below the stage (CSS scroll-margin-top); in the side-by-side layout, scroll it to the center.
     const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
     document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center' });
     await new Promise(r => setTimeout(r, 900));
@@ -1796,7 +1796,7 @@ window.__explainer = {
     return out;
   },
   clipped() {
-    const s = wrap.getBoundingClientRect(); // 휴대폰에서는 캔버스 칸(제목줄·범례줄 제외)이 기준이다. 데스크톱에서는 무대와 같다.
+    const s = wrap.getBoundingClientRect(); // On phones the canvas cell (title bar and legend bar excluded) is the reference. On desktop it equals the stage.
     return allTags
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))

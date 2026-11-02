@@ -14,136 +14,118 @@ description: |
   "3Dで解説して", "仕組みを3Dモデルで見せて"; "用3D讲解这个概念", "做成3D模型演示原理".
 ---
 
-# 3D 개념 설명 페이지
+# 3D Concept Explainer Page
 
-처음 배우는 사람이 "무엇이 어디서 막히고, 어디로 흐르고, 언제 생기고 사라지는지"를 눈으로
-확인하게 만드는 것이 목표다. 글만으로는 잡히지 않는 구조(층, 경계, 흐름, 수명)를 모형으로
-보여 주고, 버튼으로 그 일을 직접 일으켜 보게 한다. 모형은 장식이 아니라 설명의 절반이다.
+The goal is to let a first-time learner see where things get blocked, where they flow, and when
+they appear and disappear. Show structure that text alone cannot convey (layers, boundaries, flows,
+lifetimes) with a model, and let the learner trigger the events with a button. The model is half
+of the explanation, not decoration.
 
-## 결과물
+## Output
 
-- 단일 HTML 파일. three.js r170과 웹폰트를 CDN에서 받으므로 열 때 인터넷이 필요하다. 빌드는 없다.
-- 왼쪽: 제목, 도입, 번호 붙은 장, 용어 정리, 출처. 오른쪽: 고정된 3D 무대(현재 장 제목, 시점
-  되돌리기, 자동 실행 스위치, 의미 색 범례).
-- 스크롤해서 화면 가운데를 지나는 장의 장면으로 바뀐다. 장마다 버튼 하나와 결과 문장이 있다.
-  무대 오른쪽 위의 "자동 실행" 스위치를 켜면 읽고 있는 장의 동작이 반복 재생된다(기본은 꺼짐, 켠 상태는 브라우저에 기억).
-- 완성 예시: `assets/example-agent-sandbox.html` (AI 에이전트 코드 샌드박스의 격리 방식, 10장). 비슷한
-  장면이 필요하면 이 파일에서 먼저 찾는다.
+- One HTML file. three.js r170 and the web fonts load from a CDN, so opening the page needs internet. There is no build step.
+- Left: title, intro, numbered chapters, glossary, sources. Right: a fixed 3D stage (current chapter title, reset-view button, auto-play switch, semantic color legend).
+- Scrolling switches the stage to the scene of the chapter crossing the middle of the screen. Each chapter has one button and a result sentence.
+  The "Auto-play" switch at the top right of the stage repeats the action of the chapter being read (off by default; the on state is remembered in the browser).
+- Finished example: `assets/example-agent-sandbox.html` (how AI-agent code sandboxes isolate code, 10 chapters). When you need a similar scene, look in this file first.
 
-## 페이지 언어
+## Page language
 
-페이지 언어는 아래 순서로 정한다. 앞의 것이 있으면 뒤의 것은 보지 않는다.
+Decide the page language in this order. If an earlier item exists, ignore the later ones.
 
-1. 사용자가 명시한 언어("일본어로 만들어 줘")
-2. 요청한 말의 언어
-3. 대화에서 주로 쓰는 언어
+1. The language the user named ("make it in Japanese")
+2. The language of the request
+3. The language mainly used in the conversation
 
-- `<html lang>`을 그 언어로 바꾼다(`ko`, `en`, `ja`, `zh-CN` 등). 템플릿의 기본값은 `en`이다.
-- 본문, 장 제목, 결과 문장(`say`), 라벨, 범례, 장면 `title`은 그 언어로 직접 쓴다. 한국어로 쓴 뒤 번역하지 않는다. 이 문서가 한국어라고 해서 만드는 페이지까지 한국어로 두지 않는다.
-- 화면 문구(버튼, 안내, "용어 정리"·"출처" 제목, 오류 문구)는 ENGINE의 문구 사전에서 `<html lang>`에 맞게 자동으로 나온다. 내장 언어는 영어(`en`, 정본), 한국어(`ko`), 일본어(`ja`), 중국어 간체(`zh-CN`)다. `ko*`는 `ko`, `ja*`는 `ja`, `zh*`는 `zh-CN`, 그 밖은 `en`이다.
-- 사전에 없는 언어(예: 스페인어)면 템플릿의 `window.UI_OVERRIDES`에 그 언어 문구를 채운다. 채우지 않은 키는 영어로 나온다. 엔진은 고치지 않는다. 키 목록과 쓰는 법은 `references/engine-api.md`의 "화면 문구와 언어".
-- 출처 제목의 날짜는 `<h3 data-ui="sources" data-date="YYYY-MM-DD">`의 `data-date`에 적는다. 제목 글자("출처 (… 확인)")는 엔진이 만든다.
-- 일본어·중국어 페이지에서는 글꼴이 시스템 CJK 글꼴로 이어지고 줄바꿈이 글자 단위로 바뀐다(템플릿 CSS에 들어 있다). 확인은 `__explainer.lang()`로 한다.
+- Set `<html lang>` to that language (`ko`, `en`, `ja`, `zh-CN`, etc.). The template default is `en`.
+- Write the body, chapter titles, result sentences (`say`), labels, legend, and scene `title` directly in that language. Do not write them in another language and translate. The language of this document does not decide the language of the page you build.
+- Screen text (buttons, notices, the "Glossary" and "Sources" headings, error text) comes out automatically in the `<html lang>` language from the ENGINE's text dictionary. Built-in languages are English (`en`, canonical), Korean (`ko`), Japanese (`ja`), and Simplified Chinese (`zh-CN`). `ko*` maps to `ko`, `ja*` to `ja`, `zh*` to `zh-CN`, and anything else to `en`.
+- For a language not in the dictionary (for example Spanish), fill in that language's strings in the template's `window.UI_OVERRIDES`. Keys you leave out come out in English. Do not edit the engine. The key list and usage are in "Screen text and language" in `references/engine-api.md`.
+- Put the date in the sources heading in the `data-date` of `<h3 data-ui="sources" data-date="YYYY-MM-DD">`. The engine generates the heading text ("Sources (checked …)").
+- On Japanese and Chinese pages, fonts fall back to system CJK fonts and line breaks switch to per-character (both are in the template CSS). Check with `__explainer.lang()`.
 
-## 작업 순서
+## Workflow
 
-`references/preferences.md`가 있으면 먼저 읽는다. 겹치는 항목은 이 문서의 기본값보다 preferences를 따른다. 없으면 기본값을 쓴다.
+If `references/preferences.md` exists, read it first. Where items overlap, follow preferences over this document's defaults. If it does not exist, use the defaults.
 
-### 1. 내용을 먼저 정한다
+### 1. Decide the content first
 
-**사실 확인.** 주제가 저장소 코드나 최신 제품 정보에 기대면 먼저 확인한다(코드 읽기, 공식
-문서, 웹 검색). 확인한 출처와 날짜는 페이지 끝에 남기고, 확인하지 못한 항목은 "확인하지
-않음"이라고 쓴다. 학습자는 이 페이지를 사실로 믿고 외우기 때문이다.
+**Fact-check.** If the topic depends on repository code or current product information, check it first (read the code, official docs, web search). Leave the sources you checked and the date at the end of the page, and write "not checked" for anything you could not verify. Learners trust this page as fact and memorize it.
 
-**장 설계.** 5~10장으로 나눈다. 쉬운 것에서 어려운 것으로 가고, 마지막 한두 장은 사용자의
-실제 상황(진행 중인 이슈, 설계안, 제품 비교)에 대입한다. 장마다 세 가지를 정한다.
+**Chapter design.** Split into 5-10 chapters. Go from easy to hard, and use the last one or two chapters to apply the idea to the user's actual situation (an issue in progress, a design draft, a product comparison). Decide three things for each chapter:
 
-- 장면: 무엇이 놓여 있는가(층, 방, 블록, 통로)
-- 동작: 버튼을 누르면 무엇이 일어나는가. 원인과 결과가 보여야 한다. 그냥 도는 애니메이션은 쓰지 않는다.
-- 요지: 장을 한 문장으로 줄인 것
+- Scene: what is placed there (layers, rooms, blocks, passages)
+- Action: what happens when the button is pressed. Cause and effect must be visible. Do not use animation that just spins.
+- Gist: the chapter reduced to one sentence
 
-동작이 떠오르지 않는 장은 글로 충분하거나 다른 장과 합칠 대상이다. 장 목록을 짧게 적어 둔 뒤
-만든다. 주제 범위가 모호할 때만 사용자에게 묻는다.
+A chapter with no action in mind is either well served by text alone or should be merged into another chapter. Write a short chapter list, then build. Ask the user only when the topic scope is ambiguous.
 
-### 2. 시각 규칙
+### 2. Visual rules
 
-이 스타일은 건축 모형(흰 매스 모형 + 잉크 윤곽선)을 축측도로 보는 모습이다. 학습자가
-"구조"를 읽게 하려는 선택이므로 주제가 바뀌어도 유지한다.
+This style is an architectural model (white massing model + ink outlines) seen in axonometric view. It is chosen so that learners read "structure", so keep it when the topic changes.
 
-- 직교(축측) 카메라, 흰 모형, 잉크 윤곽선, 옅은 그림자. 템플릿에 들어 있다.
-- 밝은 배경을 쓴다. 흰 모형은 밝은 바탕에서 윤곽과 그림자가 잘 읽힌다.
-- 의미 색은 세 개뿐이다. actor(움직이며 일을 일으키는 주인공, 빨강), bound(경계·규칙·중개자,
-  파랑), matter(데이터·자원·재료, 황동색). 색 하나에는 의미 하나만 두고, 나머지는 흰색과
-  잉크로 그린다. 범례에 이 페이지에서의 의미를 쓴다.
-- 모션은 기본으로 버튼을 눌렀을 때와 장이 바뀔 때만 일어난다. 사용자가 "자동 실행"을 켜면 지금 장의 동작을 반복 재생한다(실행, 결과 보여 주기, reset, 처음 상태 보여 주기 순서). 자동 실행을 켜지 않았을 때는 자동 재생이나 반복 애니메이션을 쓰지 않는다.
-- 라벨은 짧은 명사구로 쓰고(15자 안팎), 서로 겹치지 않게 한다.
-- 글꼴은 대표 제목(h1)은 Pretendard Variable(2.2rem, 휴대폰 1.7rem, 굵기 700), 장 제목(h2)과 무대 제목은 Hahmlet, 본문은 IBM Plex Sans KR, 코드 식별자에만 IBM Plex Mono를 쓴다. 다른 글꼴을 쓰고 싶으면 preferences에서 바꿀 수 있다. 일본어·중국어 페이지(`:lang(ja)`, `:lang(zh)`)는 이 웹폰트에 가나·간체 글자가 부족하므로 Hiragino Sans·Yu Gothic·PingFang SC·Noto Sans CJK 같은 시스템 글꼴로 이어지고(템플릿 CSS에 들어 있음), CDN 글꼴은 더하지 않는다.
+- Orthographic (axonometric) camera, white model, ink outlines, light shadows. They are in the template.
+- Use a light background. A white model reads well against a light ground, with clear outlines and shadows.
+- There are only three semantic colors. actor (the protagonist that moves and causes things, red), bound (boundary, rule, intermediary, blue), matter (data, resource, material, brass). Give each color exactly one meaning, and draw everything else in white and ink. Write what each means on this page in the legend.
+- Motion happens only when a button is pressed and when the chapter changes, by default. If the user turns on "Auto-play", the action of the current chapter replays in a loop (run, show the result, reset, show the initial state, in that order). When auto-play is off, use no autoplay or looping animation.
+- Write labels as short noun phrases (about 15 characters) and keep them from overlapping.
+- Fonts: the headline (h1) uses Pretendard Variable (2.2rem, 1.7rem on phones, weight 700); chapter titles (h2) and the stage title use Hahmlet; body text uses IBM Plex Sans KR; only code identifiers use IBM Plex Mono. If you want other fonts, change them in preferences. Japanese and Chinese pages (`:lang(ja)`, `:lang(zh)`) fall back to system fonts such as Hiragino Sans, Yu Gothic, PingFang SC, and Noto Sans CJK, because these web fonts lack enough kana and Simplified Chinese glyphs (this is in the template CSS). Do not add CDN fonts.
 
-### 3. 템플릿으로 만든다
+### 3. Build from the template
 
-`assets/template.html`을 출력 위치로 복사하고, `TEXT` 주석이 붙은 HTML과 `SCENES` 구역만
-채운다. 렌더러, 카메라 맞춤, 라벨 처리, 애니메이터, 장 전환, 검증 훅이 든 `ENGINE` 구역은
-고치지 않는다. 이 구역에는 이미 겪은 버그의 해법이 들어 있다.
+Copy `assets/template.html` to the output location and fill in only the HTML marked `TEXT` and the `SCENES` section. Do not edit the `ENGINE` sections, which hold the renderer, camera fitting, label handling, animator, chapter switching, and verification hooks. They already contain fixes for bugs we hit.
 
-- 장면 하나는 `defineScene(name, { title, base, target, fitW, fitH, build })`로 만든다. 본문의
-  `data-scene`과 버튼의 `data-run` 값은 `name`과 같아야 한다.
-- `build()`는 `{ group, reset, run }`을 돌려준다. `reset()`은 `run()`이 바꾼 것(위치, 크기,
-  표시 여부, 라벨 글자)을 전부 되돌린다. 색은 엔진이 `resetLook`으로 되돌린다.
-- 자동 실행은 ENGINE이 처리한다. 장 본문의 `.act` 안에 `data-run` 버튼이 있는 장만 반복 실행되고, 버튼이 없는 요소(도입부, 용어 정리)에서는 실행되지 않는다. 페이지 맨 위(스크롤 40px 이하)에서도 실행하지 않는다. 반복하려면 장면의 `reset()`이 `run()`이 바꾼 것을 전부 되돌려야 한다(결과 문장과 라벨 글자 포함).
-- 화면 문구 요소(도입부 `.note`의 `.wide`·`.narrow`, HUD 버튼, `.hint`, `.fallback`, 용어 정리·출처 제목)에는 `data-ui="키"`나 `data-ui-aria="키"`가 달려 있고 엔진이 페이지 언어로 채운다. 이 글자는 TEXT에서 직접 고치지 않는다. 바꾸고 싶으면 `UI_OVERRIDES`로 덮어쓴다. 무대의 `aria-label`(`data-ui-aria="stageAria"`)은 "3D model"이라는 기본 문구라서, 주제를 넣고 싶으면 그 속성을 지우고 `aria-label`을 직접 쓴다.
+- Make one scene with `defineScene(name, { title, base, target, fitW, fitH, build })`. The `data-scene` in the body and the `data-run` on the button must equal `name`.
+- `build()` returns `{ group, reset, run }`. `reset()` restores everything `run()` changed (position, size, visibility, label text). The engine restores colors with `resetLook`.
+- The ENGINE handles auto-play. Only chapters with a `data-run` button inside the chapter body's `.act` loop; elements without a button (intro, glossary) do not run. It also does not run at the very top of the page (scroll 40px or less). To loop, the scene's `reset()` must restore everything `run()` changed (including the result sentence and label text).
+- Screen text elements (the intro `.note`'s `.wide` and `.narrow`, HUD buttons, `.hint`, `.fallback`, the glossary and sources headings) carry `data-ui="key"` or `data-ui-aria="key"`, and the engine fills them in the page language. Do not edit this text directly in TEXT. To change it, override it with `UI_OVERRIDES`. The stage's `aria-label` (`data-ui-aria="stageAria"`) has the generic text "3D model"; to put the topic in it, delete that attribute and write `aria-label` yourself.
 - API: `references/engine-api.md`
-- 개념 종류별 장면 패턴(층, 경계, 흐름, 수명, 비교 등): `references/scene-patterns.md`
+- Scene patterns by kind of concept (layers, boundaries, flows, lifetimes, comparisons, and so on): `references/scene-patterns.md`
 
-### 4. 글쓰기
+### 4. Writing
 
-- 사용자의 언어로, 평이한 문장으로 쓴다. 전문 용어는 처음 나올 때 한 줄로 풀고 용어 정리에도 넣는다.
-- 비유를 쓸 때는 "비유하면"이라고 밝힌다. 비유가 개념을 대신하지 않게, 비유 뒤에 실제 이름을 붙인다.
-- 장 본문은 2~3문단, 문단마다 2~4문장으로 쓴다. 결과 문장(`say`)은 방금 일어난 일을 과거형으로 쓴다.
-- 장마다 구체 예시를 하나 넣는다. 실제로 들어올 법한 입력, 코드, 명령과 그 결과를 보여 준다. 추상 설명만
-  있으면 학습자가 개념을 자기 상황에 옮기기 어렵기 때문이다. 코드는 `pre.code`에, 숨은 입력 같은 인용은
-  `blockquote.planted`에 넣고, 버튼의 결과 문장을 예시의 단계 번호와 맞춘다.
-- "A는 이렇게 하는 방법이고 B는 저렇게 하는 방법이다" 같은 대비 문장에서 학습자가 가장 자주 막힌다.
-  이런 문장은 그대로 두지 말고, 같은 질문을 양쪽에 보내 누가 대답하는지 보여 주는 장을 따로 만든다
-  (scene-patterns의 "같은 질문, 다른 대답"). 그 장 끝에 차이를 표로 한 번 더 정리한다.
-- 설계 초안이나 추정을 담은 장은 본문에 그렇다고 적는다.
+- Write in the user's language, in plain sentences. Explain each technical term in one line when it first appears and add it to the glossary.
+- When you use an analogy, say so ("as an analogy"). Do not let the analogy replace the concept; follow it with the real name.
+- Write 2-3 paragraphs per chapter body, 2-4 sentences per paragraph. Write the result sentence (`say`) in the past tense, about what just happened.
+- Put one concrete example in each chapter. Show input, code, or a command that could really come in, and its result. With only abstract explanation, learners find it hard to carry the concept into their own situation. Put code in `pre.code` and quotations such as hidden input in `blockquote.planted`, and match the button's result sentences to the example's step numbers.
+- Contrast sentences like "A is one way to do this and B is another way" are where learners get stuck most often.
+  Do not leave such sentences as they are. Make a separate chapter that sends the same question to both sides and shows who answers
+  ("Same question, different answer" in scene-patterns). End that chapter with a table that sums up the difference once more.
+- If a chapter holds a design draft or an estimate, say so in the body.
 
-### 5. 검증한다(생략하지 않는다)
+### 5. Verify (do not skip)
 
-`references/gotchas.md`를 먼저 읽는다. 겹친 라벨과 잘린 모형은 코드만 봐서는 찾을 수 없다.
+Read `references/gotchas.md` first. Overlapping labels and clipped models cannot be found by reading the code.
 
-1. 로컬 서버를 백그라운드로 띄운다:
-   `python3 -m http.server <포트> --bind 127.0.0.1 --directory <폴더>`
-2. 브라우저 자동화 도구(예: Playwright)로 1440×900에서 연다. 콘솔 오류를 확인한다(favicon 404는 무시한다).
-3. 모든 장을 한 번에 돌려 기계 검사를 한다:
+1. Start a local server in the background:
+   `python3 -m http.server <port> --bind 127.0.0.1 --directory <folder>`
+2. Open the page at 1440×900 with a browser automation tool (for example Playwright). Check the console for errors (ignore a favicon 404).
+3. Run every chapter in one pass for the machine check:
    ```js
    async () => { const out = {}; for (const n of window.__explainer.scenes()) {
      const text = await window.__explainer.run(n);
      out[n] = { text, overlaps: window.__explainer.overlaps(), clipped: window.__explainer.clipped() };
    } return out; }
    ```
-   `overlaps`와 `clipped`는 빈 배열이어야 한다. `run`은 동작이 끝날 때까지 기다리므로
-   중간 상태가 잡히지 않는다.
-4. 장마다 `__explainer.run(name)` 직후 스크린샷을 찍어 눈으로 본다. 결과 상태가 결과 문장과
-   맞는지, 빈 공간이 지나치게 크지 않은지(`fitW`·`fitH`로 조정) 확인한다. 저장 경로는
-   도구가 허용하는 폴더 안의 절대 경로로 준다(gotchas 참고).
-5. 자동 실행을 확인한다. `__explainer.autorun(true)`로 켜고 장으로 스크롤해, 한 장에서 반복이 세 번 이상 도는지, 매번 결과 문장이 마지막 단계 문장까지 가고 reset으로 비워지는지, 마지막 상태마다 `overlaps()`와 `clipped()`가 비었는지 본다. 꺼 둔 채 스크롤하면 아무것도 실행되지 않아야 하고, 실행 중 다음 장으로 넘기면 앞 장 반복이 멈추고 새 장 반복이 시작되어야 한다.
-6. 휴대폰에서도 확인한다. 390×844와 360×800(deviceScaleFactor 3, isMobile, hasTouch)에서 모든 장의 `overlaps()`와 `clipped()`가 빈 배열인지, 가로 스크롤이 없는지(`document.documentElement.scrollWidth === innerWidth`), 가로 모드 844×390에서 레이아웃이 깨지지 않는지 본다. 스크롤하며 `__explainer.current()`가 화면에서 읽는 장과 맞는지 본다. 무대 위 세로 스와이프로 페이지가 스크롤되고 가로 스와이프로 모형이 도는지 확인한다.
-7. 한국어가 아닌 페이지(`en`, `ja`, `zh-CN`, 덮어쓰기 언어)를 만들었으면 `__explainer.lang()`이 그 언어인지, 화면 문구(HUD, 힌트, 용어 정리·출처 제목)가 그 언어로 나오는지 보고, 390×844와 360×800에서 HUD의 장 제목·스위치·시점 되돌리기가 서로 겹치지 않는지 본다.
-8. 고친 뒤 3번, 5번, 6번, 7번을 다시 돌린다.
+   `overlaps` and `clipped` must be empty arrays. `run` waits until the action finishes, so
+   no intermediate state is captured.
+4. Take a screenshot right after `__explainer.run(name)` for each chapter and look at it. Check that the end state matches the result sentence and that the empty space is not excessive (adjust with `fitW` and `fitH`). Give the save path as an absolute path inside a folder the tool allows (see gotchas).
+5. Check auto-play. Turn it on with `__explainer.autorun(true)` and scroll to a chapter. In one chapter, confirm that the loop runs three or more times, that each time the result sentence reaches the last step's sentence and is cleared by reset, and that `overlaps()` and `clipped()` are empty at each final state. With it off, scrolling must run nothing; when you move to the next chapter during a run, the previous chapter's loop must stop and the new chapter's loop must start.
+6. Check on phones too. At 390×844 and 360×800 (deviceScaleFactor 3, isMobile, hasTouch), confirm that `overlaps()` and `clipped()` are empty arrays for every chapter, that there is no horizontal scroll (`document.documentElement.scrollWidth === innerWidth`), and that the layout does not break in landscape at 844×390. While scrolling, confirm that `__explainer.current()` matches the chapter being read on screen. Confirm that a vertical swipe on the stage scrolls the page and a horizontal swipe rotates the model.
+7. If you built a page that is not Korean (`en`, `ja`, `zh-CN`, an override language), confirm that `__explainer.lang()` is that language and that the screen text (HUD, hint, glossary and sources headings) appears in that language. At 390×844 and 360×800, confirm that the HUD's chapter title, switch, and reset-view button do not overlap.
+8. Confirm that no placeholder remains and that no Hangul is left in a non-Korean page. Grep the finished page for placeholders of the form `__…__` (for example `grep -nE '__[^_ ][^_]*__' <page>.html | grep -v -e __explainer -e "label = '__actor__'"`; the two filters skip the verification hook and the engine's own default label argument), and expect no output. If the page language is not Korean, confirm that the visible text (excluding script and style, for example `document.body.innerText` and `document.title`) contains no Hangul (`/[\uAC00-\uD7A3]/`).
+9. After fixing, rerun 3, 5, 6, 7, and 8.
 
-휴대폰 레이아웃은 템플릿에 들어 있다.
+The phone layout is built into the template.
 
-- 세로 휴대폰(폭 860px 이하): 무대가 위에 붙고(높이 44svh) 글은 그 아래에서 스크롤된다. 무대는 제목줄, 3D 캔버스, 범례줄로 나뉘어 제목줄과 범례가 모형 위에 얹히지 않는다.
-- 가로 휴대폰(높이 520px 이하): 데스크톱처럼 왼쪽 글, 오른쪽 무대(화면 높이 전체)로 놓인다.
-- 무대 제목줄 한 줄에 장 제목, 자동 실행 스위치, 시점 되돌리기가 들어간다(장 제목은 두 줄까지, 넘치면 말줄임). 폭 430px 이하에서는 스위치 글자가 언어별 짧은 문구로 줄고(한국어 "자동", 영어 "Auto". 접근 가능한 이름은 긴 문구 "자동 실행"), 누르는 영역은 44px 이상이다. 코드 블록은 줄을 접지 않고 블록 안에서만 가로로 스크롤한다.
-- 터치: 무대 위에서 세로로 쓸면 페이지가 스크롤되고, 가로로 밀면 모형이 돈다. 위아래 기울이기는 되지 않는다.
-- 무대 폭이 700px 미만이면 엔진이 라벨을 캔버스 안쪽으로 당기고 겹치면 비켜 놓는다. 상한(56px)을 넘는 겹침은 남는다.
-- 페이지를 만드는 사람은 라벨을 짧게 쓰고, 긴 라벨 둘을 가까이 두지 않는다.
+- Portrait phone (width 860px or less): the stage is pinned on top (44svh high) and the text scrolls below it. The stage is split into a title bar, the 3D canvas, and a legend bar, so the title bar and legend never sit on the model.
+- Landscape phone (height 520px or less): laid out as on desktop, text on the left and the stage on the right (full screen height).
+- One line of the stage title bar holds the chapter title, the auto-play switch, and the reset-view button (the chapter title takes up to two lines and is truncated with an ellipsis if longer). At 430px wide and below, the switch text shrinks to a short per-language phrase (English "Auto"; the accessible name stays the long phrase "Auto-play"), and tap targets are 44px or more. Code blocks do not wrap; they scroll horizontally inside the block only.
+- Touch: on the stage, a vertical swipe scrolls the page and a horizontal drag rotates the model. Tilting up and down is not supported.
+- When the stage is narrower than 700px, the engine pulls labels toward the inside of the canvas and shifts them apart when they overlap. Overlaps beyond the cap (56px) remain.
+- When you build a page, write short labels and do not place two long labels close together.
 
-### 6. 전달한다
+### 6. Deliver
 
-- 저장 위치: 저장소 안에서 작업 중이면 커밋되지 않는 작업 메모 폴더에 둔다(`git check-ignore`로
-  확인한다). 학습 문서가 저장소에 섞여 커밋되지 않게 하려는 것이다. 그런 폴더가 없거나 저장소
-  밖이면 preferences에 정한 위치에 둔다. 그것도 없으면 사용자에게 묻고, 답이 없으면 현재 디렉터리에 둔다.
-- 보고 내용: 전체 절대 경로, `open <경로>` 명령, 장 목록, 검증 범위(해상도, 오류와 겹침 여부).
-  임시 서버 주소는 세션이 끝나면 닫힌다고 알린다.
+- Where to save: when working inside a repository, put it in a working-notes folder that is not committed (check with `git check-ignore`). This keeps study documents from getting mixed into the repository and committed. If there is no such folder, or you are outside a repository, put it in the location set in preferences. If there is none, ask the user, and with no answer put it in the current directory.
+- What to report: the full absolute path, the `open <path>` command, the chapter list, and the verification scope (resolutions, whether there were errors and overlaps). Tell the user that the temporary server address closes when the session ends.

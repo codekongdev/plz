@@ -1,33 +1,33 @@
-# 개인 설정 예시
+# Personal preferences example
 
-이 파일을 `preferences.md`로 복사해서 자기 설정을 적는다. `preferences.md`는 `.gitignore`에 들어 있어
-커밋되지 않는다. SKILL.md의 기본값과 겹치는 항목은 `preferences.md`를 따른다. 적지 않은 항목은
-기본값을 쓴다.
+Copy this file to `preferences.md` and write your own settings in it. `preferences.md` is in `.gitignore`, so it
+is not committed. Where an item overlaps with the SKILL.md defaults, follow `preferences.md`. Items you do not
+write use the defaults.
 
-## 시각 취향
+## Visual taste
 
-기본값을 바꾸고 싶은 시각 선택을 적는다. 글꼴, 배경, 색 같은 것이다.
+Write the visual choices you want to change from the defaults, such as fonts, background, and colors.
 
-- 예: 본문 글꼴을 Pretendard로 바꾼다.
-- 예: 제목 글꼴은 기본값(Hahmlet)을 그대로 쓴다.
+- Example: change the body font to Pretendard.
+- Example: keep the default (Hahmlet) for the title font.
 
-## 작업 환경
+## Work environment
 
-검증에 쓰는 도구와 그 도구를 쓸 때의 조건을 적는다.
+Write the tools used for verification and the conditions for using them.
 
-- 예: 브라우저 검증에는 Playwright MCP를 쓴다.
-- 예: 로컬 서버 포트는 8765를 쓴다.
+- Example: use the Playwright MCP for browser verification.
+- Example: use port 8765 for the local server.
 
-## 저장 위치
+## Save location
 
-완성한 HTML을 둘 폴더를 적는다. 저장소 안이면 커밋되지 않는 폴더를 우선한다는 기본 규칙에 더해,
-그 밖의 경우에 쓸 위치다.
+Write the folder where finished HTML goes. In addition to the default rule of preferring a folder that is not committed
+when inside a repository, this is the location to use in other cases.
 
-- 예: `~/study-pages/<주제-slug>.html`
+- Example: `~/study-pages/<topic-slug>.html`
 
-## 받은 피드백
+## Feedback received
 
-이 스킬로 만든 결과물에 대해 받은 지적과 요청을 적는다. 다음에 같은 지적을 받지 않게 하는 기록이다.
+Write the remarks and requests received about results made with this skill. This is a record so you do not get the same remark again.
 
-- 예: 라벨 글자가 작다는 지적을 받아 키웠다.
-- 예: 장 수를 7장 안팎으로 줄여 달라는 요청을 받았다.
+- Example: received a remark that label text was too small, so I made it larger.
+- Example: received a request to cut the chapter count to around 7.
