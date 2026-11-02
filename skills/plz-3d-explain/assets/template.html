@@ -54,7 +54,7 @@
   }
   body:lang(ja), body:lang(zh) { word-break: normal; line-break: strict; }
   a { color: var(--bound); text-underline-offset: 3px; }
-  a:focus-visible, button:focus-visible { outline: 3px solid var(--bound); outline-offset: 3px; }
+  a:focus-visible, button:focus-visible, pre.code:focus-visible { outline: 3px solid var(--bound); outline-offset: 3px; }
 
   .layout { display: grid; grid-template-columns: minmax(0, 38rem) minmax(0, 1fr); }
   .text { padding: 4.5rem clamp(1.5rem, 4vw, 3.5rem) 40vh; border-right: 1px solid var(--rule); }
@@ -172,6 +172,8 @@
     .chapter { min-height: auto; padding-top: 2.75rem; scroll-margin-top: var(--stage-h); }
     .chapter h2 { font-size: 1.45rem; }
     [data-scene] { scroll-margin-top: var(--stage-h); }
+    /* Keyboard focus scrolls focused code blocks and controls into view; keep them below the stage. */
+    html { scroll-padding-top: var(--stage-h); }
   }
   /* Landscape phone: text on the left, stage on the right, as on desktop. The stage takes the full screen height. */
   @media (orientation: landscape) and (max-height: 520px) {
