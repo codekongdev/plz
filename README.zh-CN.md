@@ -15,6 +15,8 @@
 </p>
 <p align="center"><em>桌面端：韩语演示第 4 章，容器隔离了进程，但仍然共享宿主机内核。手机端：第 8 章，OS 沙箱。英文演示见下方的技能表格。</em></p>
 
+https://github.com/user-attachments/assets/2bc1d21f-3e92-46ad-8fa0-0ad9f0bbadba
+
 像下面这样一句话提出需求即可开始，上面的演示就是这类主题之一。示例为英文，用中文提出需求也可以。
 
 ```text

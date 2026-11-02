@@ -15,6 +15,8 @@ codekongdev が公開している、Claude Code と Codex 向けの AI コーデ
 </p>
 <p align="center"><em>デスクトップ: 韓国語デモの第 4 章。コンテナはプロセスを分離しますが、ホストのカーネルは共有します。スマートフォン: 第 8 章の OS サンドボックス。英語版のデモは下のスキル一覧にあります。</em></p>
 
+https://github.com/user-attachments/assets/2bc1d21f-3e92-46ad-8fa0-0ad9f0bbadba
+
 次のような一文の依頼で始められます。上のデモは、こうしたテーマの一つを扱っています。例は英語ですが、日本語で依頼しても構いません。
 
 ```text
