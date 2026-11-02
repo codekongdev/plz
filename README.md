@@ -15,7 +15,7 @@ Each `plz-<task>` name reads like a request to your agent: “please do this.”
 </p>
 <p align="center"><em>Desktop: chapter 4 of the Korean demo, where containers isolate processes but still share the host kernel. Mobile: chapter 8, OS sandboxing. An English demo is listed in the Skills table below.</em></p>
 
-https://github.com/user-attachments/assets/2bc1d21f-3e92-46ad-8fa0-0ad9f0bbadba
+https://github.com/user-attachments/assets/eb09c80d-4260-46b4-ae61-092b9f979167
 
 A one-line request like this is enough to start, and the demo above covers one topic of this kind:
 
