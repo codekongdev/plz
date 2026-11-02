@@ -83,6 +83,12 @@ defineScene('name', {
 
 ## Verification hooks `window.__explainer`
 
+These hooks exist after successful initialization. The stage's `data-state` is `loading`,
+`ready`, or `failed`. Loading and failure notices are translated before any CDN imports;
+Run, Auto-play, and Reset view remain disabled until the first render succeeds.
+If an import or renderer initialization fails, the notice offers a Retry button that reloads
+the page. On small screens the failed stage becomes a compact, non-sticky notice above the text.
+
 | Method | Returns |
 |---|---|
 | `scenes()` | Array of scene names |
@@ -144,6 +150,9 @@ English (`en`) is canonical. A key missing from the chosen language's dictionary
 | `autorunShort` | Short text of the same switch (width 430px and below) | Auto | 자동 | 自動 | 自动 |
 | `hint` | `.hint` | Drag to rotate | 드래그해서 돌려 보기 | ドラッグで回転 | 拖动旋转 |
 | `fallback` | `.fallback` (no WebGL) | This browser can't draw the 3D model. You can still follow the content from the text alone. | 이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다. | このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。 | 此浏览器无法显示 3D 模型。只看正文也能理解内容。 |
+| `loading` | `.fallback p` while initializing | Loading the 3D model… You can read the text while you wait. | 3D 모형을 불러오는 중입니다. 기다리는 동안 본문을 읽을 수 있습니다. | 3Dモデルを読み込んでいます。待っている間も本文を読めます。 | 正在加载 3D 模型…等待时可以先阅读正文。 |
+| `loadError` | `.fallback p` after an import or initialization failure | Couldn't load the 3D model. Check your connection and try again, or keep reading the text. | 3D 모형을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도하거나 본문을 계속 읽어 주세요. | 3Dモデルを読み込めませんでした。接続を確認して再試行するか、本文を読み進めてください。 | 无法加载 3D 模型。请检查网络连接后重试，或继续阅读正文。 |
+| `retry` | `.retry-load` button (reloads the page) | Retry | 다시 시도 | 再試行 | 重试 |
 | `stageAria` | `aria-label` of `aside.stage` | 3D model | 3D 모형 | 3Dモデル | 3D 模型 |
 | `terms` | "Glossary" heading | Glossary | 용어 정리 | 用語集 | 术语表 |
 | `sources` | Sources heading. The `data-date` value goes in `{date}` | Sources (checked {date}) | 출처 ({date} 확인) | 出典（{date} 確認） | 来源（{date} 核对） |
@@ -153,7 +162,7 @@ English (`en`) is canonical. A key missing from the chosen language's dictionary
 
 - `data-ui="key"`: fills that element's text (`textContent`) with the dictionary value. If `data-date="YYYY-MM-DD"` is also present, `{date}` in the value is replaced with that date.
 - `data-ui-aria="key"`: fills that element's `aria-label` with the dictionary value.
-- The text written inside the element is the default text shown before JS runs (or when the three.js CDN fails to load). It is English in the template and Korean in the demo. When the engine starts, it is replaced with the dictionary value.
+- The text written inside the element is the default text shown before JS runs. It is English in the template and the English demo, and Korean in the Korean demo. The inline module replaces it with the dictionary value before loading three.js, so CDN failures also use the page language.
 - A key that is not in the dictionary leaves a `console.warn` and the element stays as it is.
 - The auto-play switch holds both `<span class="long" data-ui="autorun">` and `<span class="short" data-ui="autorunShort">`. CSS shows only `.short` at 430px wide and below. The accessible name is `data-ui-aria="autorun"` (the long text).
 - The demo has no `data-ui-aria` on `aside.stage`; it writes a topic-specific `aria-label` directly, such as `aria-label="샌드박스 3D 모형"`.
@@ -178,7 +187,7 @@ window.UI_OVERRIDES = {
 ```
 
 - Keys are matched in this order: the full `lang` (`es-MX`), its prefix (`es`), the built-in language name (`zh-CN`). You can also override a key of a built-in language (such as `ko`) to change just one string.
-- Lookup order: `UI_OVERRIDES[language]` → built-in dictionary[language] → `en`. For a new language you may fill in only the keys you want and leave the rest in English, but these are strings the learner sees, so fill in `noteWide`, `noteNarrow`, `fallback`, and `runError` too.
+- Lookup order: `UI_OVERRIDES[language]` → built-in dictionary[language] → `en`. For a new language you may fill in only the keys you want and leave the rest in English, but these are strings the learner sees, so fill in `noteWide`, `noteNarrow`, `fallback`, `loading`, `loadError`, `retry`, and `runError` too.
 - If you give only `autorun` and not `autorunShort`, the short text uses the `autorun` text too (so English "Auto" does not get mixed in).
 - The `:lang(ja)` and `:lang(zh)` font rules do not apply to a page in a non-built-in language. For Latin-script languages (Spanish, French, and so on) the default fonts are enough. For scripts that need their own fonts, such as Arabic or Thai, this template does not cover them (the CSS must stay the same as the demo's, so do not change the engine side; ask the user to decide).
 
