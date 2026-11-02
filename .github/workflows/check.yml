@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  readme-translations:
+  checks:
+    name: Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -18,3 +19,11 @@ jobs:
           node-version: 22
       - name: Check README translations
         run: node scripts/check-readme-translations.mjs
+      # Run the remaining checks even when an earlier one fails, so one pull request shows every result.
+      # A new skill that ships only an English README fails the translation check until a maintainer adds the translations.
+      - name: Check skill templates
+        if: ${{ !cancelled() }}
+        run: node scripts/check-templates.mjs
+      - name: Run script tests
+        if: ${{ !cancelled() }}
+        run: node --test scripts/*.test.mjs
