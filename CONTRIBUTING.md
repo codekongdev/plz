@@ -19,6 +19,7 @@ Thanks for your interest in plz. This repository is a collection of agent skills
 ```text
 README.md, README.ko.md, README.ja.md, README.zh-CN.md   repository overview
 CONTRIBUTING.md
+SECURITY.md                                               how to report a vulnerability
 scripts/check-readme-translations.mjs                     translation consistency check
 scripts/check-templates.mjs                               template ENGINE and UI_TEXT consistency check
 scripts/check-templates.test.mjs                          tests for the template check
@@ -105,6 +106,8 @@ If your pull request adds or changes any of the following, state the purpose and
 - external URLs, including CDNs
 
 Do not include secrets such as API keys or tokens anywhere in the repository.
+
+To report a vulnerability in this repository, do not open a public issue. Follow [SECURITY.md](SECURITY.md) instead.
 
 ## License
 
