@@ -66,6 +66,7 @@ npx skills add codekongdev/plz --skill '*' -g
 
 ```sh
 git clone https://github.com/codekongdev/plz.git
+mkdir -p ~/.claude/skills
 cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 ```
 
