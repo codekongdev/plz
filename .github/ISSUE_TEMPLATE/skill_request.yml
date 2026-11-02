@@ -1,0 +1,24 @@
+name: Skill request
+description: Propose a new skill or a large change to an existing one.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem would the skill solve?
+    validations:
+      required: true
+  - type: textarea
+    id: requests
+    attributes:
+      label: Example requests
+      description: What would a user say to the agent to trigger this skill? List a few.
+    validations:
+      required: true
+  - type: textarea
+    id: overlap
+    attributes:
+      label: Overlap with existing skills
+      description: Does an existing skill in this repository, or elsewhere, already cover this? How is this different?
+    validations:
+      required: true

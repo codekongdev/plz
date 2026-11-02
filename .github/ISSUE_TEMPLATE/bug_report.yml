@@ -1,0 +1,70 @@
+name: Bug report
+description: Something in a skill or a generated page does not work as expected.
+body:
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      description: Which agent did you use?
+      options:
+        - Claude Code
+        - Codex
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: agent-version
+    attributes:
+      label: Agent version
+      description: For example, the output of the agent's version command. If you chose Other, name the agent too.
+    validations:
+      required: true
+  - type: input
+    id: install-method
+    attributes:
+      label: Install method
+      description: For example, `npx skills add`, or a manual copy or symlink.
+    validations:
+      required: true
+  - type: input
+    id: skill
+    attributes:
+      label: Skill name and commit or version
+      description: For example, `plz-3d-explain` at a commit hash.
+    validations:
+      required: true
+  - type: textarea
+    id: prompt
+    attributes:
+      label: Prompt
+      description: The request you gave the agent.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser, OS, and screen size
+      description: For example, Chrome 130 on macOS 15 at 1440x900. Add the device if it is a phone.
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: Paste any errors from the browser console.
+      render: text
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot or layout check output
+      description: Attach a screenshot, or paste the output of `__explainer.overlaps()` and `__explainer.clipped()` from the browser console.
