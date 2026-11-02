@@ -15,7 +15,7 @@ codekongdev(코드콩)가 만드는 Claude Code와 Codex용 AI 코딩 에이전�
 </p>
 <p align="center"><em>데스크톱: 한국어 데모 4장. 컨테이너는 프로세스를 격리하지만 호스트 커널은 함께 씁니다. 휴대폰: 8장 OS 샌드박스. 영어 데모는 아래 스킬 목록에 있습니다.</em></p>
 
-https://github.com/user-attachments/assets/2bc1d21f-3e92-46ad-8fa0-0ad9f0bbadba
+https://github.com/user-attachments/assets/eb09c80d-4260-46b4-ae61-092b9f979167
 
 이런 한 줄 요청이면 시작할 수 있으며, 위 데모는 이런 주제 중 하나를 다룹니다. 예시 요청은 영어이지만 한국어로 요청해도 됩니다.
 
