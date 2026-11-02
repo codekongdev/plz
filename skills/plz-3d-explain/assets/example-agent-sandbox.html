@@ -734,7 +734,7 @@ function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.in
   g.userData.h = h;
   return g;
 }
-const allTags = [];
+const allTags = new Set();
 // On-screen label. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
 function tag(text, pos, kind = '') {
   const el = document.createElement('div');
@@ -742,8 +742,48 @@ function tag(text, pos, kind = '') {
   el.textContent = text;
   const o = new CSS2DObject(el);
   o.position.set(pos[0], pos[1], pos[2]);
-  allTags.push(o);
+  allTags.add(o);
   return o;
+}
+// Temporary groups contain one-shot objects created during playback. Shared resources stay externally owned.
+const temporaryGroups = new WeakMap();
+function temporaryGroup(sharedResources = []) {
+  const group = new THREE.Group();
+  temporaryGroups.set(group, new Set(sharedResources));
+  return group;
+}
+// Release an owned subtree. Keep externally owned geometry/materials in sharedResources or its temporary group's list.
+function disposeObject(root, sharedResources = []) {
+  disposeObjects([root], sharedResources);
+}
+function disposeObjects(roots, sharedResources = []) {
+  const shared = new Set(sharedResources), resources = new Set();
+  for (const root of roots) {
+    for (let node = root; node; node = node.parent) {
+      for (const resource of temporaryGroups.get(node) || []) shared.add(resource);
+    }
+    root.traverse(o => {
+      for (const resource of temporaryGroups.get(o) || []) shared.add(resource);
+      if (o.isCSS2DObject) {
+        allTags.delete(o);
+        labelState.delete(o);
+        o.element.remove();
+      }
+      if (o.geometry) resources.add(o.geometry);
+      for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (material) resources.add(material);
+      }
+    });
+    root.removeFromParent();
+  }
+  for (const resource of resources) if (!shared.has(resource)) resource.dispose();
+}
+function clearGroup(group) {
+  disposeObjects([...group.children]);
+}
+function clearTemporary(root) {
+  if (temporaryGroups.has(root)) { clearGroup(root); return; }
+  for (const child of root.children) clearTemporary(child);
 }
 // Actor cube (0.6). Pass label as null for no label.
 function actorCube(pos, label = '__actor__') {
@@ -782,7 +822,7 @@ function arrow(from, to, color = COLOR.ink) {
   g.add(cone);
   return g;
 }
-// Moving ball (request, signal). Put it in the scene's temp group and remove it when done.
+// Moving ball (request, signal). Put it in a temporaryGroup() and disposeObject() when done.
 function packet(color, pos, r = 0.2) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
   m.position.set(...pos);
@@ -972,7 +1012,7 @@ defineScene('bare', {
   title: '1  막는 것이 없을 때',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     g.add(block(3, 1.3, 2.2, [1.2, FLOOR, 1.2]));
     g.add(tag('에이전트 프로세스', [1.2, FLOOR + 0.65, 2.42]));
     const actor = actorCube([1.2, FLOOR + 1.3, 1.2], CODE);
@@ -983,7 +1023,7 @@ defineScene('bare', {
     actor.add(loot);
     return {
       group: g,
-      reset() { actor.position.copy(home); loot.visible = false; temp.clear(); },
+      reset() { actor.position.copy(home); loot.visible = false; clearGroup(temp); },
       async run(a, say) {
         say('1번: 코드가 환경 변수와 키 파일을 읽으러 갑니다.');
         await a.move(actor, [-4.15, FLOOR + 1.25, -2.9], 1000, 1.2);
@@ -1004,7 +1044,7 @@ defineScene('kernel', {
   title: '2  모든 요청은 커널을 지나간다',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     g.add(block(3, 1.3, 2.2, [1.2, FLOOR, 1.2]));
     g.add(tag('에이전트 프로세스', [1.2, FLOOR + 0.65, 2.42]));
     g.add(block(1.6, 1.0, 1.6, [4.3, FLOOR, 1.6]));
@@ -1019,7 +1059,7 @@ defineScene('kernel', {
     ];
     return {
       group: g,
-      reset() { temp.clear(); },
+      reset() { clearGroup(temp); },
       async run(a, say) {
         for (const c of calls) {
           const p = packet(COLOR.actor, src, 0.17);
@@ -1031,7 +1071,7 @@ defineScene('kernel', {
           await a.move(p, [c.target[0], FLOOR + 0.08, c.target[2]], 800);
           await a.move(p, c.target, 400);
           if (c.hit) await a.flash(c.hit, COLOR.actor, 500);
-          temp.remove(p);
+          disposeObject(p);
         }
         say('openat, connect, mmap이 모두 같은 커널을 거쳐 갔습니다. 커널이 허락해서 일이 일어났습니다.');
       },
@@ -1044,7 +1084,7 @@ defineScene('container', {
   title: '4  컨테이너',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const A = glass(3.2, 2.4, 3.0, [1.0, FLOOR, 1.2]);
     const B = glass(2.4, 1.9, 2.4, [4.5, FLOOR, 1.4]);
     const C = glass(2.4, 1.9, 2.2, [2.4, FLOOR, -2.4]);
@@ -1063,7 +1103,7 @@ defineScene('container', {
     g.add(crack);
     return {
       group: g,
-      reset() { actor.position.copy(home); crack.visible = false; gv.visible = false; gv.scale.setScalar(1); temp.clear(); },
+      reset() { actor.position.copy(home); crack.visible = false; gv.visible = false; gv.scale.setScalar(1); clearGroup(temp); },
       async run(a, say) {
         say('1. 코드가 방 밖의 키 파일 쪽으로 나가려고 합니다.');
         await a.move(actor, [-0.25, FLOOR + 0.9, 1.2], 700, 0.5);
@@ -1099,7 +1139,7 @@ defineScene('socket', {
   fitH: 12.5,
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const service = block(2.4, 1.3, 1.8, [0.3, FLOOR, 2.7]);
     const daemon = block(2.0, 1.6, 1.8, [-4.6, FLOOR, 0.5], { color: COLOR.outside });
     g.add(service, daemon);
@@ -1122,7 +1162,7 @@ defineScene('socket', {
     const home = actor.position.clone();
     return {
       group: g,
-      reset() { actor.position.copy(home); evil.visible = false; evil.scale.setScalar(1); temp.clear(); },
+      reset() { actor.position.copy(home); evil.visible = false; evil.scale.setScalar(1); clearGroup(temp); },
       async run(a, say) {
         say('관리 서비스에 결함이 있어 코드가 서비스 쪽으로 빠져나왔다고 가정합니다.');
         await a.move(actor, [0.3, FLOOR + 1.6, 2.7], 1000, 1.2);
@@ -1160,7 +1200,7 @@ defineScene('microvm', {
   title: '6  마이크로VM',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const hyper = block(9.6, 0.25, 6.4, [1.6, FLOOR, 0], { color: COLOR.boundMid, edge: COLOR.bound });
     g.add(hyper);
     g.add(tag('하이퍼바이저 (KVM)', [-3.2, FLOOR + 0.12, 3.2], 'bound'));
@@ -1173,7 +1213,7 @@ defineScene('microvm', {
     const home = actor.position.clone();
     return {
       group: g,
-      reset() { actor.position.copy(home); temp.clear(); },
+      reset() { actor.position.copy(home); clearGroup(temp); },
       async run(a, say) {
         say('1. 코드가 VM 벽을 넘으려고 합니다.');
         await a.move(actor, [-0.6, Y1 + 1.2, 1.4], 700, 0.5);
@@ -1189,7 +1229,7 @@ defineScene('microvm', {
         await a.move(p, [0.6, FLOOR + 0.12, 1.4], 500);
         await a.flash(hyper, COLOR.bound, 800);
         await a.move(p, [0.6, Y1 + 0.6, 1.4], 500);
-        temp.remove(p);
+        disposeObject(p);
         say('3. 그 아래 하이퍼바이저에서 다시 막혔습니다. 호스트 커널과 다른 VM에는 닿지 못했습니다.');
       },
     };
@@ -1213,7 +1253,7 @@ defineScene('split', {
       const k = block(5.8, 0.4, 5.8, [0, 0.5, 0], { color: COLOR.boundSoft });
       s.add(k);
       s.add(tag('호스트 커널', [2.95, 0.7, 0], 'bound'));
-      const temp = new THREE.Group();
+      const temp = temporaryGroup();
       s.add(temp);
       g.add(s);
       return { s, k, temp };
@@ -1246,14 +1286,14 @@ defineScene('split', {
     };
     return {
       group: g,
-      reset() { L.temp.clear(); R.temp.clear(); },
+      reset() { clearGroup(L.temp); clearGroup(R.temp); },
       async run(a, say) {
         say('컨테이너 쪽: 두 프로그램이 똑같이 ls /data 로 파일 목록을 묻습니다.');
         let qs = spots.map(([x, z]) => { const p = packet(COLOR.actor, [x, Y + 0.9, z], 0.15); L.temp.add(p); return p; });
         await Promise.all(qs.map(p => a.move(p, [p.position.x, Y + 0.1, p.position.z], 500)));
         await Promise.all(qs.map(p => a.move(p, [0, Y + 0.1, 0], 700)));
         await a.flash(L.k, COLOR.bound, 800);
-        qs.forEach(p => L.temp.remove(p));
+        qs.forEach(p => disposeObject(p));
         say('두 질문이 같은 호스트 커널로 모였습니다. 커널은 묻는 쪽을 보고 그 몫의 파일만 골라 돌려줬습니다.');
         const la = names.map((n, i) => { const f = answer(L, `${n}의 파일`, i); f.position.set(0, Y + 0.1, 0); return f; });
         await Promise.all(la.map((f, i) => a.move(f, [spots[i][0] + 0.55, Y + 0.08, spots[i][1] - 0.55], 800, 0.9)));
@@ -1262,7 +1302,7 @@ defineScene('split', {
         qs = spots.map(([x, z]) => { const p = packet(COLOR.actor, [x, vmFloor + 1.2, z], 0.15); R.temp.add(p); return p; });
         await Promise.all(qs.map(p => a.move(p, [p.position.x, vmFloor + 0.35, p.position.z], 500)));
         await Promise.all(vms.map(v => a.flash(v.gk, COLOR.bound, 800)));
-        qs.forEach(p => R.temp.remove(p));
+        qs.forEach(p => disposeObject(p));
         const ra = names.map((n, i) => {
           const f = answer(R, `${n}의 디스크`, i);
           f.position.set(spots[i][0] + 0.55, vmFloor + 0.38, spots[i][1] - 0.55);
@@ -1281,7 +1321,7 @@ defineScene('wasm', {
   title: '7  WASM',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     g.add(block(5.0, 0.8, 4.0, [1.0, FLOOR, 0.8]));
     g.add(tag('WASM 런타임', [1.0, FLOOR + 0.4, 2.9]));
     const R = 1.85;
@@ -1313,7 +1353,7 @@ defineScene('wasm', {
     const toward = (target, k) => center.clone().add(V(...target).sub(center).normalize().multiplyScalar(k));
     return {
       group: g,
-      reset() { actor.position.copy(home); temp.clear(); },
+      reset() { actor.position.copy(home); clearGroup(temp); },
       async run(a, say) {
         say('1. 코드가 키 파일 쪽으로 나가려고 합니다.');
         await a.move(actor, toward([-4.15, FLOOR + 1, -2.9], R - 0.4), 600);
@@ -1349,7 +1389,7 @@ defineScene('ossandbox', {
   title: '8  OS 샌드박스',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const box = glass(3.4, 2.2, 3.0, [1.2, FLOOR, 1.2], { opacity: 0.06 });
     g.add(box);
     g.add(tag('샌드박스 정책', [1.2, FLOOR + 2.55, 1.2], 'bound'));
@@ -1370,7 +1410,7 @@ defineScene('ossandbox', {
     const P = [4.6, FLOOR + 0.75, 0];
     return {
       group: g,
-      reset() { actor.position.copy(home); loot.visible = false; temp.clear(); },
+      reset() { actor.position.copy(home); loot.visible = false; clearGroup(temp); },
       async run(a, say) {
         say('1. 코드가 작업 폴더에 결과 파일을 씁니다.');
         await a.move(actor, [1.5, FLOOR + 0.45, 1.7], 600, 0.4);
@@ -1391,7 +1431,7 @@ defineScene('ossandbox', {
         await a.move(r, [-4.15, FLOOR + 1.0, -2.9], 900, 1.0);
         await a.flash(files[1], COLOR.actor, 600);
         await a.move(r, [home.x, home.y + 0.3, home.z], 800, 1.0);
-        temp.remove(r);
+        disposeObject(r);
         loot.visible = true;
         say('3. 기본 설정에서는 키 파일이 읽혔습니다. 읽기는 대부분 허용되기 때문입니다.');
         await a.wait(1200);
@@ -1399,7 +1439,7 @@ defineScene('ossandbox', {
         const s1 = packet(COLOR.matter, [home.x, home.y + 0.4, home.z], 0.17); temp.add(s1);
         await a.move(s1, [4.15, FLOOR + 0.75, 0], 900, 0.6);
         await a.flash(proxy, COLOR.bound, 800);
-        temp.remove(s1);
+        disposeObject(s1);
         say('4. example.net은 허용 목록에 없어서 프록시에서 멈췄습니다.');
         await a.wait(1100);
         say('5. 허용 목록에 넣은 pypi.org 로 요청을 보냅니다.');
@@ -1407,7 +1447,7 @@ defineScene('ossandbox', {
         await a.move(s2, P, 900, 0.6);
         await a.move(s2, GATE, 500);
         await a.move(s2, OUT, 500);
-        temp.remove(s2);
+        disposeObject(s2);
         say('5. pypi.org는 허용 목록에 있어서 프록시를 지나 인터넷으로 나갔습니다.');
       },
     };
@@ -1419,7 +1459,7 @@ defineScene('lifecycle', {
   title: '9  샌드박스의 하루',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const slotX = [-0.9, 2.0, 4.9], slotZ = 0.9, S = 2.6;
     slotX.forEach(x => {
       const h = S / 2;
@@ -1456,7 +1496,7 @@ defineScene('lifecycle', {
     return {
       group: g,
       reset() {
-        temp.clear();
+        clearGroup(temp);
         A.position.copy(slot0); A.scale.setScalar(0.001); A.visible = false;
         [sheet, df, pivot].forEach(o => { o.scale.setScalar(0.001); o.visible = false; });
         sheet.position.y = sheetY;
@@ -1525,7 +1565,7 @@ defineScene('compare', {
       const key = matterBlock([-0.95, K, 0.85], 0.55, 0.45);
       s.add(key);
       s.add(tag(name, high ? [0.3, 3.2, -0.4] : [0, 0.2, 1.6], 'big'));
-      const temp = new THREE.Group(); s.add(temp);
+      const temp = temporaryGroup(); s.add(temp);
       g.add(s);
       return { s, k, key, temp };
     };
@@ -1568,11 +1608,11 @@ defineScene('compare', {
         await a.move(p, path[i], 450);
         if (hits[i]) await a.flash(hits[i][0], hits[i][1], 650);
       }
-      st.temp.remove(p);
+      disposeObject(p);
     };
     return {
       group: g,
-      reset() { actors.forEach((x, i) => x.position.copy(homes[i])); [C, M, W, O].forEach(st => st.temp.clear()); },
+      reset() { actors.forEach((x, i) => x.position.copy(homes[i])); [C, M, W, O].forEach(st => clearGroup(st.temp)); },
       async run(a, say) {
         say('네 곳의 코드가 똑같이 호스트의 키 파일을 노립니다. 먼저 컨테이너+gVisor.');
         await a.move(cA, toKey(cA), 500); await a.flash(cRoom, COLOR.bound, 600); await a.move(cA, homes[0], 350);
@@ -1615,6 +1655,7 @@ function resultFor(name) {
 function activate(name) {
   if (!scenes[name] || current === name) return;
   runToken++;
+  if (scenes[current]) clearTemporary(scenes[current].group);
   const s = scenes[name];
   for (const other of Object.values(scenes)) other.targetK = other === s ? 1 : 0;
   baseState.target = s.base ? 1 : 0;
@@ -1643,6 +1684,7 @@ async function runScene(name) {
   try {
     await s.run(a, say);
   } catch (e) {
+    if (mine === runToken) clearTemporary(s.group);
     if (e !== CANCEL) { console.error(e); say(uiStr('runError')); }
     return;
   }
@@ -1812,6 +1854,7 @@ function loop() {
 //   window.__explainer.overlaps()         → pairs of currently visible labels that overlap each other
 window.__explainer = {
   scenes: () => Object.keys(scenes),
+  resources: () => ({ labels: allTags.size, labelStates: labelState.size, geometries: renderer.info.memory.geometries }),
   lang: () => UI_LANG,                          // language used for screen text (en | ko | ja | zh-CN | override key)
   current: () => current,                       // name of the scene the stage is showing now
   autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // Reads the auto-play state. If a value is given, changes it (and saves it) and returns the new state
@@ -1826,7 +1869,7 @@ window.__explainer = {
     return resultFor(name)?.textContent ?? '';
   },
   overlaps(minArea = 24) {
-    const boxes = allTags
+    const boxes = [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0);
@@ -1843,7 +1886,7 @@ window.__explainer = {
   },
   clipped() {
     const s = wrap.getBoundingClientRect(); // On phones the canvas cell (title bar and legend bar excluded) is the reference. On desktop it equals the stage.
-    return allTags
+    return [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0 && (b.r.left < s.left || b.r.right > s.right || b.r.top < s.top || b.r.bottom > s.bottom))

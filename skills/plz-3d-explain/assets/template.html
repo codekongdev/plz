@@ -527,7 +527,7 @@ function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.in
   g.userData.h = h;
   return g;
 }
-const allTags = [];
+const allTags = new Set();
 // On-screen label. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
 function tag(text, pos, kind = '') {
   const el = document.createElement('div');
@@ -535,8 +535,48 @@ function tag(text, pos, kind = '') {
   el.textContent = text;
   const o = new CSS2DObject(el);
   o.position.set(pos[0], pos[1], pos[2]);
-  allTags.push(o);
+  allTags.add(o);
   return o;
+}
+// Temporary groups contain one-shot objects created during playback. Shared resources stay externally owned.
+const temporaryGroups = new WeakMap();
+function temporaryGroup(sharedResources = []) {
+  const group = new THREE.Group();
+  temporaryGroups.set(group, new Set(sharedResources));
+  return group;
+}
+// Release an owned subtree. Keep externally owned geometry/materials in sharedResources or its temporary group's list.
+function disposeObject(root, sharedResources = []) {
+  disposeObjects([root], sharedResources);
+}
+function disposeObjects(roots, sharedResources = []) {
+  const shared = new Set(sharedResources), resources = new Set();
+  for (const root of roots) {
+    for (let node = root; node; node = node.parent) {
+      for (const resource of temporaryGroups.get(node) || []) shared.add(resource);
+    }
+    root.traverse(o => {
+      for (const resource of temporaryGroups.get(o) || []) shared.add(resource);
+      if (o.isCSS2DObject) {
+        allTags.delete(o);
+        labelState.delete(o);
+        o.element.remove();
+      }
+      if (o.geometry) resources.add(o.geometry);
+      for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (material) resources.add(material);
+      }
+    });
+    root.removeFromParent();
+  }
+  for (const resource of resources) if (!shared.has(resource)) resource.dispose();
+}
+function clearGroup(group) {
+  disposeObjects([...group.children]);
+}
+function clearTemporary(root) {
+  if (temporaryGroups.has(root)) { clearGroup(root); return; }
+  for (const child of root.children) clearTemporary(child);
 }
 // Actor cube (0.6). Pass label as null for no label.
 function actorCube(pos, label = '__actor__') {
@@ -575,7 +615,7 @@ function arrow(from, to, color = COLOR.ink) {
   g.add(cone);
   return g;
 }
-// Moving ball (request, signal). Put it in the scene's temp group and remove it when done.
+// Moving ball (request, signal). Put it in a temporaryGroup() and disposeObject() when done.
 function packet(color, pos, r = 0.2) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
   m.position.set(...pos);
@@ -748,7 +788,7 @@ defineScene('s1', {
   title: '1  __chapter title__',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const room = glass(3.2, 2.4, 3.0, [1.0, FLOOR, 1.0]);
     g.add(room);
     g.add(tag('__isolated room__', [1.0, FLOOR + 2.75, 1.0], 'bound'));
@@ -757,7 +797,7 @@ defineScene('s1', {
     const home = actor.position.clone();
     return {
       group: g,
-      reset() { actor.position.copy(home); temp.clear(); },
+      reset() { actor.position.copy(home); clearGroup(temp); },
       async run(a, say) {
         say('__The actor tries to leave the room.__');
         await a.move(actor, [-0.25, FLOOR + 0.9, 1.0], 700, 0.5);
@@ -778,7 +818,7 @@ defineScene('s2', {
   fitH: 11,
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const Y = 0.4;
     g.add(block(12.5, Y, 6.5, [0.6, 0, -0.2]));
     const A = block(2.2, 1.3, 1.8, [-3.6, Y, 0.8]);
@@ -792,13 +832,13 @@ defineScene('s2', {
     const top = o => [o.position.x, o.position.y + o.userData.h / 2 + 0.5, o.position.z];
     return {
       group: g,
-      reset() { temp.clear(); result.visible = false; result.scale.setScalar(1); },
+      reset() { clearGroup(temp); result.visible = false; result.scale.setScalar(1); },
       async run(a, say) {
         const send = async (color, from, to, ms = 800, r = 0.2) => {
           const p = packet(color, from, r);
           temp.add(p);
           await a.move(p, to, ms, 1.0);
-          temp.remove(p);
+          disposeObject(p);
         };
         say('1. __The sender sends a request.__');
         await send(COLOR.actor, top(A), top(B));
@@ -838,6 +878,7 @@ function resultFor(name) {
 function activate(name) {
   if (!scenes[name] || current === name) return;
   runToken++;
+  if (scenes[current]) clearTemporary(scenes[current].group);
   const s = scenes[name];
   for (const other of Object.values(scenes)) other.targetK = other === s ? 1 : 0;
   baseState.target = s.base ? 1 : 0;
@@ -866,6 +907,7 @@ async function runScene(name) {
   try {
     await s.run(a, say);
   } catch (e) {
+    if (mine === runToken) clearTemporary(s.group);
     if (e !== CANCEL) { console.error(e); say(uiStr('runError')); }
     return;
   }
@@ -1035,6 +1077,7 @@ function loop() {
 //   window.__explainer.overlaps()         → pairs of currently visible labels that overlap each other
 window.__explainer = {
   scenes: () => Object.keys(scenes),
+  resources: () => ({ labels: allTags.size, labelStates: labelState.size, geometries: renderer.info.memory.geometries }),
   lang: () => UI_LANG,                          // language used for screen text (en | ko | ja | zh-CN | override key)
   current: () => current,                       // name of the scene the stage is showing now
   autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // Reads the auto-play state. If a value is given, changes it (and saves it) and returns the new state
@@ -1049,7 +1092,7 @@ window.__explainer = {
     return resultFor(name)?.textContent ?? '';
   },
   overlaps(minArea = 24) {
-    const boxes = allTags
+    const boxes = [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0);
@@ -1066,7 +1109,7 @@ window.__explainer = {
   },
   clipped() {
     const s = wrap.getBoundingClientRect(); // On phones the canvas cell (title bar and legend bar excluded) is the reference. On desktop it equals the stage.
-    return allTags
+    return [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0 && (b.r.left < s.left || b.r.right > s.right || b.r.top < s.top || b.r.bottom > s.bottom))

@@ -37,6 +37,9 @@ If you change a CSS variable (such as `--actor`), change `COLOR` with it.
 | `arrow(from, to, color)` | Group | Line + cone (marks an exit going outward) |
 | `line(points, color, opacity, dashed)` | Line | Dashed slot, control line, crack |
 | `tag(text, pos, kind)` | CSS2DObject | Label. kind: `''`, `'actor'`, `'bound'`, `'matter'`, `'warn'` (black background), `'big'` (large serif title) |
+| `temporaryGroup(sharedResources=[])` | Group | Container for one-shot objects created during playback. The engine clears it when leaving a chapter |
+| `disposeObject(root, sharedResources=[])` | — | Detaches an owned subtree, unregisters its labels, removes their DOM/state, and disposes its geometry/materials |
+| `clearGroup(group)` | — | Disposes every child while keeping the group for the next run |
 
 Every Group has `userData.mesh` (the mesh whose color changes) and `userData.h` (height).
 
@@ -50,11 +53,11 @@ defineScene('name', {
   fitW: 17, fitH: 11.5,     // world width and height that must fit in the stage
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);   // things that appear and disappear during a run
+    const temp = temporaryGroup(); g.add(temp);   // things that appear and disappear during a run
     // ... add parts to g
     return {
       group: g,
-      reset() { /* restore the position, size, visible, and label text that run changed. temp.clear() */ },
+      reset() { /* restore the position, size, visible, and label text that run changed. clearGroup(temp) */ },
       async run(a, say) { /* a: animator, say(text): result sentence */ },
     };
   },
@@ -65,6 +68,22 @@ defineScene('name', {
   chapter transitions get smoother. For a chapter that needs a completely different stage, set `base: false` and build its own floor.
 - A scene may make objects on the shared floor flash. The engine restores the colors when the chapter changes or the scene runs again.
 - Chapter order does not depend on the order you call `defineScene`. The `data-scene` in the body sets the order.
+
+## Temporary-object ownership
+
+Create objects that appear during `run()` in a `temporaryGroup()`. Remove a finished packet with
+`disposeObject(packet)` and empty the group in `reset()` with `clearGroup(temp)`. Plain
+`Object3D.remove()` and `clear()` only detach objects; they do not release labels or GPU resources.
+The engine also clears temporary groups when the reader leaves a chapter or an active run fails.
+Permanent actors, labels, and end-state objects that must be reused belong in the scene's ordinary group.
+
+The cleanup helpers own the geometry and materials of their removed subtrees. They deduplicate
+resources within one cleanup operation. If a temporary object borrows geometry or materials from
+another object, list those externally owned resources in `temporaryGroup([geometry, material])`,
+or pass them as the second argument of `disposeObject()`. This list also protects resources used by
+objects built but not yet attached to the scene. The external owner remains responsible for their
+final disposal. Do not reuse disposed objects; build a fresh object for the next run. Textures are
+not disposed by these helpers because materials may borrow them.
 
 ## Animator `a`
 
@@ -92,6 +111,7 @@ the page. On small screens the failed stage becomes a compact, non-sticky notice
 | Method | Returns |
 |---|---|
 | `scenes()` | Array of scene names |
+| `resources()` | Counts of registered labels, decluttering state entries, and renderer geometries (`labels`, `labelStates`, `geometries`). Compare after warming up the same scene and after repeated runs |
 | `current()` | The scene name the stage is showing now. After scrolling, check that it matches the chapter being read on screen |
 | `autorun(on?)` | Returns the auto-play state (true/false). Given a boolean, it changes to that value (turning on runs the chapter being read right away and loops it; saved in `localStorage`) and returns the new state |
 | `azimuth()` | Camera azimuth (radians). Use it to check whether the model rotated |
