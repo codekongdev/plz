@@ -1,0 +1,115 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+tone_instructions: >-
+  Be concise and constructive. Prioritize concrete defects and material evidence
+  gaps. Explain the trigger, impact, and smallest useful correction. Consolidate
+  repeated findings; avoid praise, style-only churn, and speculative concerns.
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  auto_approvals:
+    enabled: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  changed_files_summary: false
+  sequence_diagrams: false
+  poem: false
+  in_progress_fortune: false
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+    drafts: false
+    # Review the default branch (main), without opting in other base branches.
+    base_branches: []
+  path_instructions:
+    - path: "**"
+      instructions: >-
+        Follow CONTRIBUTING.md, SECURITY.md, and .github/PULL_REQUEST_TEMPLATE.md.
+        Read the latest PR description, discussion, and relevant CI before repeating
+        a finding. Distinguish observed defects, author-reported results, and missing
+        evidence. Request proportionate checks for a concrete uncovered risk; reuse
+        unaffected evidence and avoid asking for tests that only mirror the change.
+        Small fixes do not require an issue. New-skill PRs may initially include
+        only an English README: maintainers add translations before merging, and
+        the translation check is expected to fail until then.
+    - path: "skills/**"
+      instructions: >-
+        Check that SKILL.md instructions, references, templates, and examples agree.
+        Treat new or changed shell commands, network access, file writes, external
+        URLs, and permission scope as security-sensitive; inspect their purpose and
+        effect. Preserve English SKILL.md/reference prose and intentional multilingual
+        trigger phrases. For plz-3d-explain, ENGINE changes must be mirrored verbatim
+        in every assets/example-*.html. UI_TEXT keys must match across en, ko, ja,
+        and zh-CN. Preserve the intentional Korean and English example content.
+        Passing translation/template checks does not establish browser or visual
+        correctness: apply the scoped verification procedure in CONTRIBUTING.md.
+    - path: ".github/workflows/**"
+      instructions: >-
+        Check permissions, secret exposure, and injection through untrusted issue
+        or PR content. Ensure required failures remain failures and intentional
+        conditional skips are not reported as executed checks.
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+    title:
+      mode: "off"
+    description:
+      mode: "off"
+    issue_assessment:
+      mode: "off"
+  # Keep this integration advisory; do not generate or commit code changes.
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: false
+    autofix:
+      enabled: false
+    fix_ci:
+      enabled: false
+    resolve_merge_conflict:
+      enabled: false
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - CONTRIBUTING.md
+      - SECURITY.md
+      - .github/PULL_REQUEST_TEMPLATE.md
+
+issue_enrichment:
+  auto_enrich:
+    enabled: true
+  planning:
+    enabled: false
+    auto_planning:
+      enabled: false
+  labeling:
+    auto_apply_labels: true
+    labeling_instructions:
+      - label: bug
+        instructions: >-
+          Reports that an existing skill, generated page, installation, or repository
+          tooling behaves incorrectly. This marks a bug report, not a confirmed
+          defect. Do not use for a new capability request alone.
+      - label: skill-request
+        instructions: >-
+          Requests for a new plz skill or a substantial expansion of an existing
+          skill's purpose. Do not use for ordinary bug fixes, documentation, or
+          translations alone.
+      - label: documentation
+        instructions: >-
+          Requests to clarify, correct, or add documentation, examples, or usage
+          instructions. Do not use for translation-only work or a change to runtime
+          behavior alone. Skill instructions that change agent behavior are not
+          merely documentation.
+      - label: translation
+        instructions: >-
+          Requests to add, correct, or synchronize translated README content or
+          localized UI text. Do not use merely because an issue is written in a
+          language other than English.
