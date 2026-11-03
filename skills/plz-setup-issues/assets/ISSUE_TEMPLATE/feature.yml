@@ -1,5 +1,5 @@
-name: Feature or improvement request
-description: Describe a problem and the behavior that would solve it.
+name: Feature request
+description: Request a new capability. For improvements to existing behavior, use a blank issue.
 labels:
   - type:feature
   - needs-triage

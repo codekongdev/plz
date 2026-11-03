@@ -104,6 +104,8 @@ local files do not prove that no effective templates exist.
    so both forms match the manifest when reusing equivalent existing names.
    When using native Issue Types, set each form's top-level `type` to its verified
    organization type name. In native-type-only mode, omit work-type labels.
+   Keep the feature form for new capabilities. Route improvements to blank issues,
+   with maintainers assigning the selected work type during triage.
    Do not preassign priority, area, or people.
 3. Merge [assets/ISSUE_TEMPLATE/config.yml](assets/ISSUE_TEMPLATE/config.yml) with any
    effective existing chooser config, including inherited configuration when
