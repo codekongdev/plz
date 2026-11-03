@@ -39,5 +39,15 @@ for (const page of pages) {
       /(?:^|[\s,}])pre\.code:focus-visible\s*\{[^}]*outline:/,
       `missing pre.code:focus-visible outline in ${page}`,
     );
+    if (page !== 'template.html') {
+      const markup = await readFile(join(assets, page), 'utf8');
+      const codeBlocks = [...markup.matchAll(/<pre class="code"([^>]*)>/g)];
+      assert.ok(codeBlocks.length > 0, `missing code blocks in ${page}`);
+      for (const [, attributes] of codeBlocks) {
+        assert.match(attributes, /\btabindex="0"/, `code block is not keyboard-focusable in ${page}`);
+        assert.match(attributes, /\brole="region"/, `code block is missing region semantics in ${page}`);
+        assert.match(attributes, /\baria-label="[^"]+"/, `code block is missing an accessible name in ${page}`);
+      }
+    }
   });
 }
