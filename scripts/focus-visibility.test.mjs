@@ -43,11 +43,15 @@ for (const page of pages) {
       const markup = await readFile(join(assets, page), 'utf8');
       const codeBlocks = [...markup.matchAll(/<pre class="code"([^>]*)>/g)];
       assert.ok(codeBlocks.length > 0, `missing code blocks in ${page}`);
+      const labels = [];
       for (const [, attributes] of codeBlocks) {
         assert.match(attributes, /\btabindex="0"/, `code block is not keyboard-focusable in ${page}`);
         assert.match(attributes, /\brole="region"/, `code block is missing region semantics in ${page}`);
-        assert.match(attributes, /\baria-label="[^"]+"/, `code block is missing an accessible name in ${page}`);
+        const label = attributes.match(/\baria-label="([^"]+)"/);
+        assert.ok(label, `code block is missing an accessible name in ${page}`);
+        labels.push(label[1]);
       }
+      assert.equal(new Set(labels).size, labels.length, `code block names must be distinct in ${page}`);
     }
   });
 }
