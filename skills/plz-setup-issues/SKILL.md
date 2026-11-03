@@ -83,8 +83,10 @@ Use the prose language already used by the repository unless the user specifies
 another. Translate form names, field text, label descriptions, and the guide; keep
 chosen label identifiers stable. The bundled assets are English starting points.
 
-If the target has no local issue templates or chooser configuration, inspect any
-defaults in the owner's public `.github` repository before creating local files.
+If the target has no local issue templates or chooser configuration, inspect the
+effective owner-level `.github` repository before creating local files. This
+repository is internal for organizations with managed users and public for other
+eligible accounts.
 A valid local template or `config.yml` disables the entire inherited
 `.github/ISSUE_TEMPLATE/` directory. Carry forward its forms, contact links, and
 security-reporting guidance in the local replacement. If inherited defaults cannot

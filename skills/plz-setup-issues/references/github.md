@@ -100,7 +100,7 @@ preview or publication is outside scope, say exactly what was verified locally.
 Checked 2026-11-03; consult these for changing GitHub capabilities:
 
 - [Issue forms](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms)
-- [Default community health files and inherited templates](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file)
+- [Default community health files and inherited templates](https://docs.github.com/en/enterprise-cloud@latest/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file)
 - [Organization Issue Types](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/managing-issue-types-in-an-organization)
 - [Organization issue fields](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/managing-issue-fields-in-your-organization)
 - [Create labels with gh](https://cli.github.com/manual/gh_label_create)
