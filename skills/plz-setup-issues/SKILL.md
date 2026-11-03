@@ -99,10 +99,11 @@ local files do not prove that no effective templates exist.
    This file is a desired-label manifest, not an automatic synchronization service.
 2. Adapt [assets/ISSUE_TEMPLATE/bug.yml](assets/ISSUE_TEMPLATE/bug.yml) and
    [assets/ISSUE_TEMPLATE/feature.yml](assets/ISSUE_TEMPLATE/feature.yml) into the
-   target's `.github/ISSUE_TEMPLATE/`. In native-type mode remove the type label from
-   `labels` and set the form's top-level `type` to the verified organization type name.
-   Use the selected triage label name in both forms (`needs-triage` by default),
-   matching the manifest and any equivalent existing label selected in step 1.
+   target's `.github/ISSUE_TEMPLATE/`. Map every form label to the name selected in
+   step 1, including work-type labels and the triage label (`needs-triage` by default),
+   so both forms match the manifest when reusing equivalent existing names.
+   When using native Issue Types, set each form's top-level `type` to its verified
+   organization type name. In native-type-only mode, omit work-type labels.
    Do not preassign priority, area, or people.
 3. Merge [assets/ISSUE_TEMPLATE/config.yml](assets/ISSUE_TEMPLATE/config.yml) with any
    effective existing chooser config, including inherited configuration when
