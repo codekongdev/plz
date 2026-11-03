@@ -83,6 +83,14 @@ Use the prose language already used by the repository unless the user specifies
 another. Translate form names, field text, label descriptions, and the guide; keep
 chosen label identifiers stable. The bundled assets are English starting points.
 
+If the target has no local issue templates or chooser configuration, inspect any
+defaults in the owner's public `.github` repository before creating local files.
+A valid local template or `config.yml` disables the entire inherited
+`.github/ISSUE_TEMPLATE/` directory. Carry forward its forms, contact links, and
+security-reporting guidance in the local replacement. If inherited defaults cannot
+be inspected, report that limitation before publishing the replacement; missing
+local files do not prove that no effective templates exist.
+
 1. Build `.github/labels.json` from [assets/labels.json](assets/labels.json), including
    only the selected labels. Exclude `type:*` for native-type-only setups and
    `priority:*` when a Priority field is used. Match existing names when equivalent.
@@ -91,11 +99,15 @@ chosen label identifiers stable. The bundled assets are English starting points.
    [assets/ISSUE_TEMPLATE/feature.yml](assets/ISSUE_TEMPLATE/feature.yml) into the
    target's `.github/ISSUE_TEMPLATE/`. In native-type mode remove the type label from
    `labels` and set the form's top-level `type` to the verified organization type name.
-   Use `needs-triage` in both forms. Do not preassign priority, area, or people.
+   Use the selected triage label name in both forms (`needs-triage` by default),
+   matching the manifest and any equivalent existing label selected in step 1.
+   Do not preassign priority, area, or people.
 3. Merge [assets/ISSUE_TEMPLATE/config.yml](assets/ISSUE_TEMPLATE/config.yml) with any
-   existing chooser config. Keep blank issues enabled by default so maintainers can
-   file maintenance/docs work without a mismatched form. Preserve contact links and
-   security-reporting instructions; do not invent a contact destination.
+   effective existing chooser config, including inherited configuration when
+   replacing owner-level defaults. Keep blank issues enabled by default so
+   maintainers can file maintenance/docs work without a mismatched form. Preserve
+   contact links and security-reporting instructions; do not invent a contact
+   destination.
 4. Write or update `.github/ISSUE_TRIAGE.md` with the selected definitions, type and
    priority storage, what each form collects, and the review/close procedure from
    the taxonomy reference. Document actual choices, not unused alternatives.

@@ -6,10 +6,46 @@ if an API, Issue Type, or field feature differs from the examples below.
 
 ## Read before writing
 
-For CLI use, discover the local remotes and verify the current process identity:
+For CLI use, inspect remote destinations without returning raw URLs to the agent
+or logs: URLs can contain credentials. This local example captures Git output,
+returns only the host and repository path, and omits unrecognized destinations.
+It makes no network requests. Do not enable shell tracing or print the captured
+output while adapting it.
 
 ```sh
-git remote -v
+python3 - <<'PY'
+import json
+import re
+import subprocess
+from urllib.parse import urlsplit
+
+result = subprocess.run(["git", "remote", "-v"], capture_output=True,
+                        text=True, errors="replace")
+if result.returncode:
+    raise SystemExit("Cannot inspect remotes; raw Git output suppressed.")
+for line in result.stdout.splitlines():
+    fields = line.split()
+    if len(fields) != 3:
+        print("[unrecognized remote omitted]")
+        continue
+    raw = fields[1]
+    scp = re.fullmatch(r"(?:[^/@:\s]+@)?(\[[0-9a-fA-F:]+\]|[^/@:\s]+):([^:\s]+)", raw)
+    if "://" not in raw and scp:
+        raw = "ssh://" + scp[1] + "/" + scp[2]
+    try:
+        url = urlsplit(raw)
+        if url.scheme not in {"http", "https", "ssh", "git"} or not url.hostname:
+            raise ValueError
+        print(json.dumps({"host": url.hostname, "path": url.path}))
+    except ValueError:
+        print("[unrecognized remote omitted]")
+PY
+```
+
+Verify the current process identity with the credentials intended for subsequent
+GitHub operations:
+
+```sh
 gh api user --jq .login
 ```
 
@@ -64,6 +100,7 @@ preview or publication is outside scope, say exactly what was verified locally.
 Checked 2026-11-03; consult these for changing GitHub capabilities:
 
 - [Issue forms](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms)
+- [Default community health files and inherited templates](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file)
 - [Organization Issue Types](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/managing-issue-types-in-an-organization)
 - [Organization issue fields](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/managing-issue-fields-in-your-organization)
 - [Create labels with gh](https://cli.github.com/manual/gh_label_create)
