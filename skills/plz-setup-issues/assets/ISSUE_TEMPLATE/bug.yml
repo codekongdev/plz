@@ -1,0 +1,41 @@
+name: Bug report
+description: Report behavior that differs from what you expected.
+labels:
+  - type:bug
+  - needs-triage
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include relevant error messages.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal example or the steps you tried. If reproduction is inconsistent, describe when it happens.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Version and environment
+      description: Include the release or commit and relevant runtime, operating system, browser, or deployment details. If a detail is unknown, say so.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Additional evidence
+      description: Relevant logs, screenshots, frequency, impact, or workarounds. Remove secrets and personal information.
+    validations:
+      required: false

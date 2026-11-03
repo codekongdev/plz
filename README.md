@@ -106,6 +106,7 @@ Details are in the [skill README](skills/plz-3d-explain/README.md).
 | Skill | What it makes | Demo |
 | --- | --- | --- |
 | [plz-3d-explain](skills/plz-3d-explain/README.md) | A single HTML learning page with three.js 3D models of technical concepts and system structures. | [Code sandbox (English)](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) · [Korean](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) |
+| [plz-setup-issues](skills/plz-setup-issues/README.md) | Issue labels, bug and feature forms, and triage rules for a GitHub repository. | — |
 
 ## Contributing
 

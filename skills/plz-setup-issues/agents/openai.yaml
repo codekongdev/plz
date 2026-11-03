@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set Up Repository Issues"
+  short_description: "Initialize GitHub issue labels, forms, and triage rules"
+  default_prompt: "Use $plz-setup-issues to set up issue labels, forms, and a triage guide for this repository."
