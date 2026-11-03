@@ -1,0 +1,33 @@
+name: Feature request
+description: Request a new capability. For improvements to existing behavior, use a blank issue.
+labels:
+  - type:feature
+  - needs-triage
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Who encounters this problem, and what are they trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the behavior or result that would help. A proposed implementation is optional.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or current workaround
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Examples or constraints that would help evaluate the request.
+    validations:
+      required: false

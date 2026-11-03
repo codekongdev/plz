@@ -106,6 +106,7 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 | 스킬 | 만드는 것 | 데모 |
 | --- | --- | --- |
 | [plz-3d-explain](skills/plz-3d-explain/README.md) | 기술 개념과 시스템 구조를 three.js 3D 모형으로 공부하는 단일 HTML 학습 페이지를 만듭니다. | [코드 샌드박스(한국어)](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) · [영어](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) |
+| [plz-setup-issues](skills/plz-setup-issues/README.md) | GitHub 저장소의 이슈 라벨, 버그·기능 요청 양식, 검토 규칙을 세팅합니다. | — |
 
 ## 기여
 
