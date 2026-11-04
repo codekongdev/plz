@@ -12,7 +12,7 @@ Run the checks that match your change from the repository root. CI runs all thre
 | `ENGINE` or `UI_TEXT` in `assets/template.html` | `node scripts/check-templates.mjs` |
 | Anything in `scripts/` | `node --test scripts/*.test.mjs` |
 
-The script tests include Chromium tests. Install their dependencies first with `npm ci --ignore-scripts` and `npx playwright install chromium`.
+The script tests include Chromium tests. Install their dependencies first with `npm ci --ignore-scripts` and `npx playwright install chromium`. On Linux, use `npx playwright install --with-deps chromium` to install the browser's system dependencies too.
 
 This table lists only the automated checks. Changes to `SKILL.md`, `references/`, or `TEXT`, `SCENES`, and `ENGINE` in `assets/template.html` also need the review or browser validation described in "Checks to run" in CONTRIBUTING.md.
 
