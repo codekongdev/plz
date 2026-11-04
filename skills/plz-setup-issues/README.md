@@ -1,35 +1,49 @@
 # plz-setup-issues
 English | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
 
-Set up issue management for a GitHub repository with a small, reusable taxonomy, issue forms, and written triage rules. Works with Claude Code and Codex. Part of [plz](../../README.md).
+Set up issue management for a GitHub repository with a small, reusable taxonomy, issue forms, and written triage rules. Works with Claude Code and Codex. Part of [plz](https://github.com/codekongdev/plz).
 
 ## Install
 
-Install globally:
+To install with `npx skills`, you need Node.js 22.20 or later (with npm and `npx`), Git, and Claude Code or Codex. Check the command-line tools first:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-setup-issues -g
+node --version
+npm --version
+git --version
 ```
 
-For Codex, add `-a codex`. This installs into the current project's `.agents/skills/` directory:
-
-```sh
-npx skills add codekongdev/plz --skill plz-setup-issues -a codex
-```
-
-## Usage
+Choose your agent below. `-g` installs the skill globally, so it is available across projects.
 
 Claude Code:
 
-```text
-/plz-setup-issues Set up issue management in this repository.
+```sh
+npx skills add codekongdev/plz --skill plz-setup-issues -a claude-code -g
 ```
 
 Codex:
 
-```text
-$plz-setup-issues Set up issue management in this repository.
+```sh
+npx skills add codekongdev/plz --skill plz-setup-issues -a codex -g
 ```
+
+For this project only, run the matching command from the project directory with `-g` omitted. The installer stores the skill in `.agents/skills/` and links it for Claude Code when selected.
+
+Check the installation for your agent; the list should include `plz-setup-issues`:
+
+```sh
+npx skills list -g -a claude-code
+npx skills list -g -a codex
+```
+
+For a project installation, omit `-g` from the check and run it in the same project. If the skill is missing, check the selected agent and installation scope. If it is listed but unavailable in your agent, start a new agent session from the intended project.
+
+## Usage
+
+After installing, open your agent in the target repository and invoke the skill:
+
+- Claude Code: `/plz-setup-issues Set up issue management in this repository.`
+- Codex: `$plz-setup-issues Set up issue management in this repository.`
 
 You can request local files only, or explicitly ask to apply labels to a named GitHub repository. Existing settings are inspected before changes, and conflicting conventions are preserved until resolved.
 

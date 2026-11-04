@@ -25,22 +25,38 @@ Explain how an AI agent code sandbox works in 3D.
 
 ## Install
 
-Install one skill globally:
+To install with `npx skills`, you need **Node.js 22.20 or later** (with npm and `npx`), **Git**, and a working Claude Code or Codex installation. Check the tools in your terminal:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -g
+node --version
+npm --version
+git --version
 ```
 
-<details>
-<summary>Codex</summary>
+Choose your agent below. These commands install `plz-3d-explain` globally, so it is available across projects.
 
-For Codex, add `-a codex`. This command installs the skill into the current project's `.agents/skills/` directory:
+Claude Code:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -a codex
+npx skills add codekongdev/plz --skill plz-3d-explain -a claude-code -g
 ```
 
-</details>
+Codex:
+
+```sh
+npx skills add codekongdev/plz --skill plz-3d-explain -a codex -g
+```
+
+For a project-only installation, run the matching command from that project's directory and omit `-g`. Claude Code uses `.claude/skills/`; Codex uses `.agents/skills/`. Follow any confirmation prompts from the installer.
+
+Confirm the installation for your agent:
+
+```sh
+npx skills list -g -a claude-code
+npx skills list -g -a codex
+```
+
+Look for `plz-3d-explain` in the matching list. For a project-only installation, run the list command from the same project and omit `-g` too.
 
 <details>
 <summary>List or install all skills</summary>
@@ -51,7 +67,7 @@ List available skills:
 npx skills add codekongdev/plz -l
 ```
 
-Install all skills globally:
+Install all skills globally, choosing the agent when prompted:
 
 ```sh
 npx skills add codekongdev/plz --skill '*' -g
@@ -76,12 +92,19 @@ See [plz-3d-explain on skills.sh](https://skills.sh/codekongdev/plz/plz-3d-expla
 
 ## Usage
 
-After installing, ask your agent in plain language:
+Start a new agent session in the project where you want to create the page. To use the skill explicitly:
+
+- **Claude Code:** `/plz-3d-explain Explain how container isolation works in 3D.`
+- **Codex:** `$plz-3d-explain Explain how container isolation works in 3D.`
+
+You can also ask in plain language:
 
 - “Explain how container isolation works in 3D.”
 - “Show how a TCP handshake works as a 3D model.”
 
 You can also ask in Korean, Japanese, or Simplified Chinese; the page is written in the language you ask in.
+
+If the skill is not available, check the agent and installation scope with the list commands above, then start a new session. Project-only skills must be used from the project where you installed them. If `npx` is missing or reports an unsupported Node.js version, check the prerequisites above.
 
 ## How it works
 
@@ -97,7 +120,9 @@ When you ask for a page, `plz-3d-explain` works in four steps:
 - **Good for:** learning a technical concept, mechanism, or system structure with a 3D model.
 - **Out of scope:** static architecture or sequence diagrams, data charts, Blender modeling, product landing pages, and app UI design.
 - **Opening a page:** needs an internet connection, because three.js r170 and web fonts load from CDNs.
-- **Creating a page:** includes validation with a local server and browser automation such as Playwright.
+- **Creating a page:** requires a local HTTP server (the skill uses Python 3 as an example) and a browser automation tool the agent can use, such as Playwright.
+
+Installing the skill does not install Python or browser automation. If these tools are unavailable, ask your agent to help prepare them before validation. A generated HTML file alone does not mean browser validation passed; check the agent’s report for what it actually tested.
 
 Details are in the [skill README](skills/plz-3d-explain/README.md).
 
