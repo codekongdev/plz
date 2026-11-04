@@ -1,8 +1,19 @@
-# GitHub account for this repository
+# Agent instructions
 
-- All authenticated GitHub operations for `codekongdev/plz` must use **`codekongdev`**. This includes issues, pull requests, comments, labels, releases, and pushes.
-- Never use another account, including `planit-mason` or `YASICJUNWOO`, as a fallback, even if it is the default CLI or connector account.
-- Before a GitHub operation, verify the authenticated login with `gh api user --jq .login` or an equivalent identity check. Use the same credentials for the check and the operation, and proceed only when the login is exactly `codekongdev`.
-- The repository owner and the username in the remote URL do not verify the authenticated account. A connector must also pass the identity check before use.
-- Prefer credentials scoped to the individual command or process. Do not switch the global GitHub account for other projects, and never print credentials or save them in repository files or logs.
-- If `codekongdev` authentication is unavailable or cannot be verified, stop the GitHub operation and report the authentication problem. Do not act under a different account.
+This repository publishes agent skills for Claude Code and Codex. Read [CONTRIBUTING.md](CONTRIBUTING.md) before you change files. It covers the repository structure, the language policy, the checks for each kind of change, what not to commit, and the commit and pull request rules.
+
+## Checks
+
+Run the checks that match your change from the repository root. CI runs all three on every pull request.
+
+| What you changed | Command |
+| --- | --- |
+| Any `README.md` or translation | `node scripts/check-readme-translations.mjs` |
+| `ENGINE` or `UI_TEXT` in `assets/template.html` | `node scripts/check-templates.mjs` |
+| Anything in `scripts/` | `node --test scripts/*.test.mjs` |
+
+The script tests include Chromium tests. Install their dependencies first with `npm ci --ignore-scripts` and `npx playwright install chromium`. On Linux, use `npx playwright install --with-deps chromium` to install the browser's system dependencies too.
+
+This table lists only the automated checks. Changes to `SKILL.md`, `references/`, or `TEXT`, `SCENES`, and `ENGINE` in `assets/template.html` also need the review or browser validation described in "Checks to run" in CONTRIBUTING.md.
+
+Browser automation tools can save screenshots in the repository root. Run `git status` before every commit, and do not commit screenshots, generated pages, or `references/preferences.md`.
