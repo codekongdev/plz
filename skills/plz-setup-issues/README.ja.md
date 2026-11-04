@@ -1,35 +1,49 @@
 # plz-setup-issues
 [English](README.md) | [한국어](README.ko.md) | 日本語 | [简体中文](README.zh-CN.md)
 
-GitHub リポジトリに、再利用できる簡潔な Issue 分類、フォーム、トリアージ規則を設定します。Claude Code と Codex に対応し、[plz](../../README.md) に含まれるスキルです。
+GitHub リポジトリに、再利用できる簡潔な Issue 分類、フォーム、トリアージ規則を設定します。Claude Code と Codex に対応し、[plz](https://github.com/codekongdev/plz) に含まれるスキルです。
 
 ## インストール
 
-グローバルにインストール:
+`npx skills` でインストールするには、Node.js 22.20 以降（npm と `npx` を含む）、Git、利用する Claude Code または Codex が必要です。まずターミナルでツールを確認します。
 
 ```sh
-npx skills add codekongdev/plz --skill plz-setup-issues -g
+node --version
+npm --version
+git --version
 ```
 
-Codex では `-a codex` を付けます。以下のコマンドは現在のプロジェクトの `.agents/skills/` にインストールします。
-
-```sh
-npx skills add codekongdev/plz --skill plz-setup-issues -a codex
-```
-
-## 使い方
+利用するエージェントのコマンドを選んでください。`-g` でグローバルにインストールすると、複数のプロジェクトで使えます。
 
 Claude Code:
 
-```text
-/plz-setup-issues Set up issue management in this repository.
+```sh
+npx skills add codekongdev/plz --skill plz-setup-issues -a claude-code -g
 ```
 
 Codex:
 
-```text
-$plz-setup-issues Set up issue management in this repository.
+```sh
+npx skills add codekongdev/plz --skill plz-setup-issues -a codex -g
 ```
+
+現在のプロジェクトだけで使う場合は、そのプロジェクトのディレクトリで上記コマンドから `-g` を外して実行します。インストーラーは `.agents/skills/` にスキルを保存し、Claude Code を選んだ場合はリンクも作成します。
+
+利用するエージェントのインストール一覧に `plz-setup-issues` が表示されることを確認します。
+
+```sh
+npx skills list -g -a claude-code
+npx skills list -g -a codex
+```
+
+プロジェクトにインストールした場合は、確認コマンドでも `-g` を外し、同じプロジェクトで実行します。一覧にない場合は、選択したエージェントとインストール範囲を確認してください。一覧にあってもエージェントが認識しない場合は、利用するプロジェクトで新しいエージェントセッションを開始します。
+
+## 使い方
+
+インストール後、対象リポジトリでエージェントを開き、スキルを指定して依頼します。
+
+- Claude Code: `/plz-setup-issues このリポジトリの Issue 管理を初期設定して。`
+- Codex: `$plz-setup-issues このリポジトリの Issue 管理を初期設定して。`
 
 ローカルファイルの作成のみを依頼することも、特定の GitHub リポジトリへのラベル適用を明示的に依頼することもできます。変更前に既存の設定を確認し、競合する規則は解決方針が決まるまで保持します。
 

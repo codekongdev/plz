@@ -11,23 +11,44 @@
 
 <img src="docs/demo-mobile.png" alt="휴대폰에서 위쪽 OS 샌드박스 3D 모형과 아래쪽 설명을 보는 화면" width="360">
 
-AI 에이전트 코드 샌드박스 데모를 [한국어](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)나 [영어](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html)로 브라우저에서 바로 열어 볼 수 있습니다. 컨테이너, 마이크로VM, WASM, OS 샌드박스의 격리 방식을 10장으로 설명합니다. 예제 HTML([한국어](assets/example-agent-sandbox.html), [영어](assets/example-agent-sandbox.en.html))도 저장소에 있습니다. codekongdev(코드콩)가 만드는 [plz](../../README.md) 시리즈의 스킬입니다.
+AI 에이전트 코드 샌드박스 데모를 [한국어](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)나 [영어](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html)로 브라우저에서 바로 열어 볼 수 있습니다. 컨테이너, 마이크로VM, WASM, OS 샌드박스의 격리 방식을 10장으로 설명합니다. 예제 HTML([한국어](assets/example-agent-sandbox.html), [영어](assets/example-agent-sandbox.en.html))도 저장소에 있습니다. codekongdev(코드콩)가 만드는 [plz](https://github.com/codekongdev/plz) 시리즈의 스킬입니다.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/codekongdev/plz/blob/main/LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
 
 ## 설치
 
-전역으로 설치합니다.
+`npx skills`로 설치하려면 Node.js 22.20 이상(npm과 `npx` 포함), Git, 사용할 Claude Code 또는 Codex가 필요합니다. 먼저 터미널에서 도구를 확인합니다.
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -g
+node --version
+npm --version
+git --version
 ```
 
-Codex에서 쓰려면 `-a codex`를 붙입니다. 아래 명령은 지금 프로젝트의 `.agents/skills/`에 설치합니다.
+사용할 에이전트의 명령을 선택하세요. `-g`로 전역 설치하면 여러 프로젝트에서 사용할 수 있습니다.
+
+Claude Code:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -a codex
+npx skills add codekongdev/plz --skill plz-3d-explain -a claude-code -g
 ```
+
+Codex:
+
+```sh
+npx skills add codekongdev/plz --skill plz-3d-explain -a codex -g
+```
+
+현재 프로젝트에서만 쓰려면 해당 프로젝트 폴더에서 위 명령의 `-g`를 빼고 실행합니다. 설치 도구는 `.agents/skills/`에 스킬을 저장하고, Claude Code를 선택하면 연결도 만듭니다.
+
+사용할 에이전트의 설치 목록에 `plz-3d-explain`이 표시되는지 확인합니다.
+
+```sh
+npx skills list -g -a claude-code
+npx skills list -g -a codex
+```
+
+프로젝트에 설치했다면 확인 명령에서도 `-g`를 빼고 같은 프로젝트에서 실행합니다. 목록에 없다면 선택한 에이전트와 설치 범위를 확인하세요. 목록에 있지만 에이전트에서 인식하지 못한다면 사용할 프로젝트에서 새 에이전트 세션을 시작합니다.
 
 Claude Code에 수동으로 설치하려면 저장소를 내려받은 뒤 `skills/plz-3d-explain` 폴더를 `~/.claude/skills/plz-3d-explain`에 복사하거나 링크합니다. 복사하는 명령은 다음과 같습니다.
 
@@ -41,7 +62,12 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 ## 쓰는 법
 
-에이전트에게 공부할 주제나 살펴볼 저장소를 함께 적어 요청합니다. [SKILL.md](SKILL.md)의 트리거 문구를 쓴 예시입니다.
+설치한 뒤 프로젝트에서 에이전트를 열고 스킬을 직접 지정해 요청합니다.
+
+- Claude Code: `/plz-3d-explain 컨테이너 격리를 3D로 설명해 줘.`
+- Codex: `$plz-3d-explain 컨테이너 격리를 3D로 설명해 줘.`
+
+[SKILL.md](SKILL.md)의 트리거 문구로 평소처럼 요청해도 됩니다.
 
 - “컨테이너와 가상 머신의 차이를 3D로 공부하게 만들어줘.”
 - “HTTP 요청이 서버를 거쳐 외부 API로 가는 원리를 모형으로 보여줘.”
@@ -64,7 +90,9 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 결과물은 빌드가 필요 없는 단일 HTML입니다. three.js r170과 웹폰트를 CDN에서 받으므로 페이지를 열 때 인터넷이 필요합니다.
 
-페이지 제작의 검증 단계에서는 로컬 서버와 Playwright 같은 브라우저 자동화 도구를 씁니다. 콘솔 오류, 라벨 겹침·잘림, 가로 스크롤, 자동 실행과 터치 조작을 확인합니다. 검증 방법은 [SKILL.md](SKILL.md), 검증 훅은 [엔진 API](references/engine-api.md), 자주 생기는 문제는 [함정](references/gotchas.md)에 정리돼 있습니다.
+검증에는 로컬 HTTP 서버(스킬 예시는 Python 3 사용)와 에이전트가 사용할 수 있는 Playwright 같은 브라우저 자동화 도구가 필요합니다. `npx skills`는 스킬 파일만 설치하며 이 도구들을 함께 설치하지 않습니다. 도구가 없다면 에이전트에게 준비를 요청하고, 실행하지 못한 검사는 검증 결과에서 구분해 달라고 하세요.
+
+콘솔 오류, 라벨 겹침·잘림, 가로 스크롤, 자동 실행과 터치 조작을 확인합니다. 검증 방법은 [SKILL.md](SKILL.md), 검증 훅은 [엔진 API](references/engine-api.md), 자주 생기는 문제는 [함정](references/gotchas.md)에 정리돼 있습니다.
 
 휴대폰에서는 모형을 좌우로만 돌립니다. 무대 위를 세로로 쓸면 페이지가 스크롤되고, 가로로 밀면 모형이 돕니다. 위아래 기울이기와 확대는 지원하지 않습니다.
 
@@ -84,10 +112,10 @@ cp references/preferences.example.md references/preferences.md
 
 ## 기여
 
-기여와 번역을 환영합니다. 자세한 내용은 [CONTRIBUTING.md](../../CONTRIBUTING.md)를 참고해 주세요.
+기여와 번역을 환영합니다. 자세한 내용은 [CONTRIBUTING.md](https://github.com/codekongdev/plz/blob/main/CONTRIBUTING.md)를 참고해 주세요.
 
 ## 라이선스
 
-[MIT](../../LICENSE).
+[MIT](https://github.com/codekongdev/plz/blob/main/LICENSE).
 
 페이지가 CDN에서 불러오는 외부 자원인 three.js(MIT)와 글꼴 Pretendard·Hahmlet·IBM Plex(SIL OFL)는 저장소에 포함하지 않습니다.

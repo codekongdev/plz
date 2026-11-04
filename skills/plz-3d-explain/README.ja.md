@@ -11,23 +11,44 @@
 
 <img src="docs/demo-mobile.png" alt="上部に OS サンドボックスの 3D モデル、下部に解説を表示したスマートフォン画面" width="360">
 
-AI エージェントのコードサンドボックスのデモを[英語](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html)または[韓国語](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)でブラウザから開けます。コンテナ、microVM、WASM、OS サンドボックスによる隔離の仕組みを全10章で解説しています。サンプル HTML（[英語](assets/example-agent-sandbox.en.html)、[韓国語](assets/example-agent-sandbox.html)）もリポジトリに含まれています。codekongdev による [plz](../../README.md) シリーズのスキルです。
+AI エージェントのコードサンドボックスのデモを[英語](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html)または[韓国語](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)でブラウザから開けます。コンテナ、microVM、WASM、OS サンドボックスによる隔離の仕組みを全10章で解説しています。サンプル HTML（[英語](assets/example-agent-sandbox.en.html)、[韓国語](assets/example-agent-sandbox.html)）もリポジトリに含まれています。codekongdev による [plz](https://github.com/codekongdev/plz) シリーズのスキルです。
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/codekongdev/plz/blob/main/LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
 
 ## インストール
 
-グローバルにインストールします。
+`npx skills` でインストールするには、Node.js 22.20 以降（npm と `npx` を含む）、Git、利用する Claude Code または Codex が必要です。まずターミナルでツールを確認します。
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -g
+node --version
+npm --version
+git --version
 ```
 
-Codex で使う場合は `-a codex` を指定します。次のコマンドは、現在のプロジェクトの `.agents/skills/` にインストールします。
+利用するエージェントのコマンドを選んでください。`-g` でグローバルにインストールすると、複数のプロジェクトで使えます。
+
+Claude Code:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -a codex
+npx skills add codekongdev/plz --skill plz-3d-explain -a claude-code -g
 ```
+
+Codex:
+
+```sh
+npx skills add codekongdev/plz --skill plz-3d-explain -a codex -g
+```
+
+現在のプロジェクトだけで使う場合は、そのプロジェクトのディレクトリで上記コマンドから `-g` を外して実行します。インストーラーは `.agents/skills/` にスキルを保存し、Claude Code を選んだ場合はリンクも作成します。
+
+利用するエージェントのインストール一覧に `plz-3d-explain` が表示されることを確認します。
+
+```sh
+npx skills list -g -a claude-code
+npx skills list -g -a codex
+```
+
+プロジェクトにインストールした場合は、確認コマンドでも `-g` を外し、同じプロジェクトで実行します。一覧にない場合は、選択したエージェントとインストール範囲を確認してください。一覧にあってもエージェントが認識しない場合は、利用するプロジェクトで新しいエージェントセッションを開始します。
 
 Claude Code に手動でインストールする場合は、リポジトリを clone し、`skills/plz-3d-explain` を `~/.claude/skills/plz-3d-explain` にコピーするか、シンボリックリンクを作成します。コピーする場合のコマンドは次のとおりです。
 
@@ -41,7 +62,12 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 ## 使い方
 
-学びたいテーマや調べたいリポジトリを添えて、エージェントに依頼します。[SKILL.md](SKILL.md) に記載された起動フレーズを使った例です。
+インストール後、プロジェクトでエージェントを開き、スキルを指定して依頼します。
+
+- Claude Code: `/plz-3d-explain コンテナの隔離を 3D で説明して。`
+- Codex: `$plz-3d-explain コンテナの隔離を 3D で説明して。`
+
+[SKILL.md](SKILL.md) の起動フレーズを使い、普段の言葉で依頼することもできます。
 
 - 「コンテナと仮想マシンの違いを 3D で説明して。」
 - 「HTTP リクエストがサーバーを経由して外部 API に届く仕組みを、3D モデルで見せて。」
@@ -64,7 +90,9 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 出力はビルド不要の単一 HTML ファイルです。three.js r170 と Web フォントを CDN から読み込むため、ページを開く際はインターネット接続が必要です。
 
-ページ作成時の検証には、ローカルサーバーと Playwright などのブラウザ自動化ツールを使います。コンソールエラー、ラベルの重なりやはみ出し、横方向のスクロール、自動再生、タッチ操作を確認します。手順は [SKILL.md](SKILL.md)、検証用フックは[エンジン API](references/engine-api.md)、よくある問題は[注意点](references/gotchas.md)を参照してください。
+検証にはローカル HTTP サーバー（スキルの例では Python 3 を使用）と、エージェントから操作できる Playwright などのブラウザ自動化ツールが必要です。`npx skills` はスキルファイルのみをインストールし、これらのツールはインストールしません。利用できない場合はエージェントに準備を依頼し、実行できなかった検証項目を結果に明記してもらってください。
+
+コンソールエラー、ラベルの重なりやはみ出し、横方向のスクロール、自動再生、タッチ操作を確認します。手順は [SKILL.md](SKILL.md)、検証用フックは[エンジン API](references/engine-api.md)、よくある問題は[注意点](references/gotchas.md)を参照してください。
 
 スマートフォンではモデルを左右にのみ回転できます。ステージ上を縦にスワイプするとページがスクロールし、横にスワイプするとモデルが回転します。上下への傾き変更やズームには対応していません。
 
@@ -84,10 +112,10 @@ cp references/preferences.example.md references/preferences.md
 
 ## コントリビュート
 
-コントリビュートや翻訳を歓迎します。詳しくは [CONTRIBUTING.md](../../CONTRIBUTING.md) を参照してください。
+コントリビュートや翻訳を歓迎します。詳しくは [CONTRIBUTING.md](https://github.com/codekongdev/plz/blob/main/CONTRIBUTING.md) を参照してください。
 
 ## ライセンス
 
-[MIT](../../LICENSE)。
+[MIT](https://github.com/codekongdev/plz/blob/main/LICENSE)。
 
 CDN から読み込む外部リソースの three.js（MIT）と、Pretendard・Hahmlet・IBM Plex フォント（SIL OFL）は、このリポジトリには同梱していません。
