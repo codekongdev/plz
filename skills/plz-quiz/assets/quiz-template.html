@@ -1,0 +1,1581 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="문서에 근거한 문제로 공부하고, 해설과 오답 복습으로 이해도를 확인하는 퀴즈입니다.">
+  <link rel="icon" href="data:,">
+  <title>plz 기여 가이드</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --quiz-paper: #F3F5F6; --quiz-surface: #FFFFFF; --quiz-ink: #1E2429; --quiz-muted: #596169;
+      --quiz-rule: #D6DBDF; --quiz-control-edge: #7A838B;
+      --quiz-pen: #2546B0; --quiz-pen-strong: #1C3891; --quiz-on-pen: #FFFFFF; --quiz-pen-wash: #E8EDFB;
+      --quiz-grade: #B42F28; --quiz-highlight: #FFE36A;
+      --quiz-font-ui: "Pretendard Variable", "Pretendard", "SUIT Variable", "SUIT", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+      --quiz-font-serif: "Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", "Batang", serif;
+      --quiz-font-figure: "Iowan Old Style", "Palatino Linotype", "Palatino", "Book Antiqua", Georgia, serif;
+      --quiz-bar-h: 0px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --quiz-paper: #1C2125; --quiz-surface: #242A2F; --quiz-ink: #E7EAEC; --quiz-muted: #A9B1B8;
+        --quiz-rule: #384047; --quiz-control-edge: #7F8992;
+        --quiz-pen: #9DB4FF; --quiz-pen-strong: #BCCBFF; --quiz-on-pen: #111A33; --quiz-pen-wash: #263150;
+        --quiz-grade: #FF8F82; --quiz-highlight: rgba(255, 216, 74, .3);
+      }
+    }
+    html:lang(ja) {
+      --quiz-font-ui: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "Meiryo", "Noto Sans JP", system-ui, sans-serif;
+      --quiz-font-serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+    }
+    html:lang(zh) {
+      --quiz-font-ui: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+      --quiz-font-serif: "Songti SC", "Noto Serif SC", "SimSun", serif;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { background: var(--quiz-paper); scroll-padding-top: calc(var(--quiz-bar-h) + 24px); }
+    body { margin: 0; font-family: var(--quiz-font-ui); font-size: 17px; line-height: 1.65; font-weight: 400;
+      color: var(--quiz-ink); background: var(--quiz-paper); font-synthesis: none; text-rendering: optimizeLegibility;
+      overflow-wrap: anywhere; -webkit-text-size-adjust: 100%; }
+    html:lang(ko) body { word-break: keep-all; }
+    html:lang(ja) body, html:lang(zh) body { line-break: strict; }
+    h1, h2, h3, h4, p, ul, ol, dl, dd, blockquote, figure { margin: 0; }
+    ul, ol { padding: 0; }
+    button, input, textarea { font: inherit; color: inherit; }
+    button, label, a { -webkit-tap-highlight-color: transparent; }
+    a { color: var(--quiz-pen); text-underline-offset: 4px; }
+    :focus-visible { outline: 3px solid var(--quiz-pen); outline-offset: 3px; }
+    [tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
+    .sr-only, .skip-link:not(:focus) { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+    .skip-link:focus { position: fixed; z-index: 30; left: 16px; top: 12px; padding: 12px 20px; border-radius: 8px;
+      background: var(--quiz-pen); color: var(--quiz-on-pen); font-weight: 600; }
+    .quiz-serif { font-family: var(--quiz-font-serif); font-weight: 400; }
+    .quiz-figure { font-family: var(--quiz-font-figure); font-weight: 400; font-variant-numeric: lining-nums tabular-nums; }
+
+    /* Buttons */
+    button { cursor: pointer; min-height: 48px; padding: 11px 22px; border: 1px solid transparent; border-radius: 8px;
+      background: transparent; font-weight: 600; line-height: 1.4; text-align: center;
+      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; }
+    .button-primary { background: var(--quiz-pen); color: var(--quiz-on-pen); }
+    .button-primary:hover { background: var(--quiz-pen-strong); }
+    .button-secondary { background: var(--quiz-surface); border-color: var(--quiz-control-edge); color: var(--quiz-ink); }
+    .button-secondary:hover { border-color: var(--quiz-ink); }
+    .button-quiet { min-height: 44px; min-width: 44px; padding: 10px 8px; color: var(--quiz-pen); }
+    .button-quiet:hover { text-decoration: underline; text-underline-offset: 5px; }
+    .quiz-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 24px; }
+    .quiz-actions > .button-quiet:first-child, .quiz-missing-list li:first-child .button-quiet { margin-left: -8px; }
+    .quiz-actions .is-end { margin-left: auto; }
+    .quiz-actions .is-end ~ .is-end { margin-left: 0; }
+    .quiz-actions-note { font-size: 14px; color: var(--quiz-muted); }
+
+    /* Masthead and sticky bar */
+    .quiz-masthead { max-width: 880px; margin: 0 auto; padding: 64px 32px 0; }
+    .quiz-source-line { font-size: 14px; line-height: 1.5; color: var(--quiz-muted); }
+    .quiz-title { max-width: 680px; margin-top: 16px; font-family: var(--quiz-font-serif); font-weight: 400;
+      font-size: 36px; line-height: 1.4; }
+    #quiz-header.is-bar { position: sticky; top: 0; z-index: 10; background: var(--quiz-paper);
+      border-bottom: 1px solid var(--quiz-rule); }
+    .quiz-bar { max-width: 880px; margin: 0 auto; padding: 6px 32px; min-height: 64px;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; }
+    .quiz-bar-title { flex: 1 1 160px; min-width: 0; font-family: var(--quiz-font-serif); font-weight: 400;
+      font-size: 17px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .quiz-bar-mode { display: flex; gap: 12px; font-size: 14px; color: var(--quiz-muted); white-space: nowrap; }
+    .quiz-bar-mode .is-practice { color: var(--quiz-ink); font-weight: 600; }
+
+    /* Answer sheet */
+    .quiz-sheet-list { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; }
+    .quiz-cell { position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px;
+      min-height: 0; padding: 0; border: 0; border-radius: 8px; color: var(--quiz-muted); font-size: 17px; line-height: 1; }
+    button.quiz-cell:hover { background: var(--quiz-pen-wash); }
+    .quiz-cell:focus-visible { outline-offset: -3px; }
+    .quiz-cell-num { position: relative; display: grid; place-items: center; width: 26px; height: 32px; border-radius: 50%;
+      font-family: var(--quiz-font-figure); font-variant-numeric: lining-nums tabular-nums;
+      transition: background-color 120ms ease, color 120ms ease; }
+    .quiz-cell-num::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: 1px; height: 2px;
+      border-radius: 1px; background: var(--quiz-rule); }
+    [data-state="answered"] .quiz-cell-num, [data-state="selfPending"] .quiz-cell-num {
+      background: var(--quiz-pen); color: var(--quiz-on-pen); }
+    [data-state="answered"] .quiz-cell-num::after, [data-state="selfPending"] .quiz-cell-num::after,
+    [data-state="correct"] .quiz-cell-num::after, [data-state="incorrect"] .quiz-cell-num::after,
+    [data-state="selfUnderstood"] .quiz-cell-num::after, [data-state="selfReview"] .quiz-cell-num::after { content: none; }
+    [data-state="skipped"] .quiz-cell-num::after { left: calc(50% - 5px); right: auto; bottom: 0; width: 10px; height: 3px;
+      border-radius: 2px; background: var(--quiz-muted); }
+    [data-state="correct"], [data-state="incorrect"], [data-state="selfUnderstood"], [data-state="selfReview"] { color: var(--quiz-ink); }
+    .quiz-cell.is-assisted .quiz-cell-num::before { content: ""; position: absolute; left: 3px; right: 3px; bottom: -5px;
+      border-bottom: 2px dotted var(--quiz-ink); }
+    .quiz-cell[aria-current="step"] { box-shadow: inset 0 0 0 1.5px var(--quiz-ink); }
+    .quiz-sheet.is-large .quiz-cell { width: 56px; height: 60px; font-size: 24px; }
+    .quiz-sheet.is-large .quiz-cell-num { width: 36px; height: 44px; }
+
+    /* Hand-drawn marks */
+    .quiz-mark, .quiz-dash { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none;
+      stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+    .quiz-mark.is-grade { color: var(--quiz-grade); }
+    .quiz-mark.is-pen { color: var(--quiz-pen); }
+    .quiz-dash { color: var(--quiz-muted); }
+    .quiz-dash.is-blank { color: var(--quiz-control-edge); stroke-width: 2; }
+    .quiz-mark path { stroke-dasharray: 1 2; stroke-dashoffset: 0; }
+    .quiz-mark.is-drawing path { animation: quiz-draw 360ms cubic-bezier(.3, .7, .4, 1) var(--quiz-delay, 0ms) both; }
+    @keyframes quiz-draw { from { stroke-dashoffset: 1.05; } to { stroke-dashoffset: 0; } }
+
+    /* Page and start screen */
+    .quiz-page { max-width: 880px; margin: 0 auto; padding: 40px 32px 96px; }
+    [data-screen="start"] { padding-top: 0; }
+    .quiz-lede { max-width: 680px; margin: 0 0 40px; font-size: 21px; line-height: 1.6; }
+    .quiz-facts { display: grid; grid-template-columns: 88px minmax(0, 680px); gap: 16px 24px; max-width: 792px; margin-bottom: 40px;
+      padding: 24px 0; border-top: 1px solid var(--quiz-rule); border-bottom: 1px solid var(--quiz-rule); }
+    .quiz-facts dt { font-size: 14px; font-weight: 600; color: var(--quiz-muted); padding-top: 3px; }
+    .quiz-fact-sub { display: block; color: var(--quiz-muted); }
+    .quiz-practice-notice { max-width: 680px; margin: -16px 0 32px; padding-left: 16px; border-left: 3px solid var(--quiz-pen); }
+    fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+    legend { padding: 0; }
+    .quiz-mode-options { max-width: 792px; }
+    .quiz-mode-options legend { margin-bottom: 12px; font-weight: 600; }
+    .quiz-mode { display: flex; align-items: flex-start; gap: 16px; padding: 16px 0; cursor: pointer;
+      border-bottom: 1px solid var(--quiz-rule); }
+    .quiz-mode:first-of-type { border-top: 1px solid var(--quiz-rule); }
+    .quiz-mode strong { display: block; font-weight: 600; }
+    .quiz-mode-copy { color: var(--quiz-muted); }
+    .quiz-radio { appearance: none; -webkit-appearance: none; flex: none; display: grid; place-items: center;
+      width: 24px; height: 24px; margin: 2px 0 0; border: 1.5px solid var(--quiz-control-edge); border-radius: 50%;
+      background: var(--quiz-surface); cursor: pointer; transition: border-color 120ms ease; }
+    .quiz-radio::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--quiz-pen);
+      transform: scale(0); transition: transform 120ms ease; }
+    .quiz-radio:checked { border-color: var(--quiz-pen); }
+    .quiz-radio:checked::before { transform: scale(1); }
+    .quiz-start-action { margin-top: 32px; }
+    .quiz-start-action .button-primary { min-width: 200px; }
+
+    /* Questions */
+    .quiz-instruction, .quiz-submit { margin-left: 112px; }
+    .quiz-instruction { max-width: 680px; margin-bottom: 48px; color: var(--quiz-muted); }
+    .quiz-question { display: grid; grid-template-columns: 88px minmax(0, 680px); column-gap: 24px; }
+    .quiz-question + .quiz-question { margin-top: 48px; padding-top: 48px; border-top: 1px solid var(--quiz-rule); }
+    .quiz-q-gutter { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    .quiz-q-num { font-size: 48px; line-height: 1; color: var(--quiz-ink); }
+    .quiz-q-type { font-size: 14px; line-height: 1.4; color: var(--quiz-muted); white-space: nowrap; }
+    .quiz-prompt { margin-bottom: 24px; font-family: var(--quiz-font-serif); font-weight: 400; font-size: 24px; line-height: 1.7;
+      scroll-margin-top: calc(var(--quiz-bar-h) + 24px); }
+    .quiz-hint { margin: -8px 0 24px; padding: 2px 0 2px 16px; border-left: 3px solid var(--quiz-pen); }
+    .quiz-hint-title { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; font-weight: 600; color: var(--quiz-pen); }
+    .quiz-hint-title span { color: var(--quiz-muted); font-weight: 400; }
+    .quiz-options { display: grid; gap: 8px; }
+    .quiz-option { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: start;
+      column-gap: 16px; padding: 13px 16px; min-height: 56px; background: var(--quiz-surface);
+      border: 1px solid var(--quiz-control-edge); border-radius: 10px; cursor: pointer;
+      transition: background-color 120ms ease, border-color 120ms ease; }
+    .quiz-option > input { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; margin: 0; opacity: 0;
+      appearance: none; -webkit-appearance: none; cursor: inherit; border-radius: 10px; }
+    .quiz-option:hover { border-color: var(--quiz-ink); }
+    .quiz-option:has(input:focus-visible) { outline: 3px solid var(--quiz-pen); outline-offset: 3px; }
+    .quiz-option:has(input:checked), .quiz-option.is-picked { border-color: var(--quiz-pen); background: var(--quiz-pen-wash); }
+    .quiz-option:has(input:disabled), .quiz-option.is-static { cursor: default; }
+    .quiz-option.is-graded:hover { border-color: var(--quiz-control-edge); }
+    .quiz-option.is-graded.is-picked:hover { border-color: var(--quiz-pen); }
+    .quiz-option:has(input:disabled:not(:checked)):not(.is-graded) { color: var(--quiz-muted); }
+    .quiz-option.is-graded:not(.is-key):not(.is-picked) { color: var(--quiz-muted); }
+    .quiz-bubble { position: relative; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+      border: 1.5px solid var(--quiz-control-edge); color: var(--quiz-muted); font-size: 15px; line-height: 1;
+      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; }
+    .quiz-option:has(input:checked) .quiz-bubble, .quiz-option.is-picked .quiz-bubble {
+      background: var(--quiz-pen); border-color: var(--quiz-pen); color: var(--quiz-on-pen); }
+    .quiz-bubble .quiz-mark { inset: auto; left: -9px; top: -11px; width: 46px; height: 50px; }
+    .quiz-option-text { padding-top: 1px; }
+    .quiz-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; padding-top: 2px; }
+    .quiz-tag { display: inline-block; padding: 2px 8px; border: 1.5px solid currentColor; border-radius: 4px;
+      font-size: 14px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+    .quiz-tag[data-tag="picked"] { color: var(--quiz-pen); }
+    .quiz-tag[data-tag="key"] { color: var(--quiz-grade); }
+    .quiz-options.is-ox { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .quiz-option.is-ox { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center;
+      align-content: start; row-gap: 8px; padding: 16px 20px; min-height: 0; }
+    .quiz-ox-glyph { position: relative; display: grid; place-items: center; width: 52px; height: 56px;
+      font-family: var(--quiz-font-serif); font-size: 40px; line-height: 1; color: var(--quiz-muted); }
+    .quiz-option:has(input:checked) .quiz-ox-glyph, .quiz-option.is-ox.is-picked .quiz-ox-glyph { color: var(--quiz-pen); }
+    .quiz-option.is-ox .quiz-tags { grid-column: 1 / -1; justify-content: flex-start; }
+    .quiz-graded-options .quiz-option.is-ox { grid-template-columns: 28px minmax(0, 1fr) auto; row-gap: 0; padding: 13px 16px; }
+    .quiz-graded-options .quiz-ox-glyph { width: 28px; height: 28px; font-size: 26px; }
+    .quiz-graded-options .quiz-ox-glyph .quiz-mark { inset: auto; left: -9px; top: -11px; width: 46px; height: 50px; }
+    .quiz-graded-options .quiz-option.is-ox .quiz-tags { grid-column: auto; justify-content: flex-end; }
+    .quiz-field label { display: block; margin-bottom: 8px; font-weight: 600; }
+    textarea { display: block; width: 100%; min-height: 132px; padding: 14px 16px; resize: vertical;
+      background: var(--quiz-surface); color: var(--quiz-ink); border: 1px solid var(--quiz-control-edge);
+      border-radius: 10px; line-height: 1.65; transition: border-color 120ms ease; }
+    textarea:hover:not(:disabled) { border-color: var(--quiz-ink); }
+    textarea:disabled { color: var(--quiz-muted); background: transparent; }
+    .quiz-help { margin-top: 8px; font-size: 14px; color: var(--quiz-muted); }
+    .quiz-validation { margin-top: 12px; padding-left: 12px; border-left: 3px solid var(--quiz-pen); font-weight: 600; }
+
+    /* Feedback */
+    .quiz-feedback { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--quiz-rule); }
+    .quiz-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 16px;
+      font-size: 21px; font-weight: 600; line-height: 1.4; scroll-margin-top: calc(var(--quiz-bar-h) + 24px); }
+    .quiz-verdict-mark { position: relative; flex: none; width: 28px; height: 31px; }
+    .quiz-verdict .quiz-tag { color: var(--quiz-muted); font-size: 14px; }
+    .quiz-note { font-size: 14px; color: var(--quiz-muted); }
+    .quiz-feedback > .quiz-note { margin: -8px 0 16px; }
+    .quiz-graded-options { display: grid; gap: 8px; margin-bottom: 24px; list-style: none; }
+    .quiz-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 32px; margin-bottom: 24px; }
+    .quiz-label { margin-bottom: 4px; font-size: 14px; font-weight: 600; color: var(--quiz-muted); }
+    .quiz-compare p { white-space: pre-wrap; }
+    .quiz-compare .is-mine p:not(.quiz-label) { color: var(--quiz-pen); }
+    .quiz-compare .is-mine p.is-empty { color: var(--quiz-muted); }
+    .quiz-essential-points { margin-bottom: 24px; padding-left: 24px; }
+    .quiz-self-check { margin: 0 0 24px; padding: 16px 0; border-top: 1px solid var(--quiz-rule); border-bottom: 1px solid var(--quiz-rule); }
+    .quiz-self-check legend { float: left; width: 100%; margin-bottom: 4px; font-weight: 600; }
+    .quiz-self-check legend + * { clear: both; }
+    .quiz-self-check .quiz-note { margin-bottom: 8px; }
+    .quiz-self-check label { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+    .quiz-self-check .quiz-radio { margin: 0; }
+    .quiz-explanation { margin-bottom: 24px; }
+    .quiz-evidence-title { font-size: 14px; font-weight: 600; color: var(--quiz-muted); }
+    .quiz-source-locator { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 16px; margin-bottom: 8px;
+      font-size: 14px; color: var(--quiz-muted); }
+    .quiz-source-locator a { font-weight: 600; }
+    .quiz-source-quote { padding-inline: 3px; white-space: break-spaces; line-height: 1.9; }
+    .quiz-highlight { margin-inline: -3px; padding: 2px 3px; border-radius: 2px; background: var(--quiz-highlight); color: var(--quiz-ink);
+      -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+
+    /* Check-mode submission */
+    .quiz-submit { max-width: 680px; margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--quiz-ink); }
+    .quiz-progress-text { font-size: 17px; }
+    .quiz-incomplete { margin-top: 24px; padding: 20px 0 4px 20px; border-left: 3px solid var(--quiz-pen); }
+    .quiz-incomplete h2 { font-size: 21px; font-weight: 600; line-height: 1.4; margin-bottom: 8px; }
+    .quiz-missing-list { display: flex; flex-wrap: wrap; gap: 0 8px; margin-top: 8px; list-style: none; }
+    .quiz-incomplete .quiz-actions { margin-top: 12px; }
+    [data-screen="quiz"] > [data-incomplete-slot] > .quiz-incomplete { margin-left: 112px; max-width: 680px; margin-top: 48px; }
+
+    /* Results */
+    .quiz-results-title { font-family: var(--quiz-font-serif); font-weight: 400; font-size: 36px; line-height: 1.4; }
+    .quiz-original-score { margin-top: 16px; padding-left: 16px; border-left: 3px solid var(--quiz-rule); }
+    .quiz-original-score h3 { font-size: 14px; font-weight: 600; color: var(--quiz-muted); }
+    .quiz-original-value { font-family: var(--quiz-font-figure); font-size: 21px; font-variant-numeric: lining-nums tabular-nums; }
+    .quiz-scoreboard { margin-top: 24px; }
+    .quiz-score { font-family: var(--quiz-font-figure); font-variant-numeric: lining-nums tabular-nums; line-height: 1.1;
+      font-size: 21px; color: var(--quiz-ink); }
+    .quiz-score-correct { font-size: 72px; color: var(--quiz-grade); }
+    .quiz-score-total { font-size: 36px; }
+    .quiz-score-text { color: var(--quiz-muted); }
+    .quiz-score-caption { max-width: 680px; margin-top: 8px; color: var(--quiz-muted); }
+    .quiz-score-caption + .quiz-score-caption { margin-top: 0; }
+    .quiz-counts { display: grid; grid-template-columns: repeat(3, max-content); gap: 8px 48px; margin-top: 24px;
+      padding: 16px 0; border-top: 1px solid var(--quiz-rule); border-bottom: 1px solid var(--quiz-rule); }
+    .quiz-counts div { display: flex; align-items: baseline; gap: 12px; }
+    .quiz-counts dt { font-size: 14px; color: var(--quiz-muted); }
+    .quiz-counts dd { font-family: var(--quiz-font-figure); font-size: 21px; font-variant-numeric: lining-nums tabular-nums; }
+    .quiz-section-title { margin-bottom: 12px; font-size: 21px; font-weight: 600; line-height: 1.4; }
+    .quiz-result-sheet, .quiz-review, .quiz-result-items { margin-top: 48px; }
+    .quiz-concepts { list-style: none; }
+    .quiz-concepts li { display: flex; flex-wrap: wrap; gap: 0 12px; padding: 4px 0; }
+    .quiz-concepts span { color: var(--quiz-muted); }
+    .quiz-result-item { border-top: 1px solid var(--quiz-rule); }
+    .quiz-result-item:last-child { border-bottom: 1px solid var(--quiz-rule); }
+    .quiz-item-heading { font-size: 17px; font-weight: 400; }
+    .quiz-item-toggle { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto 16px; align-items: center;
+      gap: 16px; width: 100%; min-height: 64px; padding: 10px 0; border: 0; border-radius: 0; text-align: start;
+      font-weight: 400; line-height: 1.6; color: var(--quiz-ink); scroll-margin-top: calc(var(--quiz-bar-h) + 24px); }
+    .quiz-item-toggle::after { content: ""; width: 9px; height: 9px; justify-self: center;
+      border-right: 2px solid var(--quiz-muted); border-bottom: 2px solid var(--quiz-muted);
+      transform: translateY(-3px) rotate(45deg); transition: transform 120ms ease; }
+    .quiz-item-toggle[aria-expanded="true"]::after { transform: translateY(2px) rotate(225deg); }
+    .quiz-item-toggle:hover .quiz-item-prompt { text-decoration: underline; text-underline-offset: 5px;
+      text-decoration-color: var(--quiz-control-edge); }
+    .quiz-item-prompt { font-family: var(--quiz-font-serif); font-weight: 400; line-height: 1.6; }
+    .quiz-item-outcome { font-size: 14px; font-weight: 600; white-space: nowrap; }
+    .quiz-item-body { padding: 0 0 40px 56px; }
+    .quiz-item-body .quiz-feedback { margin-top: 8px; padding-top: 0; border-top: 0; }
+    .quiz-error { max-width: 680px; padding-left: 20px; border-left: 3px solid var(--quiz-grade); }
+    .quiz-error h2 { font-size: 21px; font-weight: 600; margin-bottom: 8px; }
+
+    @media (max-width: 719px) {
+      .quiz-masthead { padding: 40px 20px 0; }
+      .quiz-title, .quiz-results-title { font-size: 28px; }
+      .quiz-bar { padding: 6px 20px 4px; gap: 0 16px; }
+      .quiz-bar .quiz-sheet { flex: 1 0 100%; min-width: 0; margin: 0 -20px; padding: 2px 20px 4px;
+        overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+      .quiz-bar .quiz-sheet::-webkit-scrollbar { display: none; }
+      .quiz-bar .quiz-sheet-list { flex-wrap: nowrap; width: max-content; }
+      .quiz-page { padding: 32px 20px 72px; }
+      .quiz-lede { font-size: 19px; }
+      .quiz-facts { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+      .quiz-facts dd + dt { margin-top: 12px; }
+      .quiz-question { grid-template-columns: minmax(0, 1fr); }
+      .quiz-q-gutter { flex-direction: row; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+      .quiz-q-num { font-size: 36px; }
+      .quiz-prompt { font-size: 21px; }
+      .quiz-instruction, .quiz-submit, [data-screen="quiz"] > [data-incomplete-slot] > .quiz-incomplete { margin-left: 0; }
+      .quiz-actions .is-end { margin-left: 0; }
+      .quiz-option { grid-template-columns: 28px minmax(0, 1fr); }
+      .quiz-option:not(.is-ox) .quiz-tags, .quiz-graded-options .quiz-option.is-ox .quiz-tags {
+        grid-column: 2; justify-content: flex-start; padding-top: 8px; }
+      .quiz-compare { grid-template-columns: minmax(0, 1fr); }
+      .quiz-score-correct { font-size: 56px; }
+      .quiz-score-total { font-size: 28px; }
+      .quiz-counts { grid-template-columns: repeat(2, max-content); gap: 8px 40px; }
+      .quiz-sheet.is-large .quiz-cell { width: 48px; height: 56px; font-size: 21px; }
+      .quiz-sheet.is-large .quiz-cell-num { width: 32px; height: 40px; }
+      .quiz-item-toggle { grid-template-columns: 40px minmax(0, 1fr) 16px; gap: 4px 12px; }
+      .quiz-item-outcome { grid-column: 2; grid-row: 2; }
+      .quiz-item-toggle::after { grid-column: 3; grid-row: 1; }
+      .quiz-item-body { padding-left: 0; }
+    }
+    @media (max-width: 359px) {
+      .quiz-options.is-ox { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#quiz-app">퀴즈로 이동</a>
+  <header id="quiz-header"></header>
+  <div class="quiz-page">
+    <main id="quiz-app" tabindex="-1"></main>
+    <noscript><p>퀴즈를 풀려면 브라우저에서 JavaScript를 켜 주세요.</p></noscript>
+  </div>
+  <div id="quiz-status" class="sr-only" role="status" aria-live="polite"></div>
+  <!-- QUIZ DATA: replace study content and labels; escape '<' as \u003c when serializing JSON. -->
+  <script id="quiz-data" type="application/json">
+{
+  "title": "plz 기여 가이드",
+  "description": "읽은 내용을 떠올리고, 근거와 함께 확인해 보세요.",
+  "source": {
+    "name": "CONTRIBUTING.md",
+    "scope": "새 스킬 제안, 작성 언어, 변경 사항 검증"
+  },
+  "lang": "ko",
+  "labels": {},
+  "questions": [
+    {
+      "id": "proposal",
+      "concept": "구현 전 제안",
+      "type": "choice",
+      "prompt": "새 스킬을 추가하려 합니다. 구현을 시작하기 전에 먼저 할 일은 무엇인가요?",
+      "options": [
+        {
+          "id": "a",
+          "text": "스킬 폴더를 만들고 완성된 구현을 먼저 올린다."
+        },
+        {
+          "id": "b",
+          "text": "해결할 문제와 실행 예시를 담은 이슈를 연다."
+        },
+        {
+          "id": "c",
+          "text": "네 언어의 README를 먼저 작성해 제출한다."
+        },
+        {
+          "id": "d",
+          "text": "기존 템플릿의 ENGINE을 새 스킬에 복사한다."
+        }
+      ],
+      "answer": "b",
+      "explanation": "새 스킬은 작업에 시간을 쓰기 전에 이슈로 방향을 논의합니다. 이슈에는 해결할 문제와 스킬을 실행할 요청 예시를 담습니다.",
+      "hint": "구현물보다 먼저, 어떤 문제를 해결할지 함께 확인하는 절차를 떠올려 보세요.",
+      "source": {
+        "document": "CONTRIBUTING.md",
+        "section": "Before you start, Adding a new skill",
+        "excerpt": "For a new skill or any large change, open an issue first so we can agree on the direction before you spend time on it."
+      },
+      "retry": {
+        "id": "proposal-practice",
+        "type": "choice",
+        "prompt": "기존 스킬에 큰 기능을 추가하려 합니다. 기여 가이드에 맞는 진행 순서는 무엇인가요?",
+        "options": [
+          {
+            "id": "a",
+            "text": "작은 오타 수정처럼 바로 PR을 연다."
+          },
+          {
+            "id": "b",
+            "text": "전체 구현을 마친 뒤 첫 이슈를 연다."
+          },
+          {
+            "id": "c",
+            "text": "먼저 이슈를 열어 변경 방향을 논의한다."
+          },
+          {
+            "id": "d",
+            "text": "번역 파일을 지운 뒤 구현을 시작한다."
+          }
+        ],
+        "answer": "c",
+        "explanation": "새 스킬뿐 아니라 큰 변경도 구현 전에 이슈를 열어 방향을 논의합니다."
+      }
+    },
+    {
+      "id": "language",
+      "concept": "지침과 결과물의 언어",
+      "type": "ox",
+      "prompt": "references/의 지침 문서는 생성되는 학습 페이지와 같은 언어로 작성해야 한다.",
+      "answer": "false",
+      "explanation": "SKILL.md와 references/의 지침은 영어로 작성합니다. 생성되는 페이지는 사용자의 언어로 작성하므로 둘의 언어 정책이 다릅니다.",
+      "hint": "에이전트가 읽는 지침과 학습자가 읽는 결과물의 언어 정책을 구분해 보세요.",
+      "source": {
+        "document": "CONTRIBUTING.md",
+        "section": "Language policy",
+        "excerpt": "`SKILL.md` and everything in `references/` are written in English.\nPages that a skill generates are written in the user's language."
+      },
+      "retry": {
+        "id": "language-practice",
+        "type": "ox",
+        "prompt": "한국어로 학습 페이지를 요청했다면, 스킬 지침이 영어여도 생성 페이지는 한국어로 작성한다.",
+        "answer": "true",
+        "explanation": "스킬 지침의 작성 언어와 관계없이, 생성되는 페이지는 사용자의 언어로 작성합니다."
+      }
+    },
+    {
+      "id": "readme-check",
+      "concept": "README 변경 검증",
+      "type": "choice",
+      "prompt": "README.md의 문구와 링크를 고쳤습니다. 이 변경에 필요한 검사는 무엇인가요?",
+      "options": [
+        {
+          "id": "a",
+          "text": "node scripts/check-templates.mjs"
+        },
+        {
+          "id": "b",
+          "text": "npx playwright install chromium"
+        },
+        {
+          "id": "c",
+          "text": "node scripts/check-readme-translations.mjs"
+        },
+        {
+          "id": "d",
+          "text": "npm ci --ignore-scripts"
+        }
+      ],
+      "answer": "c",
+      "explanation": "README나 번역본을 바꿨다면 번역 일치 검사를 실행합니다. 이 검사는 코드 블록, 링크, 표 구조 등이 영문 원본과 맞는지도 확인합니다.",
+      "hint": "번역본이 영문 원본과 맞는지 확인하는 검사를 찾아보세요.",
+      "source": {
+        "document": "CONTRIBUTING.md",
+        "section": "Checks to run",
+        "excerpt": "Run `node scripts/check-readme-translations.mjs` from the repository root. It needs Node.js. CI runs it on Node 22."
+      },
+      "retry": {
+        "id": "readme-check-practice",
+        "type": "choice",
+        "prompt": "한국어 README만 수정했습니다. 검증 방법으로 알맞은 것은 무엇인가요?",
+        "options": [
+          {
+            "id": "a",
+            "text": "저장소 루트에서 README 번역 일치 검사를 실행한다."
+          },
+          {
+            "id": "b",
+            "text": "영문을 바꾸지 않았으므로 검사를 생략한다."
+          },
+          {
+            "id": "c",
+            "text": "3D ENGINE 검사만 실행하면 충분하다."
+          },
+          {
+            "id": "d",
+            "text": "브라우저를 설치하면 번역 검증도 끝난다."
+          }
+        ],
+        "answer": "a",
+        "explanation": "번역본 하나만 수정해도 README 번역 일치 검사를 실행해야 합니다."
+      }
+    },
+    {
+      "id": "engine-check",
+      "concept": "공통 동작 변경 검증",
+      "type": "choice",
+      "prompt": "3D 템플릿의 ENGINE을 수정했습니다. 필요한 후속 작업은 무엇인가요?",
+      "options": [
+        {
+          "id": "a",
+          "text": "템플릿만 저장하고 README 번역 검사만 실행한다."
+        },
+        {
+          "id": "b",
+          "text": "한국어 예시 하나에만 반영하고 검사를 마친다."
+        },
+        {
+          "id": "c",
+          "text": "예시 파일은 그대로 두고 새 화면만 확인한다."
+        },
+        {
+          "id": "d",
+          "text": "모든 예시에 반영하고 일치 검사와 브라우저 검증을 한다."
+        }
+      ],
+      "answer": "d",
+      "explanation": "ENGINE은 템플릿과 모든 예시에서 일치해야 합니다. 변경을 함께 반영하고, 일치 검사 후 템플릿과 각 예시의 브라우저 동작도 검증합니다.",
+      "hint": "공통 동작 코드가 템플릿뿐 아니라 예시에도 복사되어 있다는 점을 떠올려 보세요.",
+      "source": {
+        "document": "CONTRIBUTING.md",
+        "section": "Checks to run",
+        "excerpt": "Run `node scripts/check-templates.mjs` from the repository root to confirm they still match; CI runs it too. Then run the validation procedure above on the template and every example."
+      },
+      "retry": {
+        "id": "engine-check-practice",
+        "type": "choice",
+        "prompt": "ENGINE 변경을 예시에도 반영했습니다. 템플릿과 예시의 공통 코드가 같은지 확인하는 명령은 무엇인가요?",
+        "options": [
+          {
+            "id": "a",
+            "text": "node scripts/check-readme-translations.mjs"
+          },
+          {
+            "id": "b",
+            "text": "node scripts/check-templates.mjs"
+          },
+          {
+            "id": "c",
+            "text": "npx playwright install chromium"
+          },
+          {
+            "id": "d",
+            "text": "npm ci --ignore-scripts"
+          }
+        ],
+        "answer": "b",
+        "explanation": "check-templates.mjs가 템플릿과 예시의 ENGINE 구간 일치를 확인합니다. 브라우저 동작 검증도 별도로 수행합니다."
+      }
+    },
+    {
+      "id": "frontmatter",
+      "concept": "스킬 식별 정보",
+      "type": "short",
+      "prompt": "새 SKILL.md의 YAML frontmatter에 반드시 넣는 두 필드는 무엇인가요? 폴더 이름과 같아야 하는 필드도 함께 적어 보세요.",
+      "referenceAnswer": "name과 description입니다. name 값은 스킬 폴더 이름과 같아야 합니다.",
+      "essentialPoints": [
+        "필수 필드 name과 description을 모두 썼는가?",
+        "name 값은 스킬 폴더 이름과 같아야 한다고 설명했는가?"
+      ],
+      "explanation": "frontmatter의 name은 스킬의 식별자이고 폴더 이름과 일치해야 합니다. description은 에이전트가 이 스킬을 언제 사용할지 판단하는 설명입니다.",
+      "hint": "스킬의 이름을 나타내는 필드와 사용 시점을 설명하는 필드를 떠올려 보세요.",
+      "source": {
+        "document": "CONTRIBUTING.md",
+        "section": "Repository structure, Adding a new skill",
+        "excerpt": "A skill's directory name is `plz-\u003ctask>`, and the `name` in the `SKILL.md` frontmatter must match it.\nWrite `SKILL.md` in English, with `name` and `description` in the frontmatter."
+      },
+      "retry": {
+        "id": "frontmatter-practice",
+        "type": "short",
+        "prompt": "폴더 이름은 plz-review인데 frontmatter의 name은 plz-reader입니다. 어느 필드를 어떤 값으로 고쳐야 하나요?",
+        "referenceAnswer": "name을 plz-review로 고칩니다. name은 스킬 폴더 이름과 같아야 합니다.",
+        "essentialPoints": [
+          "수정할 필드를 name으로 골랐는가?",
+          "올바른 값을 plz-review로 썼는가?"
+        ],
+        "explanation": "name 값이 실제 스킬 폴더 이름과 일치하도록 고쳐야 합니다."
+      }
+    }
+  ]
+}
+  </script>
+  <!-- QUIZ CORE: keep behavior stable when replacing content. -->
+  <script id="quiz-engine">
+(() => {
+  'use strict';
+
+  const DEFAULT_LABELS = {
+    start: 'Start quiz', modeLegend: 'When should answers be graded?',
+    learning: 'Grade as you go', check: 'Grade at the end',
+    learningDescription: 'Answer one question at a time and see the grade and explanation right away.',
+    checkDescription: 'Answer every question first, then see all grades and explanations together.',
+    source: 'Study material', scope: 'Scope', questions: 'Questions',
+    questionCount: '{count} in total', choice: 'Multiple choice', ox: 'True or false', short: 'Short answer',
+    policy: 'Grading',
+    policyText: 'Multiple-choice and true-or-false questions are worth one point each. Short answers are compared with a reference answer and checked by you, outside the score. "I don\'t know" counts as zero; unanswered questions and questions where you used a hint are left out of the score.',
+    progress: 'Answered: {answered} of {total}', quizProgress: 'Quiz progress',
+    questionNumber: 'Question {number}', answerLabel: 'Your answer',
+    shortHelp: 'Write one or two sentences. After grading you compare them with a reference answer.',
+    checkAnswer: 'Check answer', next: 'Next question', previous: 'Previous question',
+    later: 'Answer later', skip: "I don't know", undoSkip: 'Answer this question',
+    hint: 'Show hint', hintTitle: 'Hint', assisted: 'Assisted', skipped: 'Skipped',
+    unanswered: 'Unanswered', chosen: 'Answered', correct: 'Correct', incorrect: 'Incorrect',
+    selfPending: 'Self-check needed', selfUnderstood: 'Self-checked: covered', selfReview: 'Self-checked: revisit',
+    selfLabel: 'Does your answer cover the essential points?', understood: 'I covered them',
+    needsReview: "I'll revisit this", yourAnswer: 'Your answer', referenceAnswer: 'Reference answer',
+    essentialPoints: 'Essential points', explanation: 'Explanation', evidence: 'Source',
+    finish: 'Submit and grade', continueQuiz: 'Keep answering', earlySubmit: 'Submit as is',
+    incompleteTitle: 'Some questions are still unanswered',
+    incompleteText: 'Questions left: {count}. Unanswered questions are reported separately and never counted as wrong.',
+    resultsTitle: 'Results', practiceResultsTitle: 'Practice results',
+    score: '{correct} / {total} points', noScore: 'No automatically graded answers',
+    scorePolicy: 'Counts multiple-choice and true-or-false answers. "I don\'t know" counts as zero; unanswered and assisted questions are left out.',
+    coverage: 'Questions answered: {answered} of {total}.',
+    shortCounts: 'Short answers self-checked: {checked}. Waiting for your check: {pending}.',
+    originalScore: 'First attempt', retry: 'Retry missed concepts',
+    noRetry: 'No fresh practice questions are available for the concepts to revisit.',
+    reviewConcepts: 'Concepts to revisit', newPractice: 'Practice the whole set again',
+    practiceBadge: 'Practice round',
+    validationAnswer: 'Choose or write an answer first, or choose "I don\'t know".',
+    invalidTitle: 'This quiz cannot start',
+    invalidData: 'The quiz data is incomplete or invalid. Ask the author to correct it.',
+    true: 'True', false: 'False', sourceLink: 'Open source',
+    returnInitial: 'Back to first results', noAnswer: 'No answer',
+    shortSelfHelp: 'Your self-check is not added to the multiple-choice and true-or-false score.',
+    checkBatchHelp: 'You can change your answers until you submit. Grades and explanations appear after you submit.',
+    hintAnnounce: 'Hint shown. This question is marked assisted.',
+    draftNotice: 'This draft was not submitted.',
+    resultsAnnounce: 'Your results are ready.',
+    answerSheet: 'Answer sheet', sheetItem: 'Question {number}, {status}', questionShort: 'Q{number}',
+    listSeparator: ', ', typeTally: '{type} {count}',
+    verdictCorrect: 'Correct', verdictIncorrect: 'Incorrect', verdictSkipped: 'Skipped',
+    answerKey: 'Correct answer', assistedNote: 'You used a hint, so this question is left out of the score.',
+    showResults: 'See results', selfChecked: 'Self-checked', resultsDetails: 'Question by question',
+    practiceNotice: 'This run is practice. Your first results stay as they are.',
+    assistedShortNote: 'You used a hint, so this answer is reported as assisted.',
+    skipLink: 'Skip to the quiz',
+  };
+
+  const KOREAN_LABELS = {
+    start: '퀴즈 시작하기', modeLegend: '언제 채점할까요?',
+    learning: '풀 때마다 채점', check: '다 풀고 채점',
+    learningDescription: '한 문제씩 풀고 채점과 해설을 바로 봅니다.',
+    checkDescription: '모든 문제를 푼 뒤 한꺼번에 채점하고 해설을 봅니다.',
+    source: '학습 자료', scope: '출제 범위', questions: '문항',
+    questionCount: '{count}문항', choice: '객관식', ox: 'OX', short: '단답형',
+    policy: '채점',
+    policyText: '객관식과 OX는 문항마다 1점입니다. 단답형은 참고 답안과 비교해 직접 확인하고, 점수에는 넣지 않아요. 모르겠어요를 고른 문항은 0점이고, 답하지 않은 문항과 힌트를 본 문항은 점수 계산에서 뺍니다.',
+    progress: '{total}문항 중 {answered}문항 응답', quizProgress: '풀이 진행 상황',
+    questionNumber: '{number}번 문제', answerLabel: '내 답',
+    shortHelp: '핵심 내용을 한두 문장으로 적어 보세요. 채점하면 참고 답안과 나란히 보여 드려요.',
+    checkAnswer: '채점하기', next: '다음 문제', previous: '이전 문제',
+    later: '나중에 풀기', skip: '모르겠어요', undoSkip: '이 문제에 답하기',
+    hint: '힌트 보기', hintTitle: '힌트', assisted: '도움 받음', skipped: '건너뜀',
+    unanswered: '미응답', chosen: '응답함', correct: '맞음', incorrect: '틀림',
+    selfPending: '직접 확인 필요', selfUnderstood: '직접 확인: 핵심을 담음', selfReview: '직접 확인: 다시 볼 내용',
+    selfLabel: '내 답에 핵심 내용이 들어 있나요?', understood: '핵심을 담았어요',
+    needsReview: '다시 볼게요', yourAnswer: '내 답', referenceAnswer: '참고 답안',
+    essentialPoints: '확인할 핵심 내용', explanation: '해설', evidence: '근거',
+    finish: '제출하고 채점하기', continueQuiz: '계속 풀기', earlySubmit: '이대로 제출하기',
+    incompleteTitle: '아직 답하지 않은 문제가 있어요',
+    incompleteText: '{count}문항이 남았어요. 답하지 않은 문항은 미응답으로 따로 표시하고, 틀린 것으로 치지 않아요.',
+    resultsTitle: '채점 결과', practiceResultsTitle: '연습 결과',
+    score: '{correct} / {total}점', noScore: '자동으로 채점한 문항이 없어요',
+    scorePolicy: '객관식과 OX 점수예요. 모르겠어요는 0점이고, 미응답과 도움 받은 문항은 빼고 계산했어요.',
+    coverage: '{total}문항 중 {answered}문항 응답',
+    shortCounts: '단답형은 직접 확인 {checked}문항, 확인 대기 {pending}문항이에요.',
+    originalScore: '첫 풀이 결과', retry: '틀린 개념 다시 풀기',
+    noRetry: '다시 볼 개념을 묻는 새 문제가 준비되어 있지 않아요.',
+    reviewConcepts: '다시 볼 개념', newPractice: '전체 다시 연습하기',
+    practiceBadge: '연습 풀이',
+    validationAnswer: '답을 고르거나 적어 주세요. 모르면 모르겠어요를 누르세요.',
+    invalidTitle: '퀴즈를 시작할 수 없어요', invalidData: '문제 데이터가 비어 있거나 올바르지 않아요. 작성자에게 수정을 요청해 주세요.',
+    true: '맞아요', false: '아니에요', sourceLink: '원문 열기',
+    returnInitial: '첫 풀이 결과로 돌아가기', noAnswer: '답하지 않음',
+    shortSelfHelp: '직접 확인한 결과는 객관식과 OX 점수에 넣지 않아요.',
+    checkBatchHelp: '제출하기 전까지 답을 바꿀 수 있어요. 정답과 해설은 제출한 뒤에 보여 드려요.',
+    hintAnnounce: '힌트를 보여 드렸어요. 이 문항은 도움 받음으로 표시해요.',
+    draftNotice: '작성 중이던 답은 제출되지 않았어요.',
+    resultsAnnounce: '채점 결과가 준비됐어요.',
+    answerSheet: '답안지', sheetItem: '{number}번, {status}', questionShort: '{number}번',
+    listSeparator: ', ', typeTally: '{type} {count}',
+    verdictCorrect: '맞았어요', verdictIncorrect: '틀렸어요', verdictSkipped: '건너뛰었어요',
+    answerKey: '정답', assistedNote: '힌트를 본 문항이라 점수에서 뺐어요.',
+    showResults: '결과 보기', selfChecked: '직접 확인', resultsDetails: '문항별 풀이',
+    practiceNotice: '이번 풀이는 연습으로 기록해요. 첫 풀이 결과는 그대로 남아요.',
+    assistedShortNote: '힌트를 본 문항이라 도움 받음으로 따로 표시해요.',
+    skipLink: '퀴즈로 이동',
+  };
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const MARK_PATHS = {
+    circle: 'M24 5.5C33 6.5 37.5 14 36.5 23C35.5 32.5 28 39 19 38.5C10 38 3.5 31 4 21.5C4.5 12 11.5 5.5 20 5C24 4.8 27 5.6 29.5 7.5',
+    slash: 'M9 37.5C15.5 29 23.5 17.5 32 6.5',
+    dash: 'M10 22.5C16 22 23 21.8 30 21.5',
+    blank: 'M8 37H32',
+  };
+  const GRADE_MARKS = {
+    correct: ['circle', 'grade'], incorrect: ['slash', 'grade'],
+    selfUnderstood: ['circle', 'pen'], selfReview: ['slash', 'pen'],
+  };
+  const VERDICT_KEYS = { correct: 'verdictCorrect', incorrect: 'verdictIncorrect', skipped: 'verdictSkipped' };
+  const REVIEW_OUTCOMES = ['incorrect', 'skipped', 'selfReview', 'assisted'];
+  const SETTLED_OUTCOMES = ['correct', 'selfUnderstood'];
+  const DRAW_STAGGER_MS = 60;
+  const STRIP_INSET_PX = 20;
+
+  const header = document.getElementById('quiz-header');
+  const app = document.getElementById('quiz-app');
+  const status = document.getElementById('quiz-status');
+  let data;
+  let labels = DEFAULT_LABELS;
+  const state = { screen: 'start', mode: 'learning', attempt: null, original: null, attempts: 0, confirmEarly: false };
+
+  /* ---------- Small DOM helpers ---------- */
+  const text = (key, tokens = {}) => String(labels[key] ?? DEFAULT_LABELS[key] ?? key)
+    .replace(/\{([a-zA-Z]+)\}/g, (match, name) => Object.hasOwn(tokens, name) ? String(tokens[name]) : match);
+  function textParts(key, tokens, classPrefix) {
+    const fragment = document.createDocumentFragment();
+    const template = String(labels[key] ?? DEFAULT_LABELS[key] ?? key);
+    template.split(/(\{[a-zA-Z]+\})/).filter(Boolean).forEach(part => {
+      const name = /^\{([a-zA-Z]+)\}$/.exec(part)?.[1];
+      if (name && Object.hasOwn(tokens, name)) fragment.append(element('span', `${classPrefix}-${name}`, String(tokens[name])));
+      else fragment.append(element('span', `${classPrefix}-text`, part));
+    });
+    return fragment;
+  }
+  function element(tag, className, content, attributes = {}) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (content != null) node.textContent = content;
+    for (const [name, value] of Object.entries(attributes ?? {})) {
+      if (value != null) node.setAttribute(name, String(value));
+    }
+    return node;
+  }
+  function append(parent, ...children) {
+    for (const child of children.flat()) if (child) parent.append(child);
+    return parent;
+  }
+  function button(label, action, handler, variant = 'secondary') {
+    const node = element('button', `button-${variant}`, label, { type: 'button', 'data-action': action });
+    node.addEventListener('click', handler);
+    return node;
+  }
+  const quietButton = (label, action, handler) => button(label, action, handler, 'quiet');
+  const joinList = items => items.join(text('listSeparator'));
+  function announce(message) { if (status) status.textContent = message; }
+  function focusTop(target) {
+    window.scrollTo({ top: 0 });
+    target?.focus({ preventScroll: true });
+  }
+  function focusInView(target) {
+    if (!target) return;
+    target.scrollIntoView({ block: 'start' });
+    target.focus({ preventScroll: true });
+  }
+  function updateBarHeight() {
+    const height = header.classList.contains('is-bar') ? header.offsetHeight : 0;
+    document.documentElement.style.setProperty('--quiz-bar-h', `${height}px`);
+  }
+  function mark(kind, ink, draw = false, delay = 0) {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', kind === 'dash' || kind === 'blank' ? `quiz-dash is-${kind}` : `quiz-mark is-${ink}${draw ? ' is-drawing' : ''}`);
+    svg.setAttribute('viewBox', '0 0 40 44');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    if (delay) svg.style.setProperty('--quiz-delay', `${delay}ms`);
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', MARK_PATHS[kind]);
+    path.setAttribute('pathLength', '1');
+    svg.append(path);
+    return svg;
+  }
+  function shouldDraw(key) {
+    const drawn = state.attempt.drawn;
+    if (drawn.has(key)) return false;
+    drawn.add(key);
+    return true;
+  }
+
+  /* ---------- Validation ---------- */
+  function requireString(value, name) {
+    if (typeof value !== 'string' || !value.trim()) throw new Error(`Invalid ${name}`);
+    return value;
+  }
+  function validateSource(source) {
+    if (!source || typeof source !== 'object') throw new Error('Missing source');
+    requireString(source.document, 'source.document');
+    requireString(source.section, 'source.section');
+    if (source.excerpt != null && typeof source.excerpt !== 'string') throw new Error('Invalid source.excerpt');
+    if (source.url != null) {
+      const url = new URL(requireString(source.url, 'source.url'));
+      if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Invalid source.url protocol');
+    }
+    return { ...source };
+  }
+  function normalizeOptions(question, raw) {
+    if (question.type === 'choice') {
+      if (!Array.isArray(raw.options) || raw.options.length < 2) throw new Error('Invalid question.options');
+      const optionIds = new Set();
+      question.options = raw.options.map(option => {
+        requireString(option?.id, 'option.id');
+        requireString(option?.text, 'option.text');
+        if (optionIds.has(option.id)) throw new Error('Duplicate option.id');
+        optionIds.add(option.id);
+        return { id: option.id, text: option.text };
+      });
+      if (!optionIds.has(raw.answer)) throw new Error('Invalid question.answer');
+    } else if (question.type === 'ox') {
+      if (!['true', 'false'].includes(raw.answer)) throw new Error('Invalid OX answer');
+      question.options = [{ id: 'true', text: text('true') }, { id: 'false', text: text('false') }];
+    } else {
+      requireString(raw.referenceAnswer, 'question.referenceAnswer');
+      question.essentialPoints = raw.essentialPoints ?? [];
+      if (!Array.isArray(question.essentialPoints)) throw new Error('Invalid essentialPoints');
+      question.essentialPoints.forEach(point => requireString(point, 'essentialPoint'));
+    }
+  }
+  function normalizeQuestion(raw, ids, parent = null) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Invalid question');
+    const question = { ...raw };
+    question.id = raw.id ?? (parent ? `${parent.id}--retry` : null);
+    requireString(question.id, 'question.id');
+    if (ids.has(question.id)) throw new Error('Duplicate question.id');
+    ids.add(question.id);
+    question.concept = requireString(raw.concept ?? parent?.concept, 'question.concept');
+    question.type = raw.type ?? parent?.type;
+    if (!['choice', 'ox', 'short'].includes(question.type)) throw new Error('Invalid question.type');
+    requireString(question.prompt, 'question.prompt');
+    requireString(question.explanation, 'question.explanation');
+    question.source = validateSource(raw.source ?? parent?.source);
+    if (raw.hint != null) requireString(raw.hint, 'question.hint');
+    normalizeOptions(question, raw);
+    if (parent && raw.retry) throw new Error('Nested retry is not supported');
+    question.retry = raw.retry ? normalizeQuestion(raw.retry, ids, question) : null;
+    return question;
+  }
+  function validate(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Invalid quiz');
+    requireString(raw.title, 'title');
+    requireString(raw.source?.name, 'source.name');
+    requireString(raw.source?.scope, 'source.scope');
+    if (raw.description != null && typeof raw.description !== 'string') throw new Error('Invalid description');
+    if (raw.lang != null) requireString(raw.lang, 'lang');
+    if (raw.labels != null && (typeof raw.labels !== 'object' || Array.isArray(raw.labels))) throw new Error('Invalid labels');
+    if (raw.labels && Object.values(raw.labels).some(value => typeof value !== 'string')) throw new Error('Invalid label');
+    labels = { ...DEFAULT_LABELS, ...(/^ko(-|$)/i.test(raw.lang ?? '') ? KOREAN_LABELS : {}), ...raw.labels };
+    if (!Array.isArray(raw.questions) || !raw.questions.length) throw new Error('Empty questions');
+    const ids = new Set();
+    return { ...raw, questions: raw.questions.map(question => normalizeQuestion(question, ids)) };
+  }
+
+  /* ---------- Session model ---------- */
+  function newAttempt(questions, practice = false) {
+    return {
+      number: ++state.attempts, practice, mode: state.mode, questions, index: 0, current: 0, finished: false,
+      drawn: new Set(), openItems: new Map(),
+      responses: new Map(questions.map(question => [question.id, {
+        draft: '', submitted: false, skipped: false, assisted: false, hintVisible: false, selfAssessment: null,
+      }])),
+    };
+  }
+  const responseFor = question => state.attempt.responses.get(question.id);
+  function outcome(question, response) {
+    if (!response.submitted && !response.skipped) return 'unanswered';
+    if (response.assisted) return 'assisted';
+    return rawVerdict(question, response);
+  }
+  function rawVerdict(question, response) {
+    if (response.skipped) return 'skipped';
+    if (!response.submitted) return 'unanswered';
+    if (question.type === 'short') return response.selfAssessment === 'understood' ? 'selfUnderstood'
+      : response.selfAssessment === 'review' ? 'selfReview' : 'selfPending';
+    return response.draft === question.answer ? 'correct' : 'incorrect';
+  }
+  function isGraded(response) {
+    return state.attempt.mode === 'learning' ? response.submitted || response.skipped : state.attempt.finished;
+  }
+  function summarize(attempt) {
+    const summary = { total: attempt.questions.length, answered: 0, correct: 0, incorrect: 0, skipped: 0, unanswered: 0, assisted: 0, short: 0, checked: 0, pending: 0, denominator: 0 };
+    for (const question of attempt.questions) {
+      const response = attempt.responses.get(question.id);
+      const recorded = response.submitted || response.skipped;
+      if (recorded) summary.answered++;
+      if (question.type === 'short') summary.short++;
+      if (response.assisted) { summary.assisted++; continue; }
+      const verdict = rawVerdict(question, response);
+      if (verdict === 'selfPending') summary.pending++;
+      else if (verdict === 'selfUnderstood' || verdict === 'selfReview') summary.checked++;
+      else summary[verdict]++;
+      if (question.type !== 'short' && recorded) summary.denominator++;
+    }
+    return summary;
+  }
+  function scoreText(summary) { return summary.denominator ? text('score', { correct: summary.correct, total: summary.denominator }) : text('noScore'); }
+  function recordedCount() {
+    if (!state.attempt) return 0;
+    return state.attempt.questions.filter(question => {
+      const response = responseFor(question);
+      return state.mode === 'check' && !state.attempt.finished ? response.skipped || Boolean(response.draft.trim()) : response.submitted || response.skipped;
+    }).length;
+  }
+  function missingQuestions() {
+    return state.attempt.questions.filter(question => {
+      const response = responseFor(question);
+      return state.mode === 'check' ? !response.skipped && !response.draft.trim() : !response.submitted && !response.skipped;
+    });
+  }
+
+  /* ---------- Answer sheet ---------- */
+  function cellStatus(question, response) {
+    if (isGraded(response)) {
+      const verdict = rawVerdict(question, response);
+      return { state: verdict, words: [text(verdict), response.assisted ? text('assisted') : null].filter(Boolean) };
+    }
+    const saved = state.mode === 'check' && !response.skipped && Boolean(response.draft.trim());
+    const cellState = response.skipped ? 'skipped' : saved ? 'answered' : 'unanswered';
+    const word = text(cellState === 'answered' ? 'chosen' : cellState);
+    return { state: cellState, words: [word, response.assisted ? text('assisted') : null].filter(Boolean) };
+  }
+  function cellName(question, index, info) {
+    return text('sheetItem', { number: index + 1, status: joinList(info.words) });
+  }
+  function sheetCell(question, index, { interactive, current, drawKey, delay = 0, decorative = false }) {
+    const response = responseFor(question);
+    const info = cellStatus(question, response);
+    const node = element(interactive ? 'button' : 'span', `quiz-cell${response.assisted ? ' is-assisted' : ''}`, null, {
+      type: interactive ? 'button' : null, 'data-state': info.state,
+      'data-sheet-cell': decorative ? null : '', role: interactive || decorative ? null : 'img',
+      'aria-label': decorative ? null : cellName(question, index, info), 'aria-hidden': decorative ? 'true' : null,
+      'aria-current': current ? 'step' : null,
+    });
+    const number = element('span', 'quiz-cell-num', String(index + 1), { 'aria-hidden': 'true' });
+    node.append(number);
+    const markSpec = GRADE_MARKS[info.state];
+    if (markSpec && isGraded(response)) node.append(mark(markSpec[0], markSpec[1], Boolean(drawKey) && shouldDraw(drawKey), delay));
+    return node;
+  }
+  function answerSheet({ interactive, large = false, onSelect, drawPrefix, stagger = false }) {
+    const attempt = state.attempt;
+    const current = state.screen === 'quiz' ? (attempt.mode === 'learning' ? attempt.index : attempt.current) : -1;
+    const container = element(interactive ? 'nav' : 'div', `quiz-sheet${large ? ' is-large' : ''}`, null,
+      interactive ? { 'aria-label': large ? text('answerSheet') : text('quizProgress') } : {});
+    const list = element('ol', 'quiz-sheet-list', null, interactive ? {} : { 'aria-label': text('quizProgress') });
+    let marked = 0;
+    attempt.questions.forEach((question, index) => {
+      const response = responseFor(question);
+      const willMark = Boolean(GRADE_MARKS[cellStatus(question, response).state]) && isGraded(response);
+      const delay = stagger && willMark ? marked++ * DRAW_STAGGER_MS : 0;
+      const cell = sheetCell(question, index, { interactive, current: index === current, drawKey: drawPrefix ? `${drawPrefix}:${question.id}` : null, delay });
+      if (interactive) cell.addEventListener('click', () => onSelect(question, index));
+      list.append(append(element('li'), cell));
+    });
+    return append(container, list);
+  }
+  function barSheet() {
+    return answerSheet({ interactive: state.mode === 'check', onSelect: goToQuestion, drawPrefix: 'bar' });
+  }
+  function refreshBarSheet() {
+    const cells = header.querySelectorAll('[data-sheet-cell]');
+    state.attempt.questions.forEach((question, index) => {
+      const cell = cells[index];
+      if (!cell) return;
+      const response = responseFor(question);
+      const info = cellStatus(question, response);
+      const name = cellName(question, index, info);
+      const needsMark = Boolean(GRADE_MARKS[info.state]) && isGraded(response);
+      const hasMark = Boolean(cell.querySelector('.quiz-mark'));
+      if (cell.dataset.state === info.state && cell.getAttribute('aria-label') === name && needsMark === hasMark) return;
+      if (needsMark || hasMark) {
+        const fresh = sheetCell(question, index, { interactive: state.mode === 'check', current: cell.hasAttribute('aria-current'), drawKey: `bar:${question.id}` });
+        if (state.mode === 'check') fresh.addEventListener('click', () => goToQuestion(question, index));
+        cell.replaceWith(fresh);
+        return;
+      }
+      cell.dataset.state = info.state;
+      cell.setAttribute('aria-label', name);
+      cell.classList.toggle('is-assisted', response.assisted);
+    });
+  }
+  function setCurrent(index) {
+    if (!state.attempt || state.attempt.current === index) return;
+    state.attempt.current = index;
+    header.querySelectorAll('[data-sheet-cell]').forEach((cell, cellIndex) => {
+      if (cellIndex === index) cell.setAttribute('aria-current', 'step');
+      else cell.removeAttribute('aria-current');
+    });
+    revealCurrentCell(true);
+  }
+  function revealCurrentCell(animate = false) {
+    const cell = header.querySelector('[data-sheet-cell][aria-current="step"]');
+    const strip = cell?.closest('.quiz-sheet');
+    if (!strip || strip.scrollWidth <= strip.clientWidth) return;
+    const cellBox = cell.getBoundingClientRect();
+    const stripBox = strip.getBoundingClientRect();
+    const inset = STRIP_INSET_PX;
+    const delta = cellBox.left < stripBox.left + inset ? cellBox.left - stripBox.left - inset
+      : cellBox.right > stripBox.right - inset ? cellBox.right - stripBox.right + inset : 0;
+    if (!delta) return;
+    const smooth = animate && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    strip.scrollBy({ left: delta, behavior: smooth ? 'smooth' : 'auto' });
+  }
+  function goToQuestion(question, index = state.attempt.questions.indexOf(question)) {
+    setCurrent(index);
+    focusInView(document.getElementById(`question-${question.id}`));
+  }
+
+  /* ---------- Header ---------- */
+  function renderHeader() {
+    header.replaceChildren();
+    if (state.screen === 'start' || !state.attempt) {
+      header.className = '';
+      const masthead = element('div', 'quiz-masthead');
+      append(masthead,
+        append(element('p', 'quiz-source-line'), element('span', 'sr-only', `${text('source')} `), data.source.name),
+        append(element('p', 'quiz-source-line'), element('span', 'sr-only', `${text('scope')} `), data.source.scope),
+        element('h1', 'quiz-title', data.title, { tabindex: '-1' }));
+      header.append(masthead);
+    } else {
+      header.className = 'is-bar';
+      const bar = element('div', 'quiz-bar');
+      const mode = append(element('p', 'quiz-bar-mode'),
+        state.attempt.practice ? element('span', 'is-practice', text('practiceBadge')) : null,
+        element('span', '', text(state.mode)));
+      append(bar, element('h1', 'quiz-bar-title', data.title), mode, state.screen === 'quiz' ? barSheet() : null);
+      header.append(bar);
+    }
+    updateBarHeight();
+    revealCurrentCell();
+  }
+
+  /* ---------- Start screen ---------- */
+  function typeBreakdown() {
+    return ['choice', 'ox', 'short'].map(type => ({ type, count: data.questions.filter(question => question.type === type).length }))
+      .filter(entry => entry.count)
+      .map(entry => text('typeTally', { type: text(entry.type), count: entry.count }));
+  }
+  function modeChoice(mode) {
+    const label = element('label', 'quiz-mode');
+    const input = element('input', 'quiz-radio', null, { type: 'radio', name: 'quiz-mode', value: mode, 'aria-describedby': `mode-description-${mode}` });
+    input.checked = state.mode === mode;
+    input.addEventListener('change', () => { state.mode = mode; });
+    return append(label, input, append(element('span', ''), element('strong', '', text(mode)),
+      element('span', 'quiz-mode-copy', text(`${mode}Description`), { id: `mode-description-${mode}` })));
+  }
+  function renderStart() {
+    const facts = element('dl', 'quiz-facts');
+    append(facts, element('dt', '', text('questions')),
+      append(element('dd'), element('span', '', text('questionCount', { count: data.questions.length })),
+        element('span', 'quiz-fact-sub', joinList(typeBreakdown()))),
+      element('dt', '', text('policy')), element('dd', '', text('policyText')));
+    const modes = append(element('fieldset', 'quiz-mode-options'), element('legend', '', text('modeLegend')),
+      modeChoice('learning'), modeChoice('check'));
+    append(app, data.description ? element('p', 'quiz-lede', data.description) : null,
+      state.original ? element('p', 'quiz-practice-notice', text('practiceNotice')) : null, facts, modes,
+      append(element('div', 'quiz-start-action'), button(text('start'), 'start', () => startQuiz(), 'primary')));
+  }
+  function startQuiz(questions = data.questions) {
+    state.attempt = newAttempt(questions, Boolean(state.original));
+    state.screen = 'quiz';
+    state.confirmEarly = false;
+    render();
+    focusTop(app.querySelector('.quiz-prompt'));
+  }
+
+  /* ---------- Answer controls ---------- */
+  function optionTags(isPicked, isKey) {
+    if (!isPicked && !isKey) return null;
+    return append(element('span', 'quiz-tags'),
+      isPicked ? element('span', 'quiz-tag', text('yourAnswer'), { 'data-tag': 'picked' }) : null,
+      isKey ? element('span', 'quiz-tag', text('answerKey'), { 'data-tag': 'key' }) : null);
+  }
+  function optionFace(question, option, index, gradeMark) {
+    const face = question.type === 'ox'
+      ? element('span', 'quiz-ox-glyph', option.id === 'true' ? 'O' : 'X', { 'aria-hidden': 'true' })
+      : element('span', 'quiz-bubble quiz-figure', String(index + 1), { 'aria-hidden': 'true' });
+    if (gradeMark) face.append(gradeMark);
+    return face;
+  }
+  function optionMark(isPicked, isKey, draw) {
+    if (isKey) return mark('circle', 'grade', draw);
+    return isPicked ? mark('slash', 'grade', draw) : null;
+  }
+  function optionClass(question, graded, isPicked, isKey) {
+    return ['quiz-option', question.type === 'ox' ? 'is-ox' : '', graded ? 'is-graded' : '',
+      graded && isPicked ? 'is-picked' : '', graded && isKey ? 'is-key' : ''].filter(Boolean).join(' ');
+  }
+  function choiceControls(question, response, article, revealed) {
+    const fieldset = element('fieldset', `quiz-options${question.type === 'ox' ? ' is-ox' : ''}`, null, { 'aria-labelledby': `question-${question.id}` });
+    const draw = revealed && shouldDraw(`options:${question.id}`);
+    question.options.forEach((option, index) => {
+      const isPicked = response.submitted && !response.skipped && response.draft === option.id;
+      const isKey = revealed && option.id === question.answer;
+      const label = element('label', optionClass(question, revealed, isPicked, isKey));
+      const input = element('input', '', null, { type: 'radio', name: `answer-${question.id}`, value: option.id });
+      input.checked = !response.skipped && response.draft === option.id;
+      input.disabled = revealed || response.skipped;
+      input.addEventListener('change', () => setDraft(question, option.id, article));
+      append(label, input, optionFace(question, option, index, revealed ? optionMark(isPicked, isKey, draw) : null),
+        element('span', 'quiz-option-text', option.text), revealed ? optionTags(isPicked, isKey) : null);
+      fieldset.append(label);
+    });
+    return fieldset;
+  }
+  function shortControls(question, response, article) {
+    const field = element('div', 'quiz-field');
+    const input = element('textarea', 'quiz-short-answer', null, { id: `answer-${question.id}`, name: question.id, rows: '4', 'aria-describedby': `help-${question.id}` });
+    input.value = response.skipped ? '' : response.draft;
+    input.disabled = response.skipped;
+    input.addEventListener('input', () => setDraft(question, input.value, article));
+    return append(field, element('label', '', text('answerLabel'), { for: `answer-${question.id}` }), input,
+      element('p', 'quiz-help', text('shortHelp'), { id: `help-${question.id}` }));
+  }
+  function setDraft(question, value, article) {
+    const response = responseFor(question);
+    if (response.submitted && state.mode === 'learning') return;
+    response.draft = value;
+    response.skipped = false;
+    clearValidation(question, article);
+    updateProgress();
+    refreshIncomplete();
+  }
+  function showValidation(question, article) {
+    if (article.querySelector('[data-validation]')) return;
+    const id = `error-${question.id}`;
+    const message = element('p', 'quiz-validation', text('validationAnswer'), { id, role: 'alert', 'data-validation': '' });
+    const control = article.querySelector('.quiz-options, .quiz-short-answer');
+    control?.setAttribute('aria-describedby', [control.getAttribute('aria-describedby'), id].filter(Boolean).join(' '));
+    article.querySelector('.quiz-options, .quiz-field')?.after(message);
+  }
+  function clearValidation(question, article) {
+    const message = article.querySelector('[data-validation]');
+    if (!message) return;
+    message.remove();
+    const control = article.querySelector('.quiz-options, .quiz-short-answer');
+    const rest = (control?.getAttribute('aria-describedby') ?? '').split(' ').filter(id => id && id !== message.id);
+    if (rest.length) control.setAttribute('aria-describedby', rest.join(' '));
+    else control?.removeAttribute('aria-describedby');
+  }
+
+  /* ---------- Question article ---------- */
+  function questionHeading(question, index) {
+    const heading = element('h2', 'quiz-prompt', null, { id: `question-${question.id}`, tabindex: '-1' });
+    const context = joinList([text('questionNumber', { number: index + 1 }), text(question.type)]) + text('listSeparator');
+    return append(heading, element('span', 'sr-only', context), document.createTextNode(question.prompt));
+  }
+  function hintNote(question) {
+    return append(element('aside', 'quiz-hint', null, { 'aria-label': text('hintTitle') }),
+      append(element('p', 'quiz-hint-title'), document.createTextNode(text('hintTitle')), element('span', '', text('assisted'))),
+      element('p', '', question.hint));
+  }
+  function toggleSkip(question) {
+    const response = responseFor(question);
+    response.skipped = !response.skipped;
+    response.submitted = response.skipped;
+    const article = replaceArticle(question);
+    updateProgress();
+    refreshIncomplete();
+    if (state.mode === 'learning' && response.skipped) revealFeedback(article, question, response);
+    else article.querySelector(response.skipped ? '[data-action="undo-skip"]' : '[data-action="skip"]')?.focus();
+  }
+  function showHint(question) {
+    const response = responseFor(question);
+    response.assisted = true;
+    response.hintVisible = true;
+    const article = replaceArticle(question);
+    refreshBarSheet();
+    article.querySelector('.quiz-prompt')?.focus();
+    announce(text('hintAnnounce'));
+  }
+  function questionActions(question, response, index, article) {
+    const actions = element('div', 'quiz-actions');
+    const learning = state.mode === 'learning';
+    if (learning) actions.append(button(text('checkAnswer'), 'check-answer', () => commitQuestion(question, article), 'primary'));
+    if (question.hint && !response.hintVisible) actions.append(quietButton(text('hint'), 'hint', () => showHint(question)));
+    if (response.skipped) actions.append(element('span', 'quiz-actions-note', text('skipped')));
+    actions.append(quietButton(text(response.skipped ? 'undoSkip' : 'skip'), response.skipped ? 'undo-skip' : 'skip', () => toggleSkip(question)));
+    if (!learning) return actions;
+    const last = index === state.attempt.questions.length - 1;
+    if (last) actions.dataset.submitActions = '';
+    const tail = [];
+    if (index > 0) tail.push(quietButton(text('previous'), 'previous', () => navigate(index - 1)));
+    tail.push(last ? quietButton(text('showResults'), 'finish', () => finishAttempt()) : quietButton(text('later'), 'next', () => navigate(index + 1)));
+    tail.forEach(node => node.classList.add('is-end'));
+    return append(actions, tail);
+  }
+  function feedbackNav(index) {
+    const last = index === state.attempt.questions.length - 1;
+    return append(element('div', 'quiz-actions', null, last ? { 'data-submit-actions': '' } : {}),
+      last ? button(text('showResults'), 'finish', () => finishAttempt(), 'primary') : button(text('next'), 'next', () => navigate(index + 1), 'primary'),
+      index > 0 ? button(text('previous'), 'previous', () => navigate(index - 1)) : null);
+  }
+  function questionArticle(question, index) {
+    const response = responseFor(question);
+    const revealed = state.mode === 'learning' && (response.submitted || response.skipped);
+    const article = element('article', 'quiz-question', null, { 'data-question-id': question.id, 'aria-labelledby': `question-${question.id}` });
+    const gutter = append(element('div', 'quiz-q-gutter', null, { 'aria-hidden': 'true' }),
+      element('span', 'quiz-q-num quiz-figure', String(index + 1)), element('span', 'quiz-q-type', text(question.type)));
+    const body = append(element('div', 'quiz-q-body'), questionHeading(question, index),
+      response.hintVisible ? hintNote(question) : null);
+    if (question.type !== 'short') body.append(choiceControls(question, response, article, revealed));
+    else if (!revealed) body.append(shortControls(question, response, article));
+    if (revealed) append(body, feedback(question, response), feedbackNav(index));
+    else body.append(questionActions(question, response, index, article));
+    return append(article, gutter, body);
+  }
+  function replaceArticle(question) {
+    const index = state.attempt.questions.indexOf(question);
+    const fresh = questionArticle(question, index);
+    app.querySelector(`.quiz-question[data-question-id="${CSS.escape(question.id)}"]`)?.replaceWith(fresh);
+    return fresh;
+  }
+  function revealFeedback(article, question, response) {
+    refreshBarSheet();
+    const verdict = article.querySelector('[data-verdict]');
+    verdict?.focus();
+    announce(verdictLabel(question, response));
+  }
+  function commitQuestion(question, article) {
+    const response = responseFor(question);
+    if (!response.draft.trim()) {
+      showValidation(question, article);
+      return;
+    }
+    response.submitted = true;
+    const fresh = replaceArticle(question);
+    updateProgress();
+    refreshIncomplete();
+    revealFeedback(fresh, question, response);
+  }
+
+  /* ---------- Feedback ---------- */
+  function verdictLabel(question, response) {
+    const raw = rawVerdict(question, response);
+    return text(VERDICT_KEYS[raw] ?? raw);
+  }
+  function verdictMark(question, response, draw) {
+    const raw = rawVerdict(question, response);
+    const holder = element('span', 'quiz-verdict-mark', null, { 'aria-hidden': 'true' });
+    if (GRADE_MARKS[raw]) holder.append(mark(GRADE_MARKS[raw][0], GRADE_MARKS[raw][1], draw));
+    else holder.append(mark(raw === 'skipped' ? 'dash' : 'blank'));
+    return holder;
+  }
+  function fillVerdict(heading, question, response, draw) {
+    heading.dataset.verdict = outcome(question, response);
+    heading.replaceChildren(verdictMark(question, response, draw),
+      element('span', 'quiz-verdict-text', verdictLabel(question, response)));
+    if (response.assisted) heading.append(element('span', 'quiz-tag', text('assisted')));
+  }
+  function answerText(question, response) {
+    if (!response.submitted || response.skipped) return null;
+    if (question.type === 'short') return response.draft;
+    return question.options.find(option => option.id === response.draft)?.text ?? null;
+  }
+  function gradedRows(question, response) {
+    const list = element('ul', 'quiz-graded-options');
+    question.options.forEach((option, index) => {
+      const isPicked = response.submitted && !response.skipped && response.draft === option.id;
+      const isKey = option.id === question.answer;
+      if (!isPicked && !isKey) return;
+      const row = element('li', `${optionClass(question, true, isPicked, isKey)} is-static`);
+      append(row, optionFace(question, option, index, optionMark(isPicked, isKey, false)),
+        element('span', 'quiz-option-text', option.text), optionTags(isPicked, isKey));
+      list.append(row);
+    });
+    return list;
+  }
+  function shortComparison(question, response) {
+    const mine = answerText(question, response);
+    return append(element('div', 'quiz-compare'),
+      append(element('div', 'is-mine'), element('p', 'quiz-label', text('yourAnswer')),
+        element('p', mine ? '' : 'is-empty', mine ?? text('noAnswer'))),
+      append(element('div'), element('p', 'quiz-label', text('referenceAnswer')), element('p', '', question.referenceAnswer)));
+  }
+  function evidenceBlock(question) {
+    const source = question.source;
+    const locator = append(element('p', 'quiz-source-locator'),
+      append(element('span'), document.createTextNode(source.document), element('span', '', ' › ', { 'aria-hidden': 'true' }),
+        element('span', 'sr-only', text('listSeparator')), document.createTextNode(source.section)),
+      source.url ? element('a', 'quiz-source-link', text('sourceLink'), { href: source.url, target: '_blank', rel: 'noopener noreferrer' }) : null);
+    return append(element('div', 'quiz-evidence'), element('h4', 'quiz-evidence-title', text('evidence')), locator,
+      source.excerpt ? append(element('blockquote', 'quiz-source-quote'), element('span', 'quiz-highlight', source.excerpt)) : null);
+  }
+  function feedback(question, response, { inResults = false } = {}) {
+    const section = element('section', 'quiz-feedback', null, { 'data-feedback': question.id });
+    const heading = element('h3', 'quiz-verdict', null, { tabindex: '-1' });
+    fillVerdict(heading, question, response, !inResults && shouldDraw(`verdict:${question.id}`));
+    section.append(heading);
+    if (response.assisted) section.append(element('p', 'quiz-note', text(question.type === 'short' ? 'assistedShortNote' : 'assistedNote')));
+    if (outcome(question, response) === 'unanswered' && response.draft.trim()) section.append(element('p', 'quiz-note', text('draftNotice')));
+    if (question.type !== 'short' && inResults) section.append(gradedRows(question, response));
+    if (question.type === 'short') {
+      section.append(shortComparison(question, response));
+      if (question.essentialPoints.length) {
+        append(section, element('h4', 'quiz-label', text('essentialPoints')),
+          append(element('ul', 'quiz-essential-points'), question.essentialPoints.map(point => element('li', '', point))));
+      }
+      if (response.submitted && !response.skipped) section.append(selfCheck(question, response));
+    }
+    append(section, element('h4', 'sr-only', text('explanation')), element('p', 'quiz-explanation', question.explanation),
+      evidenceBlock(question));
+    return section;
+  }
+  function selfCheck(question, response) {
+    const fieldset = element('fieldset', 'quiz-self-check');
+    append(fieldset, element('legend', '', text('selfLabel')), element('p', 'quiz-note', text('shortSelfHelp')));
+    for (const [value, key] of [['understood', 'understood'], ['review', 'needsReview']]) {
+      const label = element('label');
+      const input = element('input', 'quiz-radio', null, { type: 'radio', name: `self-${question.id}`, value, 'data-self-check': value });
+      input.checked = response.selfAssessment === value;
+      input.addEventListener('change', () => applySelfCheck(question, response, value, fieldset));
+      fieldset.append(append(label, input, element('span', '', text(key))));
+    }
+    return fieldset;
+  }
+  function applySelfCheck(question, response, value, fieldset) {
+    response.selfAssessment = value;
+    const heading = fieldset.closest('[data-feedback]')?.querySelector('[data-verdict]');
+    if (heading) fillVerdict(heading, question, response, shouldDraw(`self:${question.id}:${value}`));
+    if (state.screen === 'results') refreshResults(question);
+    else refreshBarSheet();
+    announce(text(value === 'understood' ? 'selfUnderstood' : 'selfReview'));
+  }
+
+  /* ---------- Quiz screen ---------- */
+  function navigate(index) {
+    state.attempt.index = index;
+    state.confirmEarly = false;
+    render();
+    focusTop(app.querySelector('.quiz-prompt'));
+  }
+  function updateProgress() {
+    const progress = document.getElementById('quiz-progress-text');
+    if (progress) progress.textContent = text('progress', { answered: recordedCount(), total: state.attempt.questions.length });
+    refreshBarSheet();
+  }
+  function jumpToMissing(question) {
+    closeIncomplete();
+    if (state.mode === 'learning') navigate(state.attempt.questions.indexOf(question));
+    else goToQuestion(question);
+  }
+  function incompletePrompt() {
+    const missing = missingQuestions();
+    if (!missing.length) return null;
+    const section = element('section', 'quiz-incomplete', null, { 'aria-labelledby': 'incomplete-heading' });
+    append(section, element('h2', '', text('incompleteTitle'), { id: 'incomplete-heading', tabindex: '-1' }),
+      element('p', '', text('incompleteText', { count: missing.length })));
+    const list = element('ul', 'quiz-missing-list');
+    for (const question of missing) {
+      const index = state.attempt.questions.indexOf(question);
+      list.append(append(element('li'), quietButton(text('questionNumber', { number: index + 1 }), 'go-missing', () => jumpToMissing(question))));
+    }
+    append(section, list, append(element('div', 'quiz-actions'),
+      button(text('continueQuiz'), 'continue', () => {
+        const question = missingQuestions()[0];
+        if (question) { jumpToMissing(question); return; }
+        closeIncomplete();
+        app.querySelector('[data-action="finish"]')?.focus();
+      }, 'primary'),
+      button(text('earlySubmit'), 'submit-early', () => finishAttempt(true))));
+    return section;
+  }
+  function syncSubmitActions() {
+    const open = Boolean(app.querySelector('.quiz-incomplete'));
+    app.querySelectorAll('[data-submit-actions]').forEach(actions => { actions.hidden = open; });
+  }
+  function closeIncomplete() {
+    state.confirmEarly = false;
+    app.querySelector('.quiz-incomplete')?.remove();
+    syncSubmitActions();
+  }
+  function refreshIncomplete() {
+    if (!state.confirmEarly) return;
+    const old = app.querySelector('.quiz-incomplete');
+    const missingKey = JSON.stringify(missingQuestions().map(question => question.id));
+    if (old && old.dataset.missing === missingKey) return;
+    const fresh = incompletePrompt();
+    if (!fresh) { closeIncomplete(); return; }
+    fresh.dataset.missing = missingKey;
+    if (old) old.replaceWith(fresh);
+    else app.querySelector('[data-incomplete-slot]')?.append(fresh);
+    syncSubmitActions();
+  }
+  function finishAttempt(force = false) {
+    const missing = missingQuestions();
+    if (missing.length && !force) {
+      state.confirmEarly = true;
+      refreshIncomplete();
+      focusInView(app.querySelector('.quiz-incomplete h2'));
+      return;
+    }
+    if (state.mode === 'check') {
+      for (const question of state.attempt.questions) {
+        const response = responseFor(question);
+        if (!response.skipped && response.draft.trim()) response.submitted = true;
+      }
+    }
+    state.attempt.finished = true;
+    if (!state.original) state.original = state.attempt;
+    state.screen = 'results';
+    state.confirmEarly = false;
+    render();
+    focusTop(app.querySelector('.quiz-results-title'));
+    announce(text('resultsAnnounce'));
+  }
+  function renderQuiz() {
+    const slot = element('div', '', null, { 'data-incomplete-slot': '' });
+    if (state.mode === 'check') {
+      app.append(element('p', 'quiz-instruction', text('checkBatchHelp')));
+      state.attempt.questions.forEach((question, index) => app.append(questionArticle(question, index)));
+      const progress = element('p', 'quiz-progress-text', text('progress', { answered: recordedCount(), total: state.attempt.questions.length }), { id: 'quiz-progress-text' });
+      app.append(append(element('div', 'quiz-submit'), progress, slot,
+        append(element('div', 'quiz-actions', null, { 'data-submit-actions': '' }), button(text('finish'), 'finish', () => finishAttempt(), 'primary'))));
+      app.addEventListener('focusin', trackCurrent);
+    } else {
+      app.append(questionArticle(state.attempt.questions[state.attempt.index], state.attempt.index), slot);
+    }
+    if (state.confirmEarly) refreshIncomplete();
+  }
+  function trackCurrent(event) {
+    if (state.screen !== 'quiz' || state.mode !== 'check') return;
+    const article = event.target.closest?.('.quiz-question');
+    if (article) setCurrent(state.attempt.questions.findIndex(question => question.id === article.dataset.questionId));
+  }
+
+  /* ---------- Results ---------- */
+  function retryQuestions() {
+    return state.attempt.questions.filter(question => REVIEW_OUTCOMES.includes(outcome(question, responseFor(question))) && question.retry)
+      .map(question => question.retry);
+  }
+  function resultSummary() {
+    const summary = summarize(state.attempt);
+    const board = element('div', 'quiz-scoreboard', null, { id: 'quiz-result-summary', 'data-summary': '' });
+    const score = element('p', 'quiz-score', null, { 'data-score': '' });
+    if (summary.denominator) score.append(textParts('score', { correct: summary.correct, total: summary.denominator }, 'quiz-score'));
+    else score.textContent = text('noScore');
+    const counts = element('dl', 'quiz-counts');
+    const entries = [['correct', summary.correct], ['incorrect', summary.incorrect], ['skipped', summary.skipped],
+      ['unanswered', summary.unanswered], ['assisted', summary.assisted]];
+    if (summary.short) entries.push(['selfChecked', summary.checked], ['selfPending', summary.pending]);
+    for (const [key, value] of entries) counts.append(append(element('div'), element('dt', '', text(key)), element('dd', '', String(value))));
+    return append(board, score, element('p', 'quiz-score-caption', text('scorePolicy')),
+      element('p', 'quiz-score-caption', text('coverage', { answered: summary.answered, total: summary.total })),
+      summary.short ? element('p', 'quiz-score-caption', text('shortCounts', summary)) : null, counts);
+  }
+  function setItemOpen(item, open) {
+    const toggle = item.querySelector('.quiz-item-toggle');
+    toggle.setAttribute('aria-expanded', String(open));
+    item.querySelector('.quiz-item-body').hidden = !open;
+    state.attempt.openItems.set(item.dataset.questionId, open);
+  }
+  function openResultItem(question) {
+    const item = app.querySelector(`.quiz-result-item[data-question-id="${CSS.escape(question.id)}"]`);
+    if (!item) return;
+    setItemOpen(item, true);
+    focusInView(item.querySelector('.quiz-item-toggle'));
+  }
+  function resultSheet() {
+    return append(element('section', 'quiz-result-sheet', null, { id: 'quiz-result-sheet', 'aria-labelledby': 'quiz-result-sheet-title' }),
+      element('h3', 'quiz-section-title', text('answerSheet'), { id: 'quiz-result-sheet-title' }),
+      answerSheet({ interactive: true, large: true, onSelect: openResultItem, drawPrefix: 'results', stagger: true }));
+  }
+  function conceptList() {
+    const groups = new Map();
+    state.attempt.questions.forEach((question, index) => {
+      if (!REVIEW_OUTCOMES.includes(outcome(question, responseFor(question)))) return;
+      groups.set(question.concept, [...(groups.get(question.concept) ?? []), text('questionShort', { number: index + 1 })]);
+    });
+    if (!groups.size) return null;
+    const list = element('ul', 'quiz-concepts');
+    for (const [concept, numbers] of groups) list.append(append(element('li'), document.createTextNode(concept), element('span', '', joinList(numbers))));
+    return list;
+  }
+  function resultReview() {
+    const section = element('section', 'quiz-review', null, { id: 'quiz-result-review' });
+    const concepts = conceptList();
+    if (concepts) append(section, element('h3', 'quiz-section-title', text('reviewConcepts')), concepts);
+    const retry = retryQuestions();
+    if (!retry.length && concepts) section.append(element('p', 'quiz-note', text('noRetry')));
+    const actions = element('div', 'quiz-actions');
+    if (retry.length) actions.append(button(text('retry'), 'retry', () => startQuiz(retry), 'primary'));
+    actions.append(button(text('newPractice'), 'new-practice', () => {
+      state.screen = 'start';
+      state.attempt = null;
+      render();
+      focusTop(header.querySelector('h1'));
+    }, retry.length ? 'secondary' : 'primary'));
+    if (state.attempt.practice) actions.append(quietButton(text('returnInitial'), 'original-results', () => {
+      state.attempt = state.original;
+      state.mode = state.original.mode;
+      state.screen = 'results';
+      render();
+      focusTop(app.querySelector('.quiz-results-title'));
+    }));
+    return append(section, actions);
+  }
+  function fillToggle(toggle, question, index) {
+    const response = responseFor(question);
+    const prompt = append(element('span', 'quiz-item-prompt'),
+      element('span', 'sr-only', text('questionNumber', { number: index + 1 }) + text('listSeparator')), document.createTextNode(question.prompt));
+    const words = [text(rawVerdict(question, response)), response.assisted ? text('assisted') : null].filter(Boolean);
+    toggle.replaceChildren(sheetCell(question, index, { interactive: false, decorative: true }), prompt,
+      element('span', 'quiz-item-outcome', joinList(words)));
+  }
+  function resultItem(question, index) {
+    const response = responseFor(question);
+    const item = element('article', 'quiz-result-item', null, { 'data-question-id': question.id });
+    const toggle = element('button', 'quiz-item-toggle', null, { type: 'button', id: `toggle-${question.id}`, 'aria-controls': `panel-${question.id}` });
+    fillToggle(toggle, question, index);
+    const body = append(element('div', 'quiz-item-body', null, { id: `panel-${question.id}`, role: 'region', 'aria-labelledby': `toggle-${question.id}` }),
+      feedback(question, response, { inResults: true }));
+    append(item, append(element('h4', 'quiz-item-heading'), toggle), body);
+    const remembered = state.attempt.openItems.get(question.id);
+    setItemOpen(item, remembered ?? !SETTLED_OUTCOMES.includes(outcome(question, response)));
+    toggle.addEventListener('click', () => setItemOpen(item, toggle.getAttribute('aria-expanded') !== 'true'));
+    return item;
+  }
+  function refreshResults(question) {
+    document.getElementById('quiz-result-summary')?.replaceWith(resultSummary());
+    document.getElementById('quiz-result-sheet')?.replaceWith(resultSheet());
+    document.getElementById('quiz-result-review')?.replaceWith(resultReview());
+    const index = state.attempt.questions.indexOf(question);
+    const toggle = document.getElementById(`toggle-${question.id}`);
+    if (toggle) fillToggle(toggle, question, index);
+  }
+  function renderResults() {
+    const section = element('section', 'quiz-results');
+    section.append(element('h2', 'quiz-results-title', text(state.attempt.practice ? 'practiceResultsTitle' : 'resultsTitle'), { tabindex: '-1' }));
+    if (state.attempt.practice && state.original) {
+      const original = summarize(state.original);
+      append(section, append(element('aside', 'quiz-original-score', null, { 'data-original-score': '' }),
+        element('h3', '', text('originalScore')), element('p', 'quiz-original-value', scoreText(original)),
+        element('p', 'quiz-note', text('coverage', { answered: original.answered, total: original.total }))));
+    }
+    const items = append(element('div', 'quiz-result-list'), state.attempt.questions.map((question, index) => resultItem(question, index)));
+    append(section, resultSummary(), resultSheet(), resultReview(),
+      append(element('section', 'quiz-result-items', null, { 'aria-labelledby': 'quiz-result-items-title' }),
+        element('h3', 'quiz-section-title', text('resultsDetails'), { id: 'quiz-result-items-title' }), items));
+    app.append(section);
+  }
+
+  /* ---------- Render loop ---------- */
+  function render() {
+    app.removeEventListener('focusin', trackCurrent);
+    renderHeader();
+    app.replaceChildren();
+    app.dataset.screen = state.screen;
+    app.dataset.mode = state.mode;
+    if (state.screen === 'start') renderStart();
+    else if (state.screen === 'quiz') renderQuiz();
+    else renderResults();
+  }
+  function snapshot() {
+    const current = state.attempt;
+    return {
+      screen: state.screen, mode: state.mode,
+      attempt: current ? { number: current.number, practice: current.practice, finished: current.finished, summary: summarize(current),
+        responses: Object.fromEntries([...current.responses].map(([id, response]) => [id, { ...response }])) } : null,
+      original: state.original ? { number: state.original.number, summary: summarize(state.original) } : null,
+    };
+  }
+  try {
+    if (!header || !app) throw new Error('Missing quiz containers');
+    data = validate(JSON.parse(document.getElementById('quiz-data').textContent));
+    document.documentElement.lang = data.lang || 'en';
+    document.title = data.title;
+    const skipLink = document.querySelector('.skip-link');
+    if (skipLink) skipLink.textContent = text('skipLink');
+    document.querySelector('meta[name="description"]')?.setAttribute('content', data.description || data.title);
+    render();
+    if ('ResizeObserver' in window) new ResizeObserver(updateBarHeight).observe(header);
+    Object.defineProperty(window, '__quiz', { value: Object.freeze({ snapshot }), configurable: false });
+  } catch (error) {
+    console.error('Quiz data validation failed:', error.message);
+    if (app) {
+      app.dataset.screen = 'error';
+      app.replaceChildren(append(element('section', 'quiz-error', null, { role: 'alert' }),
+        element('h2', '', text('invalidTitle')), element('p', '', text('invalidData'))));
+    }
+  }
+})();
+  </script>
+</body>
+</html>
