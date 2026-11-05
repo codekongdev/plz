@@ -1,0 +1,3 @@
+interface:
+  display_name: "Document Quiz"
+  short_description: "Study supplied material with quizzes and source-based feedback"

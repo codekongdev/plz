@@ -132,6 +132,7 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 | --- | --- | --- |
 | [plz-3d-explain](skills/plz-3d-explain/README.md) | 用 three.js 3D 模型讲解技术概念和系统结构的单文件 HTML 学习页面。 | [代码沙箱（英语）](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) · [韩语](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) |
 | [plz-setup-issues](skills/plz-setup-issues/README.md) | 设置 GitHub 仓库的议题标签、缺陷与功能请求表单和分诊规则。 | — |
+| [plz-quiz](skills/plz-quiz/README.md) | 根据资料生成测验，用于学习、检查理解程度和复习错题。 | — |
 
 ## 参与贡献
 
