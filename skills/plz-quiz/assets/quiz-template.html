@@ -1174,6 +1174,7 @@
     actions.append(quietButton(text(response.skipped ? 'undoSkip' : 'skip'), response.skipped ? 'undo-skip' : 'skip', () => toggleSkip(question)));
     if (!learning) return actions;
     const last = index === state.attempt.questions.length - 1;
+    if (last) actions.dataset.submitActions = '';
     const tail = [];
     if (index > 0) tail.push(quietButton(text('previous'), 'previous', () => navigate(index - 1)));
     tail.push(last ? quietButton(text('showResults'), 'finish', () => finishAttempt()) : quietButton(text('later'), 'next', () => navigate(index + 1)));

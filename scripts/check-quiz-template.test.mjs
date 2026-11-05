@@ -512,14 +512,21 @@ function manyQuestions(count) {
 }
 const cellBoxes = page => page.locator('[data-sheet-cell]').evaluateAll(nodes => nodes.map(node => {
   const box = node.getBoundingClientRect();
-  return { left: box.left, right: box.right, top: box.top, width: box.width, height: box.height };
+  return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height };
 }));
-function assertTargets(boxes, label) {
+function assertTargets(boxes, label, { minRows = 1 } = {}) {
   for (const box of boxes) assert.ok(box.width >= 44 && box.height >= 44, `${label}: cell ${box.width}x${box.height}`);
+  let rows = 1;
   for (let index = 1; index < boxes.length; index++) {
-    if (Math.abs(boxes[index].top - boxes[index - 1].top) > 1) continue;
-    assert.ok(boxes[index].left - boxes[index - 1].right >= 8 - 0.01, `${label}: gap ${boxes[index].left - boxes[index - 1].right}`);
+    const [previous, box] = [boxes[index - 1], boxes[index]];
+    if (Math.abs(box.top - previous.top) <= 1) {
+      assert.ok(box.left - previous.right >= 8 - 0.01, `${label}: horizontal gap ${box.left - previous.right}`);
+    } else {
+      rows++;
+      assert.ok(box.top - previous.bottom >= 8 - 0.01, `${label}: vertical gap ${box.top - previous.bottom} between rows`);
+    }
   }
+  assert.ok(rows >= minRows, `${label}: expected the sheet to wrap into at least ${minRows} rows, got ${rows}`);
 }
 
 test('answer-sheet cells are at least 44px square with 8px between them', async t => {
@@ -532,6 +539,21 @@ test('answer-sheet cells are at least 44px square with 8px between them', async 
     assertTargets(await cellBoxes(page), `results ${width}`);
     assert.deepEqual(errors, []);
   }
+});
+
+test('wrapped answer-sheet rows keep 8px between rows', async t => {
+  for (const width of [1440, 768]) {
+    const { page, errors } = await openPage(t, manyQuestions(24), { viewport: { width, height: 900 } });
+    await start(page, 'check');
+    assertTargets(await cellBoxes(page), `bar ${width}`, { minRows: 2 });
+    assert.deepEqual(errors, []);
+  }
+  const { page, errors } = await openPage(t, manyQuestions(24), { viewport: { width: 390, height: 844 } });
+  await start(page, 'check');
+  await action(page, 'finish').click();
+  await action(page, 'submit-early').click();
+  assertTargets(await cellBoxes(page), 'results 390', { minRows: 2 });
+  assert.deepEqual(errors, []);
 });
 
 test('a long set keeps the narrow top bar to one scrolling strip and the current cell in view', async t => {
@@ -578,4 +600,24 @@ test('English counts read correctly for one and for many', async t => {
   await start(single.page, 'check');
   assert.doesNotMatch(await single.page.locator('#quiz-app').innerText(), /\b1 questions\b|\b0 of 1 questions\b/);
   assert.deepEqual([...errors, ...single.errors], []);
+});
+
+test('in learning mode the incomplete prompt is the only submit choice until the learner keeps answering', async t => {
+  const data = fixture();
+  data.questions = data.questions.slice(0, 2);
+  const { page, errors } = await openPage(t, data);
+  await start(page);
+  await choose(page, 'q1', 'b');
+  await action(page, 'check-answer').click();
+  await action(page, 'next').click();
+  await action(page, 'finish').click();
+  assert.ok(await page.locator('.quiz-incomplete').isVisible());
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'incomplete-heading');
+  assert.equal(await page.locator('.button-primary:visible').count(), 1);
+  assert.equal(await action(page, 'check-answer').isVisible(), false);
+  await action(page, 'continue').click();
+  assert.equal(await page.locator('.quiz-incomplete').count(), 0);
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'question-q2');
+  assert.ok(await question(page, 'q2').locator('[data-action="check-answer"]').isVisible());
+  assert.deepEqual(errors, []);
 });
