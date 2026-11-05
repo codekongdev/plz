@@ -331,7 +331,9 @@ test('no screen overflows horizontally at 375px', async t => {
   assert.equal(await overflow(learning.page), 0, 'start');
   await start(learning.page);
   assert.equal(await overflow(learning.page), 0, 'learning question');
-  await learning.page.locator('.quiz-question input[type="radio"]').first().check();
+  const firstRadio = learning.page.locator('.quiz-question input[type="radio"]').first();
+  if (await firstRadio.count()) await firstRadio.check();
+  else await learning.page.locator('.quiz-question textarea').first().fill('A short answer to compare.');
   await action(learning.page, 'check-answer').click();
   assert.equal(await overflow(learning.page), 0, 'learning feedback');
   const check = await openPage(t, null, viewport);
@@ -500,4 +502,80 @@ test('while the incomplete prompt is open its actions are the only submit choice
   assert.equal(await page.evaluate(() => document.activeElement?.id), 'question-q1');
   assert.ok(await action(page, 'finish').isVisible());
   assert.deepEqual(errors, []);
+});
+
+function manyQuestions(count) {
+  const data = fixture();
+  const [base] = data.questions;
+  data.questions = Array.from({ length: count }, (_, index) => ({ ...base, id: `m${index + 1}`, retry: undefined }));
+  return data;
+}
+const cellBoxes = page => page.locator('[data-sheet-cell]').evaluateAll(nodes => nodes.map(node => {
+  const box = node.getBoundingClientRect();
+  return { left: box.left, right: box.right, top: box.top, width: box.width, height: box.height };
+}));
+function assertTargets(boxes, label) {
+  for (const box of boxes) assert.ok(box.width >= 44 && box.height >= 44, `${label}: cell ${box.width}x${box.height}`);
+  for (let index = 1; index < boxes.length; index++) {
+    if (Math.abs(boxes[index].top - boxes[index - 1].top) > 1) continue;
+    assert.ok(boxes[index].left - boxes[index - 1].right >= 8 - 0.01, `${label}: gap ${boxes[index].left - boxes[index - 1].right}`);
+  }
+}
+
+test('answer-sheet cells are at least 44px square with 8px between them', async t => {
+  for (const width of [1440, 390]) {
+    const { page, errors } = await openPage(t, fixture(), { viewport: { width, height: 900 } });
+    await start(page, 'check');
+    assertTargets(await cellBoxes(page), `bar ${width}`);
+    await action(page, 'finish').click();
+    await action(page, 'submit-early').click();
+    assertTargets(await cellBoxes(page), `results ${width}`);
+    assert.deepEqual(errors, []);
+  }
+});
+
+test('a long set keeps the narrow top bar to one scrolling strip and the current cell in view', async t => {
+  const { page, errors } = await openPage(t, manyQuestions(20), { viewport: { width: 390, height: 844 } });
+  await start(page, 'check');
+  const boxes = await cellBoxes(page);
+  assert.equal(boxes.length, 20);
+  assert.equal(new Set(boxes.map(box => Math.round(box.top))).size, 1, 'all cells share one row');
+  const barHeight = await page.locator('#quiz-header').evaluate(node => node.getBoundingClientRect().height);
+  assert.ok(barHeight <= 130, `bar height ${barHeight}`);
+  const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.equal(await overflow(), 0);
+  await question(page, 'm17').locator('input[value="b"]').focus();
+  const visible = await page.evaluate(() => {
+    const cell = document.querySelector('[data-sheet-cell][aria-current="step"]');
+    const strip = cell.closest('.quiz-sheet').getBoundingClientRect();
+    const box = cell.getBoundingClientRect();
+    return { label: cell.getAttribute('aria-label'), inside: box.left >= strip.left - 0.5 && box.right <= strip.right + 0.5 };
+  });
+  assert.equal(visible.label, 'Question 17, Unanswered');
+  assert.ok(visible.inside, 'the current cell is scrolled into the strip');
+  assert.equal(await overflow(), 0);
+  assert.deepEqual(errors, []);
+});
+
+test('English counts read correctly for one and for many', async t => {
+  const { page, errors } = await openPage(t, fixture());
+  await start(page, 'check');
+  await choose(page, 'q1', 'b');
+  await choose(page, 'q2', 'false');
+  await choose(page, 'q3', 'a');
+  await action(page, 'finish').click();
+  const prompt = await page.locator('.quiz-incomplete').innerText();
+  assert.doesNotMatch(prompt, /\b1 questions\b/);
+  assert.match(prompt, /\b1\b/);
+  await action(page, 'submit-early').click();
+  assert.doesNotMatch(await page.locator('#quiz-app').innerText(), /\b1 questions\b/);
+  const data = fixture();
+  data.questions = data.questions.slice(0, 1);
+  const single = await openPage(t, data);
+  const startText = await single.page.locator('#quiz-app').innerText();
+  assert.doesNotMatch(startText, /\b1 questions\b/);
+  assert.match(startText, /\b1\b/);
+  await start(single.page, 'check');
+  assert.doesNotMatch(await single.page.locator('#quiz-app').innerText(), /\b1 questions\b|\b0 of 1 questions\b/);
+  assert.deepEqual([...errors, ...single.errors], []);
 });

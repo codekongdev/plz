@@ -88,10 +88,11 @@
     .quiz-bar-mode .is-practice { color: var(--quiz-ink); font-weight: 600; }
 
     /* Answer sheet */
-    .quiz-sheet-list { display: flex; flex-wrap: wrap; gap: 0 2px; list-style: none; }
-    .quiz-cell { position: relative; display: inline-grid; place-items: center; width: 40px; height: 44px;
+    .quiz-sheet-list { display: flex; flex-wrap: wrap; gap: 4px 8px; list-style: none; }
+    .quiz-cell { position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px;
       min-height: 0; padding: 0; border: 0; border-radius: 8px; color: var(--quiz-muted); font-size: 17px; line-height: 1; }
     button.quiz-cell:hover { background: var(--quiz-pen-wash); }
+    .quiz-cell:focus-visible { outline-offset: -3px; }
     .quiz-cell-num { position: relative; display: grid; place-items: center; width: 26px; height: 32px; border-radius: 50%;
       font-family: var(--quiz-font-figure); font-variant-numeric: lining-nums tabular-nums;
       transition: background-color 120ms ease, color 120ms ease; }
@@ -295,7 +296,10 @@
       .quiz-masthead { padding: 40px 20px 0; }
       .quiz-title, .quiz-results-title { font-size: 28px; }
       .quiz-bar { padding: 6px 20px 4px; gap: 0 16px; }
-      .quiz-sheet { flex: 1 0 100%; margin: 0 -6px; }
+      .quiz-bar .quiz-sheet { flex: 1 0 100%; min-width: 0; margin: 0 -20px; padding: 2px 20px 4px;
+        overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+      .quiz-bar .quiz-sheet::-webkit-scrollbar { display: none; }
+      .quiz-bar .quiz-sheet-list { flex-wrap: nowrap; width: max-content; }
       .quiz-page { padding: 32px 20px 72px; }
       .quiz-lede { font-size: 19px; }
       .quiz-facts { grid-template-columns: minmax(0, 1fr); gap: 4px; }
@@ -583,10 +587,10 @@
     learningDescription: 'Answer one question at a time and see the grade and explanation right away.',
     checkDescription: 'Answer every question first, then see all grades and explanations together.',
     source: 'Study material', scope: 'Scope', questions: 'Questions',
-    questionCount: '{count} questions', choice: 'Multiple choice', ox: 'True or false', short: 'Short answer',
+    questionCount: '{count} in total', choice: 'Multiple choice', ox: 'True or false', short: 'Short answer',
     policy: 'Grading',
     policyText: 'Multiple-choice and true-or-false questions are worth one point each. Short answers are compared with a reference answer and checked by you, outside the score. "I don\'t know" counts as zero; unanswered questions and questions where you used a hint are left out of the score.',
-    progress: '{answered} of {total} answered', quizProgress: 'Quiz progress',
+    progress: 'Answered: {answered} of {total}', quizProgress: 'Quiz progress',
     questionNumber: 'Question {number}', answerLabel: 'Your answer',
     shortHelp: 'Write one or two sentences. After grading you compare them with a reference answer.',
     checkAnswer: 'Check answer', next: 'Next question', previous: 'Previous question',
@@ -599,12 +603,12 @@
     essentialPoints: 'Essential points', explanation: 'Explanation', evidence: 'Source',
     finish: 'Submit and grade', continueQuiz: 'Keep answering', earlySubmit: 'Submit as is',
     incompleteTitle: 'Some questions are still unanswered',
-    incompleteText: '{count} questions are left. Unanswered questions are reported separately and never counted as wrong.',
+    incompleteText: 'Questions left: {count}. Unanswered questions are reported separately and never counted as wrong.',
     resultsTitle: 'Results', practiceResultsTitle: 'Practice results',
     score: '{correct} / {total} points', noScore: 'No automatically graded answers',
     scorePolicy: 'Counts multiple-choice and true-or-false answers. "I don\'t know" counts as zero; unanswered and assisted questions are left out.',
-    coverage: '{answered} of {total} questions answered',
-    shortCounts: 'Short answers: {checked} self-checked, {pending} waiting for your check.',
+    coverage: 'Questions answered: {answered} of {total}.',
+    shortCounts: 'Short answers self-checked: {checked}. Waiting for your check: {pending}.',
     originalScore: 'First attempt', retry: 'Retry missed concepts',
     noRetry: 'No fresh practice questions are available for the concepts to revisit.',
     reviewConcepts: 'Concepts to revisit', newPractice: 'Practice the whole set again',
@@ -695,6 +699,7 @@
   const REVIEW_OUTCOMES = ['incorrect', 'skipped', 'selfReview', 'assisted'];
   const SETTLED_OUTCOMES = ['correct', 'selfUnderstood'];
   const DRAW_STAGGER_MS = 60;
+  const STRIP_INSET_PX = 20;
 
   const header = document.getElementById('quiz-header');
   const app = document.getElementById('quiz-app');
@@ -977,6 +982,20 @@
       if (cellIndex === index) cell.setAttribute('aria-current', 'step');
       else cell.removeAttribute('aria-current');
     });
+    revealCurrentCell(true);
+  }
+  function revealCurrentCell(animate = false) {
+    const cell = header.querySelector('[data-sheet-cell][aria-current="step"]');
+    const strip = cell?.closest('.quiz-sheet');
+    if (!strip || strip.scrollWidth <= strip.clientWidth) return;
+    const cellBox = cell.getBoundingClientRect();
+    const stripBox = strip.getBoundingClientRect();
+    const inset = STRIP_INSET_PX;
+    const delta = cellBox.left < stripBox.left + inset ? cellBox.left - stripBox.left - inset
+      : cellBox.right > stripBox.right - inset ? cellBox.right - stripBox.right + inset : 0;
+    if (!delta) return;
+    const smooth = animate && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    strip.scrollBy({ left: delta, behavior: smooth ? 'smooth' : 'auto' });
   }
   function goToQuestion(question, index = state.attempt.questions.indexOf(question)) {
     setCurrent(index);
@@ -1004,6 +1023,7 @@
       header.append(bar);
     }
     updateBarHeight();
+    revealCurrentCell();
   }
 
   /* ---------- Start screen ---------- */

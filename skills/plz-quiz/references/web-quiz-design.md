@@ -167,16 +167,22 @@ plz contribution guide            Grade as you go   (1)(2) 3  4  5   <- sticky b
 
 At 720px and wider, an 88px left gutter holds the question numeral with the type
 label below it. The content column is at most 680px. Below 720px the gutter
-collapses into one line above the prompt, and the answer sheet wraps onto its own
-full-width row in the bar. Keep the primary action in normal flow directly under
+collapses into one line above the prompt, and the answer sheet moves onto its own
+full-width row in the bar. That row stays a single strip that scrolls horizontally
+inside its own container, so a long set never stacks rows of sticky chrome or makes
+the page overflow. Keep the primary action in normal flow directly under
 its controls so it cannot cover an answer or keyboard focus. Put quiet actions on
 the same row; "Answer later" and "Previous question" go at the row end on desktop.
 
 ### Answer sheet
 
-Render one cell per question, with a hit area at least 44px tall, wrapping for long
-sets. Each cell has an accessible name built from labels, such as "Question 3,
-Answered".
+Render one cell per question, each at least 44×44px with at least 8px between
+cells. On wide screens the bar's sheet wraps for long sets; on narrow screens it
+scrolls horizontally, and the current cell is scrolled into view by moving only the
+strip (instantly, or smoothly unless reduced motion is requested). Do not use
+`scrollIntoView` for this: it can also scroll the page under a sticky bar. The
+results sheet is not sticky and wraps. Each cell has an accessible name built from
+labels, such as "Question 3, Answered".
 
 | Cell state | Mark |
 | --- | --- |

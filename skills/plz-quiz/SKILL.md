@@ -118,11 +118,15 @@ on without implying whether a response was right.
 
 Retain answers and requested edits. An explicit "skip" or "I don't know" is a
 recorded skip; an absent response is still unanswered. If numbering is ambiguous,
-clarify the mapping without marking it wrong. Finish when every item has a response
-or explicit skip, or when the learner explicitly submits or ends the session early.
-With a partial batch and no instruction to finish, identify the missing numbers and
-wait instead of revealing feedback. Do not let a question or status request end
-the quiz accidentally.
+clarify the mapping without marking it wrong. Wait for an explicit submission
+before giving feedback. A message that answers all remaining items at once counts
+as submitting that batch. In one-at-a-time delivery, after the last item is
+recorded, say neutrally that every item has a response and ask whether to submit
+or revise, without hinting at correctness. An explicit request to finish early
+ends the session and reports unanswered items separately. With a partial batch and
+no instruction to finish, identify the missing numbers and wait instead of
+revealing feedback. Do not let a question or status request end the quiz
+accidentally.
 
 Honor an explicit request to reveal a hint or answer even in this mode, label that
 item as assisted, and keep it separate from the unassisted result. Reveal only the
