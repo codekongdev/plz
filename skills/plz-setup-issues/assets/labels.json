@@ -1,0 +1,13 @@
+[
+  {"name": "type:bug", "color": "D73A4A", "description": "Observed behavior differs from expected behavior"},
+  {"name": "type:feature", "color": "A2EEEF", "description": "Add a new capability"},
+  {"name": "type:improvement", "color": "84B6EB", "description": "Improve an existing capability"},
+  {"name": "type:maintenance", "color": "D4C5F9", "description": "Internal upkeep: refactoring, tests, dependencies, build, or CI"},
+  {"name": "type:docs", "color": "0075CA", "description": "Write or update documentation"},
+  {"name": "needs-triage", "color": "FBCA04", "description": "Awaiting initial maintainer review"},
+  {"name": "needs-info", "color": "D876E3", "description": "Specific information is needed to assess or reproduce this issue"},
+  {"name": "priority:P0", "color": "B60205", "description": "Immediate response to ongoing harm or an active critical incident"},
+  {"name": "priority:P1", "color": "D93F0B", "description": "Prioritize in the next agreed work cycle"},
+  {"name": "priority:P2", "color": "FBCA04", "description": "Schedule through normal planning"},
+  {"name": "priority:P3", "color": "C2E0C6", "description": "Defer until capacity allows"}
+]

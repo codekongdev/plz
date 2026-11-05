@@ -25,22 +25,38 @@ Explain how an AI agent code sandbox works in 3D.
 
 ## インストール
 
-スキルを一つ選んでグローバルにインストールします。
+`npx skills` でインストールするには、**Node.js 22.20 以降**（npm と `npx` を含む）、**Git**、利用する Claude Code または Codex が必要です。まずターミナルで確認してください。
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -g
+node --version
+npm --version
+git --version
 ```
 
-<details>
-<summary>Codex</summary>
+利用するエージェントに対応するコマンドを実行します。以下は `plz-3d-explain` をグローバルにインストールし、複数のプロジェクトで使えるようにするコマンドです。
 
-Codex で使う場合は `-a codex` を指定します。次のコマンドは、現在のプロジェクトの `.agents/skills/` にインストールします。
+Claude Code:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -a codex
+npx skills add codekongdev/plz --skill plz-3d-explain -a claude-code -g
 ```
 
-</details>
+Codex:
+
+```sh
+npx skills add codekongdev/plz --skill plz-3d-explain -a codex -g
+```
+
+一つのプロジェクトだけにインストールする場合は、そのプロジェクトのディレクトリで上のコマンドから `-g` を外して実行します。Claude Code は `.claude/skills/`、Codex は `.agents/skills/` を使用します。インストーラーが確認を求めたら、案内に従ってください。
+
+利用するエージェントのインストール済みスキルを確認します。
+
+```sh
+npx skills list -g -a claude-code
+npx skills list -g -a codex
+```
+
+対応する一覧に `plz-3d-explain` があればインストールできています。プロジェクトだけにインストールした場合は、同じプロジェクトのディレクトリで一覧コマンドからも `-g` を外してください。
 
 <details>
 <summary>スキルの一覧表示、すべてインストール</summary>
@@ -51,7 +67,7 @@ npx skills add codekongdev/plz --skill plz-3d-explain -a codex
 npx skills add codekongdev/plz -l
 ```
 
-すべてのスキルをグローバルにインストールします。
+すべてのスキルをグローバルにインストールします。エージェントの選択を求められたら、利用するツールを選んでください。
 
 ```sh
 npx skills add codekongdev/plz --skill '*' -g
@@ -66,6 +82,7 @@ Claude Code に手動でインストールする場合は、リポジトリを c
 
 ```sh
 git clone https://github.com/codekongdev/plz.git
+mkdir -p ~/.claude/skills
 cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 ```
 
@@ -75,12 +92,19 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 ## 使い方
 
-インストールしたら、普段の言葉でエージェントに頼むだけです。
+ページを作成するプロジェクトで、エージェントの新しいセッションを開始します。スキルを明示して依頼できます。
+
+- **Claude Code:** `/plz-3d-explain コンテナの分離がどのように働くのかを 3D で解説して。`
+- **Codex:** `$plz-3d-explain コンテナの分離がどのように働くのかを 3D で解説して。`
+
+普段の言葉で依頼することもできます。
 
 - 「コンテナの分離がどのように働くのかを 3D で解説して。」
 - 「TCP ハンドシェイクの流れを 3D モデルで見せて。」
 
 英語、韓国語、簡体字中国語で依頼することもでき、ページは依頼した言語で作成されます。
+
+スキルが見つからない場合は、上の一覧コマンドでエージェントとインストール範囲を確認し、新しいセッションを開始してください。プロジェクトだけにインストールしたスキルは、そのプロジェクトで使います。`npx` が見つからない場合や Node.js のバージョンエラーが出た場合は、上の要件を確認してください。
 
 ## 動作の流れ
 
@@ -96,7 +120,9 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 - **向いていること:** 技術的な概念、仕組み、システム構成を 3D モデルで学ぶこと。
 - **対象外:** 静的なアーキテクチャ図やシーケンス図、データのグラフ、Blender によるモデリング、製品のランディングページ、アプリの UI デザイン。
 - **ページを開くとき:** three.js r170 と Web フォントを CDN から読み込むため、インターネット接続が必要です。
-- **ページを作成するとき:** ローカルサーバーと Playwright などのブラウザ自動化ツールによる検証を含みます。
+- **ページを作成するとき:** ローカル HTTP サーバー（スキルの例では Python 3）と、エージェントが使える Playwright などのブラウザ自動化ツールが必要です。
+
+スキルのインストールでは Python やブラウザ自動化ツールはインストールされません。ツールがない場合は、検証前にエージェントに準備を依頼してください。HTML が生成されてもブラウザ検証に合格したとは限らないため、結果の報告で実施した検証を確認してください。
 
 詳しくは[スキルの README](skills/plz-3d-explain/README.md)を参照してください。
 
@@ -105,6 +131,8 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 | スキル | 作成するもの | デモ |
 | --- | --- | --- |
 | [plz-3d-explain](skills/plz-3d-explain/README.md) | 技術的な概念やシステム構成を three.js の 3D モデルで学べる、単一 HTML ファイルの学習ページ。 | [コードサンドボックス（英語）](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) · [韓国語](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) |
+| [plz-setup-issues](skills/plz-setup-issues/README.md) | GitHub リポジトリの Issue ラベル、バグ・機能リクエストフォーム、トリアージ規則を設定します。 | — |
+| [plz-quiz](skills/plz-quiz/README.md) | 資料にもとづくクイズで学習し、理解度を確認して間違いを復習します。 | — |
 
 ## コントリビュート
 

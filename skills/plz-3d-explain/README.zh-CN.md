@@ -11,28 +11,50 @@
 
 <img src="docs/demo-mobile.png" alt="手机端画面：上方为 OS 沙箱的 3D 模型，下方为讲解文字" width="360">
 
-可以直接在浏览器中打开 AI 代理代码沙箱演示的[英文版](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html)或[韩文版](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)。演示共 10 章，介绍容器、microVM、WASM 和 OS 沙箱的隔离机制。仓库中也提供了示例 HTML（[英文版](assets/example-agent-sandbox.en.html)、[韩文版](assets/example-agent-sandbox.html)）。本技能属于 codekongdev 编写的 [plz](../../README.md) 系列。
+可以直接在浏览器中打开 AI 代理代码沙箱演示的[英文版](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html)或[韩文版](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html)。演示共 10 章，介绍容器、microVM、WASM 和 OS 沙箱的隔离机制。仓库中也提供了示例 HTML（[英文版](assets/example-agent-sandbox.en.html)、[韩文版](assets/example-agent-sandbox.html)）。本技能属于 codekongdev 编写的 [plz](https://github.com/codekongdev/plz) 系列。
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/codekongdev/plz/blob/main/LICENSE) ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-555555.svg) ![works with Claude Code | Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%7C%20Codex-555555.svg)
 
 ## 安装
 
-全局安装：
+使用 `npx skills` 安装时，需要 Node.js 22.20 或更高版本（包含 npm 和 `npx`）、Git，以及要使用的 Claude Code 或 Codex。先在终端确认工具可用：
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -g
+node --version
+npm --version
+git --version
 ```
 
-在 Codex 中使用时，加上 `-a codex`。以下命令会将技能安装到当前项目的 `.agents/skills/` 目录：
+选择要使用的代理对应的命令。`-g` 表示全局安装，可在多个项目中使用。
+
+Claude Code:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -a codex
+npx skills add codekongdev/plz --skill plz-3d-explain -a claude-code -g
 ```
+
+Codex:
+
+```sh
+npx skills add codekongdev/plz --skill plz-3d-explain -a codex -g
+```
+
+如果只在当前项目中使用，请在项目目录中运行上述命令并去掉 `-g`。安装工具会将技能保存到 `.agents/skills/`，选择 Claude Code 时还会创建链接。
+
+查看对应代理的已安装技能列表，确认其中包含 `plz-3d-explain`：
+
+```sh
+npx skills list -g -a claude-code
+npx skills list -g -a codex
+```
+
+如果安装在项目中，检查时也要去掉 `-g`，并在同一项目目录中运行。如果列表中没有该技能，请检查选择的代理和安装范围。如果列表中有但代理无法识别，请在目标项目中启动新的代理会话。
 
 手动安装到 Claude Code 时，先克隆仓库，再将 `skills/plz-3d-explain` 复制或以符号链接的方式放到 `~/.claude/skills/plz-3d-explain`。复制命令如下：
 
 ```sh
 git clone https://github.com/codekongdev/plz.git
+mkdir -p ~/.claude/skills
 cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 ```
 
@@ -40,7 +62,12 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 ## 使用方法
 
-向代理说明想学习的主题，或提供想了解的仓库。以下示例使用了 [SKILL.md](SKILL.md) 中描述的触发方式：
+安装后，在项目中打开代理，直接指定技能发出请求：
+
+- Claude Code: `/plz-3d-explain 用 3D 讲解容器隔离。`
+- Codex: `$plz-3d-explain 用 3D 讲解容器隔离。`
+
+也可以使用 [SKILL.md](SKILL.md) 中的触发方式，用自然语言请求：
 
 - “用 3D 讲解容器和虚拟机的区别。”
 - “用 3D 模型展示 HTTP 请求如何经过服务器到达外部 API。”
@@ -63,7 +90,9 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 生成结果是单个 HTML 文件，无需构建。页面通过 CDN 加载 three.js r170 和 Web 字体，因此打开时需要联网。
 
-制作页面时，会使用本地服务器和 Playwright 等浏览器自动化工具进行验证，检查控制台错误、标签重叠或越界、横向滚动、自动播放和触摸操作。具体流程见 [SKILL.md](SKILL.md)，验证钩子见[引擎 API](references/engine-api.md)，常见问题见[注意事项](references/gotchas.md)。
+验证需要本地 HTTP 服务器（技能示例使用 Python 3）以及代理能够操作的浏览器自动化工具，例如 Playwright。`npx skills` 只安装技能文件，不会安装这些工具。如果工具不可用，请让代理先准备工具，并在结果中说明哪些检查未能执行。
+
+验证会检查控制台错误、标签重叠或越界、横向滚动、自动播放和触摸操作。具体流程见 [SKILL.md](SKILL.md)，验证钩子见[引擎 API](references/engine-api.md)，常见问题见[注意事项](references/gotchas.md)。
 
 手机端只能左右旋转模型。在展示区内上下滑动会滚动页面，左右滑动会旋转模型。不支持上下倾斜或缩放。
 
@@ -83,10 +112,10 @@ cp references/preferences.example.md references/preferences.md
 
 ## 参与贡献
 
-欢迎贡献代码和翻译。详情请参阅 [CONTRIBUTING.md](../../CONTRIBUTING.md)。
+欢迎贡献代码和翻译。详情请参阅 [CONTRIBUTING.md](https://github.com/codekongdev/plz/blob/main/CONTRIBUTING.md)。
 
 ## 许可证
 
-[MIT](../../LICENSE)。
+[MIT](https://github.com/codekongdev/plz/blob/main/LICENSE)。
 
 页面通过 CDN 加载的外部资源不随仓库分发，包括 three.js（MIT）以及 Pretendard、Hahmlet、IBM Plex 字体（SIL OFL）。

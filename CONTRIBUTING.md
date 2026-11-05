@@ -23,6 +23,7 @@ SECURITY.md                                               how to report a vulner
 scripts/check-readme-translations.mjs                     translation consistency check
 scripts/check-templates.mjs                               template ENGINE and UI_TEXT consistency check
 scripts/check-templates.test.mjs                          tests for the template check
+scripts/check-3d-loading.test.mjs                         browser regression tests for 3D initialization
 skills/<skill-name>/
   SKILL.md          instructions the agent follows (frontmatter: name, description)
   README*.md        English README plus ko, ja, and zh-CN translations
@@ -57,6 +58,16 @@ Run the check that matches what you changed. If a change fits more than one row,
 | `ENGINE` in `assets/template.html` | Apply the same change to every `assets/example-*.html` (currently the Korean and the English example). The two `ENGINE` sections of the template (the block that starts at the `ENGINE` banner comment and ends before the `SCENES` banner, and the block from the `ENGINE (continued)` banner to the end of the file) are copied into each example verbatim. Run `node scripts/check-templates.mjs` from the repository root to confirm they still match; CI runs it too. Then run the validation procedure above on the template and every example. |
 | Anything in `scripts/` | Run `node --test scripts/*.test.mjs` from the repository root, and add or update tests for the behavior you changed. CI runs the same command. |
 | A new key in `UI_TEXT` | Add the key to all four languages: `en`, `ko`, `ja`, and `zh-CN`. Run `node scripts/check-templates.mjs` from the repository root; it reports keys that are missing from or extra in a language compared with `en`, and CI runs it too. |
+
+The script tests include Chromium checks for loading, successful initialization, CDN failure, retry, and WebGL initialization failure in the 3D template and both examples. Install their development dependencies and browser first:
+
+```sh
+npm ci --ignore-scripts
+npx playwright install chromium
+node --test scripts/*.test.mjs
+```
+
+On Linux, use `npx playwright install --with-deps chromium` to install the browser's system dependencies too. The browser tests serve three.js from the pinned npm development dependency at the page's CDN URLs, so the tests do not depend on the live CDN. These dependencies are only for verification; generated pages still use a single HTML file with no build step.
 
 Because the `ENGINE` sections ship inside every generated page, treat them as stable. Skill instructions tell the agent not to edit them when building a page, and changes to them should be deliberate and explained.
 

@@ -25,22 +25,38 @@ Explain how an AI agent code sandbox works in 3D.
 
 ## 설치
 
-스킬 하나를 전역으로 설치:
+`npx skills`로 설치하려면 **Node.js 22.20 이상**(npm과 `npx` 포함), **Git**, 사용할 Claude Code 또는 Codex가 필요합니다. 터미널에서 먼저 확인하세요.
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -g
+node --version
+npm --version
+git --version
 ```
 
-<details>
-<summary>Codex</summary>
+사용할 에이전트에 맞는 명령을 실행합니다. 아래 명령은 `plz-3d-explain`을 전역으로 설치해 여러 프로젝트에서 쓸 수 있게 합니다.
 
-Codex에서 쓰려면 `-a codex`를 붙입니다. 아래 명령은 지금 프로젝트의 `.agents/skills/`에 설치합니다.
+Claude Code:
 
 ```sh
-npx skills add codekongdev/plz --skill plz-3d-explain -a codex
+npx skills add codekongdev/plz --skill plz-3d-explain -a claude-code -g
 ```
 
-</details>
+Codex:
+
+```sh
+npx skills add codekongdev/plz --skill plz-3d-explain -a codex -g
+```
+
+한 프로젝트에만 설치하려면 해당 프로젝트 폴더에서 위 명령의 `-g`를 빼고 실행하세요. Claude Code는 `.claude/skills/`, Codex는 `.agents/skills/`를 사용합니다. 설치 도구가 확인을 요청하면 안내에 따라 진행합니다.
+
+사용할 에이전트의 설치 목록을 확인합니다.
+
+```sh
+npx skills list -g -a claude-code
+npx skills list -g -a codex
+```
+
+해당 목록에 `plz-3d-explain`이 있으면 됩니다. 프로젝트에만 설치했다면 같은 프로젝트 폴더에서 목록 명령의 `-g`도 빼고 실행하세요.
 
 <details>
 <summary>스킬 목록 보기, 전체 설치</summary>
@@ -51,7 +67,7 @@ npx skills add codekongdev/plz --skill plz-3d-explain -a codex
 npx skills add codekongdev/plz -l
 ```
 
-모든 스킬을 전역으로 설치:
+모든 스킬을 전역으로 설치합니다. 에이전트 선택을 요청하면 사용할 도구를 고르세요.
 
 ```sh
 npx skills add codekongdev/plz --skill '*' -g
@@ -66,6 +82,7 @@ Claude Code에 수동으로 설치하려면 저장소를 내려받은 뒤 `skill
 
 ```sh
 git clone https://github.com/codekongdev/plz.git
+mkdir -p ~/.claude/skills
 cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 ```
 
@@ -75,12 +92,19 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 ## 사용법
 
-설치한 뒤에는 에이전트에게 평소 말투로 요청하면 됩니다.
+페이지를 만들 프로젝트에서 에이전트의 새 세션을 시작합니다. 스킬을 직접 지정해 요청할 수 있습니다.
+
+- **Claude Code:** `/plz-3d-explain 컨테이너 격리가 어떻게 동작하는지 3D로 설명해 줘.`
+- **Codex:** `$plz-3d-explain 컨테이너 격리가 어떻게 동작하는지 3D로 설명해 줘.`
+
+평소 말투로 요청해도 됩니다.
 
 - “컨테이너 격리가 어떻게 동작하는지 3D로 설명해 줘.”
 - “TCP 핸드셰이크가 어떻게 이뤄지는지 3D 모형으로 보여 줘.”
 
 영어, 일본어, 중국어 간체로 요청해도 되며, 페이지는 요청한 언어로 만들어집니다.
+
+스킬이 보이지 않으면 위 목록 명령으로 에이전트와 설치 범위를 확인한 뒤 새 세션을 시작하세요. 프로젝트에만 설치한 스킬은 설치한 프로젝트에서 사용해야 합니다. `npx`가 없거나 Node.js 버전 오류가 나오면 위 준비물을 확인하세요.
 
 ## 동작 방식
 
@@ -96,7 +120,9 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 - **알맞은 경우:** 기술 개념, 동작 원리, 시스템 구조를 3D 모형으로 공부할 때 알맞습니다.
 - **대상이 아닌 것:** 정적 아키텍처·시퀀스 다이어그램, 데이터 차트, Blender 모델링, 제품 랜딩 페이지, 앱 UI 디자인.
 - **페이지를 열 때:** three.js r170과 웹폰트를 CDN에서 받으므로 인터넷 연결이 필요합니다.
-- **페이지를 만들 때:** 로컬 서버와 Playwright 같은 브라우저 자동화 도구로 검증하는 단계가 포함됩니다.
+- **페이지를 만들 때:** 로컬 HTTP 서버(스킬 예시는 Python 3)와 에이전트가 사용할 수 있는 Playwright 같은 브라우저 자동화 도구가 필요합니다.
+
+스킬 설치 명령이 Python이나 브라우저 자동화 도구까지 설치하지는 않습니다. 도구가 없다면 검증 전에 에이전트에게 준비를 요청하세요. HTML이 만들어졌다는 것만으로 브라우저 검증까지 통과한 것은 아니므로, 결과 보고에서 실제로 실행한 검증을 확인하세요.
 
 자세한 내용은 [스킬 README](skills/plz-3d-explain/README.md)를 참고해 주세요.
 
@@ -105,6 +131,8 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 | 스킬 | 만드는 것 | 데모 |
 | --- | --- | --- |
 | [plz-3d-explain](skills/plz-3d-explain/README.md) | 기술 개념과 시스템 구조를 three.js 3D 모형으로 공부하는 단일 HTML 학습 페이지를 만듭니다. | [코드 샌드박스(한국어)](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) · [영어](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) |
+| [plz-setup-issues](skills/plz-setup-issues/README.md) | GitHub 저장소의 이슈 라벨, 버그·기능 요청 양식, 검토 규칙을 세팅합니다. | — |
+| [plz-quiz](skills/plz-quiz/README.md) | 문서 기반 퀴즈로 공부하고 이해도를 확인하며 오답을 복습합니다. | — |
 
 ## 기여
 
