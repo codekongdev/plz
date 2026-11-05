@@ -178,7 +178,7 @@
     .chapter h2 { font-size: 1.45rem; }
     /* Keyboard focus scrolls focused code blocks and controls into view; keep them below the stage. */
     html { scroll-padding-top: var(--stage-h); }
-    html:has(.stage[data-state="failed"]) { scroll-padding-top: 0; }
+    html:has(.stage[data-state="failed"], .stage.no-webgl) { scroll-padding-top: 0; }
   }
   /* Landscape phone: text on the left, stage on the right, as on desktop. The stage takes the full screen height. */
   @media (orientation: landscape) and (max-height: 520px) {
