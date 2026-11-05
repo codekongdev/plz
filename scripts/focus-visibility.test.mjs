@@ -35,11 +35,15 @@ for (const page of pages) {
       `missing html scroll-padding-top: var(--stage-h) inside the stacked media query in ${page}`,
     );
     assert.doesNotMatch(stacked, /(?:^|[\s,}])(?:\.chapter|\[data-scene\])\s*\{[^}]*scroll-margin-top:\s*var\(--stage-h\)/, `stacked chapter scroll margin duplicates root padding in ${page}`);
-    assert.match(css, /html:has\(\.stage\[data-state="failed"\]\)\s*\{[^}]*scroll-padding-top:\s*0/, `missing failed-state scroll padding reset in ${page}`);
     assert.match(
       css,
-      /(?:^|[\s,}])pre\.code:focus-visible\s*\{[^}]*outline:\s*(?!none\b|0(?:\s|;|$))[^;]+;/,
-      `missing pre.code:focus-visible outline in ${page}`,
+      /html:has\(\.stage\[data-state="failed"\],\s*\.stage\.no-webgl\)\s*\{[^}]*scroll-padding-top:\s*0\s*;/,
+      `missing exact-zero failed-stage scroll padding reset in ${page}`,
+    );
+    assert.match(
+      css,
+      /(?:^|[\s,}])pre\.code:focus-visible\s*\{[^}]*outline:\s*3px\s+solid\s+var\(--bound\)\s*;/,
+      `missing visible 3px solid var(--bound) pre.code:focus-visible outline in ${page}`,
     );
     if (page !== 'template.html') {
       const markup = await readFile(join(assets, page), 'utf8');
