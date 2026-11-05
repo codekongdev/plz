@@ -174,11 +174,11 @@
     .stage { grid-row: 1; height: var(--stage-h); z-index: 3; border-bottom: 1px solid var(--rule); }
     .text { grid-row: 2; border-right: 0; padding: 1.75rem 1.25rem 60vh; }
     .intro h1 { font-size: 1.7rem; margin-bottom: 1.1rem; }
-    .chapter { min-height: auto; padding-top: 2.75rem; scroll-margin-top: var(--stage-h); }
+    .chapter { min-height: auto; padding-top: 2.75rem; }
     .chapter h2 { font-size: 1.45rem; }
-    [data-scene] { scroll-margin-top: var(--stage-h); }
     /* Keyboard focus scrolls focused code blocks and controls into view; keep them below the stage. */
     html { scroll-padding-top: var(--stage-h); }
+    html:has(.stage[data-state="failed"]) { scroll-padding-top: 0; }
   }
   /* Landscape phone: text on the left, stage on the right, as on desktop. The stage takes the full screen height. */
   @media (orientation: landscape) and (max-height: 520px) {
