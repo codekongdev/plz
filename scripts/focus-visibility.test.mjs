@@ -34,6 +34,11 @@ for (const page of pages) {
       /(?:^|[\s,}])html\s*\{[^}]*scroll-padding-top:\s*var\(--stage-h\)/,
       `missing html scroll-padding-top: var(--stage-h) inside the stacked media query in ${page}`,
     );
+    assert.match(
+      stacked,
+      /html:has\(\.stage \.autorun:focus,\s*\.stage \.reset-view:focus\)\s*\{[^}]*scroll-padding-top:\s*0\s*;/,
+      `focused stage controls should not shift the reading area in ${page}`,
+    );
     assert.doesNotMatch(stacked, /(?:^|[\s,}])(?:\.chapter|\[data-scene\])\s*\{[^}]*scroll-margin-top:\s*var\(--stage-h\)/, `stacked chapter scroll margin duplicates root padding in ${page}`);
     assert.match(
       css,
