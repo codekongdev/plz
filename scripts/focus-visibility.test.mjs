@@ -36,14 +36,19 @@ for (const page of pages) {
     );
     assert.match(
       stacked,
-      /html:has\(\.stage \.autorun:focus,\s*\.stage \.reset-view:focus\)\s*\{[^}]*scroll-padding-top:\s*0\s*;/,
+      /html:has\(\.stage \.autorun:focus,\s*\.stage \.reset-view:focus\)\s*\{[^}]*scroll-padding-top:\s*0(?:[a-z%]+)?(?:\s*!important)?\s*;/,
       `focused stage controls should not shift the reading area in ${page}`,
     );
     assert.doesNotMatch(stacked, /(?:^|[\s,}])(?:\.chapter|\[data-scene\])\s*\{[^}]*scroll-margin-top:\s*var\(--stage-h\)/, `stacked chapter scroll margin duplicates root padding in ${page}`);
     assert.match(
       css,
-      /html:has\(\.stage\[data-state="failed"\],\s*\.stage\.no-webgl\)\s*\{[^}]*scroll-padding-top:\s*0\s*;/,
+      /html:has\(\.stage\[data-state="failed"\],\s*\.stage\.no-webgl\)\s*\{[^}]*scroll-padding-top:\s*0(?:[a-z%]+)?(?:\s*!important)?\s*;/,
       `missing exact-zero failed-stage scroll padding reset in ${page}`,
+    );
+    assert.doesNotMatch(
+      "scroll-padding-top: 0.5rem;",
+      /scroll-padding-top:\s*0(?:[a-z%]+)?(?:\s*!important)?\s*;/,
+      "a nonzero decimal must not satisfy an exact-zero reset",
     );
     assert.match(
       css,
