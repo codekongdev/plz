@@ -87,7 +87,7 @@ Copy `assets/template.html` to the output location and fill in only the HTML mar
 - Write in the user's language, in plain sentences. Explain each technical term in one line when it first appears and add it to the glossary.
 - When you use an analogy, say so ("as an analogy"). Do not let the analogy replace the concept; follow it with the real name.
 - Write 2-3 paragraphs per chapter body, 2-4 sentences per paragraph. Write the result sentence (`say`) in the past tense, about what just happened.
-- Put one concrete example in each chapter. Show input, code, or a command that could really come in, and its result. With only abstract explanation, learners find it hard to carry the concept into their own situation. Put code in `pre.code` and quotations such as hidden input in `blockquote.planted`, and match the button's result sentences to the example's step numbers.
+- Put one concrete example in each chapter. Show input, code, or a command that could really come in, and its result. With only abstract explanation, learners find it hard to carry the concept into their own situation. Put code in keyboard-focusable, labeled `pre.code` regions (`tabindex="0" role="region" aria-label="..."`), using a short, distinct `aria-label` for each block. Put quotations such as hidden input in `blockquote.planted`, and match the button's result sentences to the example's step numbers.
 - Contrast sentences like "A is one way to do this and B is another way" are where learners get stuck most often.
   Do not leave such sentences as they are. Make a separate chapter that sends the same question to both sides and shows who answers
   ("Same question, different answer" in scene-patterns). End that chapter with a table that sums up the difference once more.
