@@ -118,6 +118,36 @@ async function assertFailure(page, lang, { webgl = false } = {}) {
 }
 
 for (const { file, lang } of pages) {
+  test(`${file}: focusing stage controls preserves reading position and code focus clears the sticky stage`, async t => {
+    const { page, errors } = await openPage(t, file);
+    await state(page, 'ready');
+    await page.evaluate(() => window.scrollTo({ top: 700, behavior: 'instant' }));
+    await page.waitForFunction(() => {
+      const stage = document.querySelector('.stage');
+      return window.scrollY > 0 && getComputedStyle(stage).position === 'sticky' && stage.getBoundingClientRect().top === 0;
+    });
+
+    for (const selector of ['.stage .autorun', '.stage .reset-view']) {
+      const before = await page.evaluate(() => window.scrollY);
+      await page.locator(selector).focus();
+      const after = await page.evaluate(() => window.scrollY);
+      assert.equal(after, before, `focusing ${selector} should not shift the reading position`);
+    }
+
+    if (file !== 'template.html') {
+      const code = page.locator('pre.code').first();
+      await code.focus();
+      const layout = await page.evaluate(() => {
+        const stage = document.querySelector('.stage').getBoundingClientRect();
+        const code = document.querySelector('pre.code').getBoundingClientRect();
+        return { stageBottom: stage.bottom, codeTop: code.top, codeBottom: code.bottom, viewportHeight: innerHeight };
+      });
+      assert.ok(layout.codeTop >= layout.stageBottom, 'focused code should be visible below the sticky stage');
+      assert.ok(layout.codeBottom <= layout.viewportHeight, 'the focused code should fit in the viewport');
+    }
+    assert.deepEqual(errors, []);
+  });
+
   test(`${file}: loading remains readable with disabled controls until CDN modules arrive`, async t => {
     let release;
     const pending = new Promise(resolve => { release = resolve; });
