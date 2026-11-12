@@ -10,6 +10,9 @@ blender -b --factory-startup -P render_poses.py -- --glb X.glb --out DIR [--pref
 --view is the direction from the model towards the camera (Blender axes; -Y is the model's front).
 --intersections counts each skinned mesh's self-crossing face pairs in every pose (line `INTERSECT`,
 and DIR/PREFIX_intersections.json), attributed to the dominant vertex group of each crossing face.
+The rest pose is the baseline: "new" counts only the pairs a pose adds, which is the number to read
+for a model that comes with crossings built in (hair cards, layered clothes). --mark also renders
+PREFIX_<pose>_cross.png with the faces of the new pairs in red.
 Each pose is framed on its own deformed bounds, so two models rendered with the same arguments
 are directly comparable.
 """
@@ -24,7 +27,7 @@ import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 from riglib.common import log, script_args  # noqa: E402
-from riglib.selfcheck import SelfCheck  # noqa: E402
+from riglib.selfcheck import SelfCheck, crossing_pairs  # noqa: E402
 
 
 def setup_render(res):
@@ -102,6 +105,36 @@ def render(path):
     log("rendered", path)
 
 
+def mark_render(meshes, check, depsgraph, path):
+    """The same picture with the faces of crossing pairs in red (new ones against the rest pose when a
+    baseline is set): tells a skin-on-skin contact line from a face that broke through."""
+    red = bpy.data.materials.get("rm_cross") or bpy.data.materials.new("rm_cross")
+    red.diffuse_color = (0.9, 0.05, 0.05, 1.0)
+    saved = []
+    for ob in meshes:
+        pairs = crossing_pairs(ob, depsgraph)
+        pairs -= check.baseline.get(ob.name, set())
+        faces = {i for p in pairs for i in p}
+        if not faces:
+            continue
+        me = ob.data
+        me.materials.append(red)
+        slot = len(me.materials) - 1
+        old = [0] * len(me.polygons)
+        me.polygons.foreach_get("material_index", old)
+        saved.append((ob, slot, old))
+        new = [slot if i in faces else m for i, m in enumerate(old)]
+        me.polygons.foreach_set("material_index", new)
+        me.update()
+    if not saved:
+        return
+    render(path)
+    for ob, slot, old in saved:
+        ob.data.polygons.foreach_set("material_index", old)
+        ob.data.materials.pop(index=slot)
+        ob.data.update()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--blend")
@@ -112,7 +145,9 @@ def main():
     ap.add_argument("--res", default="800x600")
     ap.add_argument("--poses", default="auto")
     ap.add_argument("--intersections", action="store_true")
+    ap.add_argument("--mark", action="store_true")
     a = script_args(ap)
+    a.intersections = a.intersections or a.mark
     os.makedirs(a.out, exist_ok=True)
     if a.blend:
         bpy.ops.wm.open_mainfile(filepath=os.path.abspath(a.blend))
@@ -153,9 +188,15 @@ def main():
             frame_camera(cam, meshes, view)
             render(os.path.join(a.out, f"{a.prefix}_{label}.png"))
             if check:
-                counts[label] = check.run(bpy.context.evaluated_depsgraph_get())
+                dg = bpy.context.evaluated_depsgraph_get()
+                if label == "rest":
+                    check.set_baseline(dg)
+                counts[label] = check.run(dg)
                 for name, c in counts[label].items():
-                    log("INTERSECT", label, name, c["pairs"], "pairs", dict(list(c["where"].items())[:8]))
+                    extra = ["| new vs rest", c["new"], dict(list(c["newWhere"].items())[:6])] if "new" in c else []
+                    log("INTERSECT", label, name, c["pairs"], "pairs", dict(list(c["where"].items())[:8]), *extra)
+                if a.mark and label != "rest":
+                    mark_render(meshes, check, dg, os.path.join(a.out, f"{a.prefix}_{label}_cross.png"))
     if check:
         path = os.path.join(a.out, f"{a.prefix}_intersections.json")
         with open(path, "w") as fh:

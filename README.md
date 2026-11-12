@@ -143,7 +143,7 @@ Three skills form a pipeline for game-ready 3D models: [plz-model-sheet](skills/
 
 - **plz-model-sheet** takes a subject (a character, animal, NPC, or prop) and makes a real-size orthographic reference sheet from measured dimensions, openly licensed photos, and Codex image generation.
 - **plz-sheet-to-model** takes that sheet's views and measurements and builds a textured `.blend` and `.glb` (bird or quadruped body plan), plus a `landmarks.json` for rigging.
-- **plz-rig-model** takes a mesh model (`.blend` or `.glb`, from this pipeline or from anywhere else) and a `landmarks.json`, and adds the rig, exporting a `.glb` and a `.blend` with a bone rotation sign table.
+- **plz-rig-model** takes a mesh model (`.blend` or `.glb`, from this pipeline or from anywhere else, or an avatar that already has a rig) and a `landmarks.json`, and adds the rig, exporting a `.glb` and a `.blend` with a bone rotation sign table.
 
 No skill needs an API key. The tools they use on your machine:
 

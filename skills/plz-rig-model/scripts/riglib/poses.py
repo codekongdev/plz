@@ -24,10 +24,32 @@ def _move(rig, name, xfz_cm):
 DEFAULT_HIDE_SCALE = 0.001
 
 
-def apply(rig, pose, hide_scale=DEFAULT_HIDE_SCALE):
+def _aim(rig, name, xfz):
+    """Turn a pose bone (shortest swing, no added twist) so its head->tail points along (x, f, z) in
+    world axes. On a .R bone x is mirrored, so one entry serves both sides of `name.*`."""
+    side = name[-2:] if name[-2:] in SIDES else None
+    x, f, z = xfz
+    target = cm_to_world(-x if side == ".R" else x, f, z).normalized()
+    bpy.context.view_layer.update()  # the parent's pose (an earlier aim) must be evaluated first
+    pb = rig.pose.bones[name]
+    current = (pb.tail - pb.head).normalized()
+    swing = current.rotation_difference(target).to_matrix()
+    m = pb.matrix.copy()
+    rotated = (swing @ m.to_3x3()).to_4x4()
+    rotated.translation = m.translation
+    pb.matrix = rotated
+    bpy.context.view_layer.update()
+
+
+def apply(rig, pose, hide_scale=DEFAULT_HIDE_SCALE, order="XYZ"):
     """`hide`: shrink bones (and their children) to `hide_scale`, not 0. With a zero-scaled parent the
     glTF exporter (which derives local transforms from world matrices) writes undefined child
-    translations/rotations, and engines interpolate them in crossfades. `scale0` is the old exact-0 form."""
+    translations/rotations, and engines interpolate them in crossfades. `scale0` is the old exact-0 form.
+    `aim` turns bones to world directions in the listed order (parents first), e.g. a humanoid's A-pose
+    arms down to the sides. `rotate` is added on top of a rotation the bone already has (from the base
+    pose), the way an engine bends a bone: base * local rotation. `order` is the Euler order of the
+    `rotate` angles (the template's `rotateOrder`); "ZYX" equals an engine that bends about local X,
+    then Y, then Z."""
     for n in expand(pose.get("hide", [])):
         rig.pose.bones[n].scale = (hide_scale,) * 3
     for n in expand(pose.get("scale0", [])):
@@ -35,9 +57,17 @@ def apply(rig, pose, hide_scale=DEFAULT_HIDE_SCALE):
     for n, v in pose.get("move", {}).items():
         for name in expand([n]):
             _move(rig, name, v)
+    for n, xfz in pose.get("aim", {}).items():
+        for name in expand([n]):
+            _aim(rig, name, xfz)
     for n, deg in pose.get("rotate", {}).items():
         for name in expand([n]):
-            rig.pose.bones[name].rotation_euler = Euler([math.radians(a) for a in deg])
+            pb = rig.pose.bones[name]
+            local = Euler([math.radians(a) for a in deg], order)
+            if any(abs(a) > 1e-9 for a in pb.rotation_euler) or order != 'XYZ':
+                pb.rotation_euler = (pb.rotation_euler.to_quaternion() @ local.to_quaternion()).to_euler('XYZ')
+            else:  # nothing to add to: keep the exact Euler values (bird and quadruped keys stay as they were)
+                pb.rotation_euler = local
 
 
 def key_all(rig, frame):
@@ -86,14 +116,15 @@ def make_test_action(rig, template):
         return None
     base = {p["name"]: p for p in template.get("basePoses", [])}
     hide = template.get("hideScale", DEFAULT_HIDE_SCALE)
+    order = template.get("rotateOrder", "XYZ")
     act = new_action(rig, spec.get("action", "rig_test"))
     switch = _ik_switch(spec)
     cons = ik_constraints(rig, template) if switch else []
     for i, frame in enumerate(spec["frames"], start=1):
         reset(rig)
         if frame.get("base"):
-            apply(rig, base[frame["base"]], hide)
-        apply(rig, frame, hide)
+            apply(rig, base[frame["base"]], hide, order)
+        apply(rig, frame, hide, order)
         key_all(rig, i)
         if frame.get("label"):  # render_poses.py names the picture after it
             act.pose_markers.new(frame["label"]).frame = i
@@ -114,9 +145,10 @@ def make_test_action(rig, template):
 def make_base_poses(rig, template):
     acts = []
     hide = template.get("hideScale", DEFAULT_HIDE_SCALE)
+    order = template.get("rotateOrder", "XYZ")
     for pose in template.get("basePoses", []):
         act = new_action(rig, pose["name"])
-        apply(rig, pose, hide)
+        apply(rig, pose, hide, order)
         key_all(rig, 1)
         acts.append(act)
     ad = rig.animation_data

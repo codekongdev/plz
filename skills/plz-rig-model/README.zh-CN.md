@@ -41,10 +41,11 @@ $plz-rig-model Rig this cat model so it can walk and run in my game.
 - “给这个四足动物加上骨架、蒙皮和腿部 IK。”
 - “告诉我每根骨骼往哪个方向转，用 +1 或 -1 的符号，方便游戏代码使用。”
 - “我改了网格，请重新绑定骨骼。”
+- “这个下载的角色已经带有骨骼，请按我们的约定导入，并保留它的蒙皮权重。”
 
 ## 环境要求
 
-- Blender 4.4 或更高版本(已在 5.2 上验证)。技能在后台无窗口运行它: `blender -b --factory-startup -P <script> -- <arguments>`。如果可执行文件不在默认路径，请用环境变量 `BLENDER` 指定。
+- Blender 4.4 或更高版本(已在 macOS 和 Windows 的 5.2 上验证)。技能在后台无窗口运行它: `blender -b --factory-startup -P <script> -- <arguments>`。如果可执行文件不在默认路径，请用环境变量 `BLENDER` 指定。
 - numpy 和 glTF 插件使用 Blender 自带的 Python 和插件，因此不需要另外安装 Python 包。
 - 系统的 `python3` 只用于两项不需要 Blender 的检查: 针对 `.glb` 的 `rig_axes.py` 和 `inspect_rig.py compare`，它们只使用标准库。
 - 不需要网络访问，也不需要 API 密钥。
@@ -53,13 +54,13 @@ $plz-rig-model Rig this cat model so it can walk and run in my game.
 
 身体结构模板(`templates/<name>.json`)以数据形式描述骨骼、权重方法和姿势。骨骼位置来自模型上的特征点(`landmarks.json`)，所以同一身体结构的其他个体只需更换特征点就能完成绑定。
 
-- **模板:** `bird`(站在地面上的鸟，在收拢的翅膀和展开的翅膀之间切换)和 `quadruped`(像猫一样的四足动物，身体、头、尾巴和四条腿是同一个外壳，耳朵和眼睛是独立部件)。其他身体结构按 [references/templates.md](references/templates.md) 的格式新建模板。
+- **模板:** `bird`(站在地面上的鸟，在收拢的翅膀和展开的翅膀之间切换)、`quadruped`(像猫一样的四足动物，身体、头、尾巴和四条腿是同一个外壳，耳朵和眼睛是独立部件)和 `humanoid`(以 A 姿势或 T 姿势绑定的人，网格带有原有骨骼的蒙皮权重，并直接沿用这些权重)。其他身体结构按 [references/templates.md](references/templates.md) 的格式新建模板。
 - **阶段:** 确认模板和坐标约定([references/conventions.md](references/conventions.md))，准备 `landmarks.json`，绑定，渲染姿势并统计自相交数量，验证(重新导入、与旧版本对比、可复现性、旋转符号表、角度限制)，编写文档和报告。
-- **可复现:** 相同的输入得到相同的结果。在已验证的猫的示例中，连 glb 的字节都一致。
+- **可复现:** 相同的输入得到相同的结果。在已验证的猫和人的示例中，连 glb 的字节都一致。
 
 ## 输入与输出
 
-输入: `.blend` 或 `.glb` 网格模型和 `landmarks.json`。为了帮助填写特征点，技能还可以输出带网格的正交视图图片和一个空的 `landmarks.todo.json`。
+输入: `.blend` 或 `.glb` 网格模型和 `landmarks.json`。为了帮助填写特征点，技能还可以输出带网格的正交视图图片和一个空的 `landmarks.todo.json`。已带骨骼的模型(FBX 或 glTF 角色)先用 `import_rigged.py` 导入: 它调整比例、保留蒙皮权重、根据骨骼写出 `landmarks.json`，还可以按参考图改变衣服的颜色。
 
 | 输出 | 内容 |
 | --- | --- |
@@ -73,7 +74,8 @@ $plz-rig-model Rig this cat model so it can walk and run in my game.
 
 ## 限制
 
-- 只有 `bird` 和 `quadruped` 两个模板经过验证。人形、蛇等其他身体结构需要一个在真实对象上通过检查的新模板。
+- 每个模板都在一个对象上验证过: `bird` 用鸽子，`quadruped` 用猫，`humanoid` 用下载的带骨骼人物(Microsoft Rocketbox 角色)。蛇等其他身体结构需要一个在真实对象上通过检查的新模板。
+- `humanoid` 模板沿用原有骨骼的蒙皮权重，并把面部和手指骨骼合并到头和手上，因此手指和表情不会动。没有蒙皮权重的人物网格需要另一种权重规则。
 - bird 的收拢翅膀与展开翅膀之间的切换没有中间形态，需要用快速扇动来遮掩。
 - 线性蒙皮没有碰撞检测。关节弯曲过大时可能留下皮肤相互接触的线，这些会作为角度限制记录下来，而不是被消除。
 - 不要用 Blender MCP 做骨骼绑定，因为 MCP 的安全模式无法运行已保存的脚本。技能也不会动你已经打开的 Blender 文件。

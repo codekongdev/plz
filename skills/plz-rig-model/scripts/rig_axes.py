@@ -7,8 +7,12 @@ Authoring side, from the rig (Blender; IK and copy-rotation switched off):
     blender -b --factory-startup -P rig_axes.py -- --blend X.blend [--template quadruped] [--out axes.json]
 
 A rotation is applied the way an engine bends a bone: local quaternion * axis-angle(local axis, +deg), on
-top of the action's first keyframe (glb) or the bind pose (blend). The tip is the bone's tail (in the glb
-the local +Y axis; the script checks that child joints sit on +Y, which is how Blender exports bones).
+top of the action's first keyframe (both sides; default `pose_stand`; a blend without that action, such as a
+bird's, and `--action ''` measure the bind pose). The tip
+is the bone's tail (in the glb the local +Y axis; the script checks that child joints sit on +Y, which is
+how Blender exports bones). A Y rotation turns the bone about itself and leaves the tail in place, so for
+axis Y the probe is the end of the bone's local +Z axis instead (a humanoid's upright neck and head turn
+about Y; with alignZ "front" that probe is the face direction).
 Prints `AXES` lines per bone and `SIGN meaning +1|-1|MIXED` lines, and writes the table to --out.
 """
 import argparse
@@ -122,15 +126,19 @@ def glb_frames(path, action):
     return out, (on_axis, parents)
 
 
+PROBE = {0: (0, 1, 0), 1: (0, 0, 1), 2: (0, 1, 0)}  # local point that moves: the tail, or +Z for a twist
+
+
 def glb_axes(path, action, deg):
     frames, on_axis = glb_frames(path, action)
     rows = {}
     for name, f in frames.items():
         tip = q_rotate(f["rot"], (0, 1, 0))
         row = {"x_axis": q_rotate(f["rot"], (1, 0, 0)), "bone_dir": tip, "z_axis": q_rotate(f["rot"], (0, 0, 1))}
-        for axis in (0, 2):
+        for axis in (0, 1, 2):
             rot = q_mul(f["parent"], q_mul(f["local"], q_axis(axis, deg)))
-            row[f"tip_{AXIS_NAMES[axis]}"] = unit(tuple(a - b for a, b in zip(q_rotate(rot, (0, 1, 0)), tip)))
+            before = q_rotate(f["rot"], PROBE[axis])
+            row[f"tip_{AXIS_NAMES[axis]}"] = unit(tuple(a - b for a, b in zip(q_rotate(rot, PROBE[axis]), before)))
         rows[name] = row
     return rows, on_axis
 
@@ -142,22 +150,46 @@ def to_gltf(v):
     return (v[0], v[2], -v[1])
 
 
-def blend_axes(path, deg):
+def blend_axes(path, deg, action, required=True):
+    """`required` False: an `action` the file does not have means the bind pose (a bird has no pose_stand)."""
     import bpy
-    from mathutils import Euler
+    from mathutils import Quaternion, Vector
     bpy.ops.wm.open_mainfile(filepath=path)
+    if action and not required and bpy.data.actions.get(action) is None:
+        action = None
     rig = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
-    if rig.animation_data:
-        rig.animation_data.action = None
-        for t in rig.animation_data.nla_tracks:
-            t.mute = True
     for pb in rig.pose.bones:
         for c in pb.constraints:
             if c.type in ('IK', 'COPY_ROTATION'):
                 c.influence = 0.0
         pb.rotation_mode = 'XYZ'
         pb.location, pb.rotation_euler, pb.scale = (0, 0, 0), (0, 0, 0), (1, 1, 1)
+    ad = rig.animation_data
+    if ad:
+        for t in ad.nla_tracks:
+            t.mute = True
+        ad.action = None
+        act = bpy.data.actions.get(action) if action else None
+        if action and act is None:
+            raise SystemExit(f"action '{action}' not in blend")
+        if act:  # evaluate the base pose once, then keep its values without the action driving them
+            ad.action = act
+            if hasattr(ad, "action_slot") and ad.action_slot is None and len(act.slots):
+                ad.action_slot = act.slots[0]
+            bpy.context.scene.frame_set(int(act.frame_range[0]))
+            ad.action = None
+    base = {}
+    for pb in rig.pose.bones:
+        base[pb.name] = pb.rotation_euler.to_quaternion()
+        pb.rotation_mode = 'QUATERNION'
+        pb.rotation_quaternion = base[pb.name]
     bpy.context.view_layer.update()
+
+    def probe(pb, axis):
+        m = rig.matrix_world @ pb.matrix
+        return (m @ Vector(PROBE[axis])) - (rig.matrix_world @ pb.head) if axis == 1 else \
+            (rig.matrix_world @ pb.tail) - (rig.matrix_world @ pb.head)
+
     rows = {}
     for b in rig.data.bones:
         if not b.use_deform:
@@ -165,18 +197,20 @@ def blend_axes(path, deg):
         pb = rig.pose.bones[b.name]
         m = rig.matrix_world @ pb.matrix
         base_tip = (rig.matrix_world @ pb.tail) - (rig.matrix_world @ pb.head)
+        base_front = probe(pb, 1).normalized()
         row = {"x_axis": to_gltf(m.col[0][:3]), "bone_dir": to_gltf(unit(base_tip)), "z_axis": to_gltf(m.col[2][:3])}
-        for axis in (0, 2):
+        for axis in (0, 1, 2):
+            before = base_front if axis == 1 else base_tip
             e = [0.0, 0.0, 0.0]
-            e[axis] = math.radians(deg)
-            pb.rotation_euler = Euler(e)
+            e[axis] = 1.0
+            pb.rotation_quaternion = base[b.name] @ Quaternion(Vector(e), math.radians(deg))
             bpy.context.view_layer.update()
-            tip = (rig.matrix_world @ pb.tail) - (rig.matrix_world @ pb.head)
-            row[f"tip_{AXIS_NAMES[axis]}"] = to_gltf(unit(tip - base_tip))
-            pb.rotation_euler = (0, 0, 0)
+            after = probe(pb, axis).normalized() if axis == 1 else probe(pb, axis)
+            row[f"tip_{AXIS_NAMES[axis]}"] = to_gltf(unit(after - before))
+            pb.rotation_quaternion = base[b.name]
         bpy.context.view_layer.update()
         rows[b.name] = row
-    return rows
+    return rows, action
 
 
 # ---- meanings ----------------------------------------------------------------------------------
@@ -234,24 +268,25 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--glb")
     ap.add_argument("--blend")
-    ap.add_argument("--action", default="pose_stand")
+    ap.add_argument("--action", help="base pose to measure on (default pose_stand; on a blend without it, the bind pose)")
     ap.add_argument("--template")
     ap.add_argument("--deg", type=float, default=10.0)
     ap.add_argument("--out")
     a = ap.parse_args(argv)
     if bool(a.glb) == bool(a.blend):
         raise SystemExit("give exactly one of --glb or --blend")
+    action = "pose_stand" if a.action is None else a.action
     if a.glb:
-        rows, on_axis = glb_axes(a.glb, a.action or None, a.deg)
-        print(f"AXES source glb {a.glb} action {a.action} | {on_axis[0]}/{on_axis[1]} parent joints have a "
+        rows, on_axis = glb_axes(a.glb, action or None, a.deg)
+        print(f"AXES source glb {a.glb} action {action} | {on_axis[0]}/{on_axis[1]} parent joints have a "
               "child on local +Y (bone direction = +Y)")
     else:
         import os
-        rows = blend_axes(os.path.abspath(a.blend), a.deg)
-        print(f"AXES source blend {a.blend} (bind pose, IK off)")
+        rows, used = blend_axes(os.path.abspath(a.blend), a.deg, action, required=a.action is not None)
+        print(f"AXES source blend {a.blend} action {used or '(bind pose)'}, IK off")
     for name, r in rows.items():
         print(f"AXES {name:14s} bone {dominant(r['bone_dir']):12s} localX {dominant(r['x_axis']):12s} "
-              f"+X tip {dominant(r['tip_X']):12s} +Z tip {dominant(r['tip_Z'])}")
+              f"+X tip {dominant(r['tip_X']):12s} +Z tip {dominant(r['tip_Z']):12s} +Y front {dominant(r['tip_Y'])}")
     result = {"source": a.glb or a.blend, "deg": a.deg, "frame": "glTF: +X left, +Y up, +Z front",
               "bones": {k: {kk: [round(c, 4) for c in vv] for kk, vv in v.items()} for k, v in rows.items()}}
     if a.template:

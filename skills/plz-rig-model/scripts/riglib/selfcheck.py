@@ -29,6 +29,21 @@ def _dominant_groups(ob):
     return out
 
 
+def crossing_pairs(ob, depsgraph):
+    """Set of (i, j) face index pairs that cross in the evaluated mesh of `ob`."""
+    ev = ob.evaluated_get(depsgraph)
+    me = ev.to_mesh()
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    ev.to_mesh_clear()
+    bm.faces.ensure_lookup_table()
+    tree = BVHTree.FromBMesh(bm)
+    vsets = [frozenset(v.index for v in f.verts) for f in bm.faces]
+    pairs = {(min(i, j), max(i, j)) for i, j in tree.overlap(tree) if i != j and not (vsets[i] & vsets[j])}
+    bm.free()
+    return pairs
+
+
 def count_self_intersections(ob, depsgraph, groups=None, near=()):
     """(pairs, Counter of dominant groups over the crossing faces, pairs touching `near`) for the
     evaluated mesh of `ob`. `near` is a tuple of group-name prefixes; a pair counts when either face's
@@ -59,11 +74,27 @@ class SelfCheck:
     def __init__(self, meshes):
         self.meshes = [ob for ob in meshes if len(ob.data.polygons) > 0]
         self.groups = {ob.name: _dominant_groups(ob) for ob in self.meshes}
+        self.baseline = {}
+
+    def set_baseline(self, depsgraph):
+        """Remember the crossings of the current pose (the bind pose): a model that comes with overlaps
+        built in (hair cards on the scalp, layered clothes) is then judged by what each pose adds."""
+        self.baseline = {ob.name: crossing_pairs(ob, depsgraph) for ob in self.meshes}
 
     def run(self, depsgraph, near=()):
-        """{mesh: {"pairs", "where" (crossing faces per dominant group, largest first), "near"}}."""
+        """{mesh: {"pairs", "where" (crossing faces per dominant group, largest first), "near"}}, plus
+        "new" and "newWhere" (pairs absent from the baseline) once `set_baseline` has been called."""
         out = {}
         for ob in self.meshes:
             n, where, n_near = count_self_intersections(ob, depsgraph, self.groups[ob.name], near)
             out[ob.name] = {"pairs": n, "where": dict(where.most_common()), "near": n_near}
+            if ob.name in self.baseline:
+                fresh = crossing_pairs(ob, depsgraph) - self.baseline[ob.name]
+                g = self.groups[ob.name]
+                new_where = Counter()
+                for i, j in fresh:
+                    new_where[g[i]] += 1
+                    new_where[g[j]] += 1
+                out[ob.name]["new"] = len(fresh)
+                out[ob.name]["newWhere"] = dict(new_where.most_common())
         return out
