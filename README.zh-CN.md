@@ -133,6 +133,41 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 | [plz-3d-explain](skills/plz-3d-explain/README.md) | 用 three.js 3D 模型讲解技术概念和系统结构的单文件 HTML 学习页面。 | [代码沙箱（英语）](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) · [韩语](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) |
 | [plz-setup-issues](skills/plz-setup-issues/README.md) | 设置 GitHub 仓库的议题标签、缺陷与功能请求表单和分诊规则。 | — |
 | [plz-quiz](skills/plz-quiz/README.md) | 根据资料生成测验，用于学习、检查理解程度和复习错题。 | — |
+| [plz-model-sheet](skills/plz-model-sheet/README.md) | 为角色、动物、NPC 和道具制作写实的、真实尺寸的建模参考图（正交视图和转面图）。 | — |
+| [plz-sheet-to-model](skills/plz-sheet-to-model/README.md) | 根据参考图，在后台运行 Blender，生成真实尺寸、带纹理的 3D 模型（`.blend` 和 `.glb`）。 | — |
+| [plz-rig-model](skills/plz-rig-model/README.md) | 为已有的网格模型添加游戏可用的绑定（骨架、蒙皮权重、腿部 IK、基础姿势、骨骼旋转符号表）。 | — |
+
+### 建模流水线
+
+三个技能组成制作游戏用 3D 模型的流水线，顺序是 [plz-model-sheet](skills/plz-model-sheet/README.md) → [plz-sheet-to-model](skills/plz-sheet-to-model/README.md) → [plz-rig-model](skills/plz-rig-model/README.md)，每个技能也可以单独使用。
+
+- **plz-model-sheet** 接收一个对象（角色、动物、NPC 或道具），根据实测尺寸、开放许可的照片和 Codex 图像生成，制作真实尺寸的正交参考图。
+- **plz-sheet-to-model** 接收这张参考图的各视图和尺寸，生成带纹理的 `.blend` 和 `.glb`（鸟类或四足动物的身体结构），以及供绑定使用的 `landmarks.json`。
+- **plz-rig-model** 接收网格模型（来自这条流水线或其他来源的 `.blend` 或 `.glb`）和 `landmarks.json`，添加绑定，并导出 `.glb`、`.blend` 和骨骼旋转符号表。
+
+这些技能都不需要 API 密钥。它们在你的电脑上用到的工具如下：
+
+- **plz-model-sheet：** Python 3（首次运行时会把 `pillow` 和 `numpy` 安装到缓存 venv 中）、已开启图像生成且已登录的 Codex CLI（每张图像都会消耗你的 ChatGPT 用量）、用于渲染 `sheet.webp` 的无头 Chromium（没有它仍会得到 `sheet.svg`），以及能访问 Wikimedia Commons 和 Wikipedia 的网络。
+- **plz-sheet-to-model：** 在后台运行的 Blender 4.2 或更高版本，以及 Python 3（首次运行时会把 `pillow` 和 `numpy` 安装到缓存 venv 中，需要能访问 Python 包索引）。
+- **plz-rig-model：** 在后台运行的 Blender 4.4 或更高版本。不需要额外的 Python 包，也不需要网络访问。
+
+要整套安装，请对每个名称运行单个技能的安装命令。Claude Code：
+
+```sh
+for skill in plz-model-sheet plz-sheet-to-model plz-rig-model; do
+  npx skills add codekongdev/plz --skill "$skill" -a claude-code -g
+done
+```
+
+Codex：
+
+```sh
+for skill in plz-model-sheet plz-sheet-to-model plz-rig-model; do
+  npx skills add codekongdev/plz --skill "$skill" -a codex -g
+done
+```
+
+详细说明见各技能的 README。
 
 ## 参与贡献
 

@@ -133,6 +133,41 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 | [plz-3d-explain](skills/plz-3d-explain/README.md) | 技術的な概念やシステム構成を three.js の 3D モデルで学べる、単一 HTML ファイルの学習ページ。 | [コードサンドボックス（英語）](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) · [韓国語](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) |
 | [plz-setup-issues](skills/plz-setup-issues/README.md) | GitHub リポジトリの Issue ラベル、バグ・機能リクエストフォーム、トリアージ規則を設定します。 | — |
 | [plz-quiz](skills/plz-quiz/README.md) | 資料にもとづくクイズで学習し、理解度を確認して間違いを復習します。 | — |
+| [plz-model-sheet](skills/plz-model-sheet/README.md) | キャラクター、動物、NPC、小物向けの、写実的で実寸のモデリング用リファレンスシート（正投影図とターンアラウンド）。 | — |
+| [plz-sheet-to-model](skills/plz-sheet-to-model/README.md) | リファレンスシートから Blender をバックグラウンドで実行して作る、実寸でテクスチャ付きの 3D モデル（`.blend` と `.glb`）。 | — |
+| [plz-rig-model](skills/plz-rig-model/README.md) | 既存のメッシュモデルに付けるゲーム向けリグ（アーマチュア、スキンウェイト、脚 IK、基本ポーズ、ボーン回転の符号表）。 | — |
+
+### モデリングパイプライン
+
+3 つのスキルが、ゲーム向け 3D モデルを作るパイプラインになっています。順番は [plz-model-sheet](skills/plz-model-sheet/README.md) → [plz-sheet-to-model](skills/plz-sheet-to-model/README.md) → [plz-rig-model](skills/plz-rig-model/README.md) で、どのスキルも単独で使えます。
+
+- **plz-model-sheet** は対象（キャラクター、動物、NPC、小物）を受け取り、実測寸法、オープンライセンスの写真、Codex の画像生成から、実寸の正投影リファレンスシートを作ります。
+- **plz-sheet-to-model** はそのシートの各視点の画像と寸法を受け取り、テクスチャ付きの `.blend` と `.glb`（鳥または四足動物の体の構造）と、リギング用の `landmarks.json` を作ります。
+- **plz-rig-model** はメッシュモデル（このパイプラインのものでも他のものでもよい `.blend` または `.glb`）と `landmarks.json` を受け取ってリグを付け、`.glb` と `.blend`、ボーン回転の符号表を書き出します。
+
+API キーが必要なスキルはありません。お使いのマシンで使うツールは次のとおりです。
+
+- **plz-model-sheet:** Python 3（初回実行時にキャッシュ venv へ `pillow` と `numpy` をインストールします）、画像生成が有効でログイン済みの Codex CLI（画像ごとに ChatGPT の利用枠を使います）、`sheet.webp` を描画するヘッドレス Chromium（なければ `sheet.svg` だけが出力されます）、Wikimedia Commons と Wikipedia に接続できるネットワーク。
+- **plz-sheet-to-model:** バックグラウンドで実行する Blender 4.2 以降と Python 3（初回実行時にキャッシュ venv へ `pillow` と `numpy` をインストールするため、Python パッケージインデックスに接続できる必要があります）。
+- **plz-rig-model:** バックグラウンドで実行する Blender 4.4 以降。追加の Python パッケージもネットワーク接続も不要です。
+
+セットでインストールするには、名前ごとに単体スキルのインストールコマンドを実行します。Claude Code:
+
+```sh
+for skill in plz-model-sheet plz-sheet-to-model plz-rig-model; do
+  npx skills add codekongdev/plz --skill "$skill" -a claude-code -g
+done
+```
+
+Codex:
+
+```sh
+for skill in plz-model-sheet plz-sheet-to-model plz-rig-model; do
+  npx skills add codekongdev/plz --skill "$skill" -a codex -g
+done
+```
+
+詳細は各スキルの README を参照してください。
 
 ## コントリビュート
 
