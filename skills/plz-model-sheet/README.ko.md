@@ -50,7 +50,7 @@ $plz-model-sheet Make a modeling reference sheet for a domestic cat.
 
 - **Python 3**와 `venv`, `pip`. 처음 실행하면 `~/.cache/plz-model-sheet/venv`를 만들고 `pillow`와 `numpy`를 설치합니다.
 - **Codex CLI**: 이미지 생성이 켜져 있고 로그인된 계정이 필요합니다(`codex features list | grep image_generation`이 `true`이고 `codex login status`가 로그인 상태여야 합니다). 이미지를 한 장 만들 때마다 ChatGPT 사용량이 듭니다. 이미지 생성이 꺼져 있거나 로그인되어 있지 않으면 에이전트가 알려 주고 멈춥니다.
-- **헤드리스 Chromium**(예: Playwright가 설치한 것): `sheet.svg`에서 `sheet.webp`를 렌더링합니다. 자동으로 찾으며, 없으면 `MODEL_SHEET_CHROME`에 경로를 지정하세요. 없어도 `sheet.svg`는 만들어집니다.
+- **헤드리스 Chromium**(예: Playwright가 설치한 것): `sheet.svg`에서 `sheet.webp`를 렌더링합니다. 자동으로 찾으며, 없으면 `MODEL_SHEET_CHROME`에 경로를 지정하세요. 설치된 Google Chrome도 쓸 수 있습니다(Windows에서는 `MODEL_SHEET_CHROME`에 `chrome.exe` 경로를 지정). 없어도 `sheet.svg`는 만들어집니다.
 - **네트워크 접근**: 참고 사진을 위해 Wikimedia Commons와 Wikipedia(`scripts/commons_refs.py`)에, 실측 치수를 위해 에이전트의 웹 검색 도구에 접근합니다.
 
 ## 작동 방식

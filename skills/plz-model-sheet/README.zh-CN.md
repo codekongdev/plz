@@ -50,7 +50,7 @@ $plz-model-sheet Make a modeling reference sheet for a domestic cat.
 
 - **Python 3**，需包含 `venv` 和 `pip`。首次运行会创建 `~/.cache/plz-model-sheet/venv`，并在其中安装 `pillow` 和 `numpy`。
 - **Codex CLI**: 需要开启图像生成并已登录账号(`codex features list | grep image_generation` 必须显示 `true`，`codex login status` 必须是已登录状态)。每生成一张图像都会消耗你的 ChatGPT 用量。如果图像生成未开启或未登录，代理会告知你并停止。
-- **无头 Chromium**(例如 Playwright 安装的那个): 用于把 `sheet.svg` 渲染成 `sheet.webp`。会自动查找；找不到时请用 `MODEL_SHEET_CHROME` 指定路径。没有它也能得到 `sheet.svg`。
+- **无头 Chromium**(例如 Playwright 安装的那个): 用于把 `sheet.svg` 渲染成 `sheet.webp`。会自动查找；找不到时请用 `MODEL_SHEET_CHROME` 指定路径。已安装的 Google Chrome 也可以使用(在 Windows 上把 `MODEL_SHEET_CHROME` 指向 `chrome.exe`)。没有它也能得到 `sheet.svg`。
 - **网络访问**: 为获取参考照片，会访问 Wikimedia Commons 和 Wikipedia(`scripts/commons_refs.py`)；为获取实测尺寸，会使用代理的网络搜索工具。
 
 ## 工作方式
