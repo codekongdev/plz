@@ -9,7 +9,12 @@ blender -b --factory-startup -P sweep_limits.py -- --blend X.blend --out sweep.j
 --hold BONE:AXIS:DEG     a fixed rotation applied in every sample.
 --near a,b,...           also count only pairs where a crossing face's dominant vertex group starts
                          with one of these names (the joint's neighbourhood); default all pairs.
+--base ACTION            start every sample from that action's first frame (e.g. pose_stand, whose
+                         arms differ from an A-pose bind) and add the angles on top as an engine does
+                         (base * local rotation). Without it the samples start from the bind pose.
 IK and copy-rotation constraints are switched off so the angles are pure FK, like an engine.
+The bind pose's own crossings are the baseline: `new` counts the pairs a sample adds (the number to
+read for a model with crossings built in, such as hair cards or layered clothes).
 Prints one `SWEEP` line per sample and writes the table to --out.
 """
 import argparse
@@ -55,16 +60,43 @@ def pose_bone_names(rig, name):
     return names
 
 
-def set_rotation(rig, specs):
+def set_rotation(rig, specs, base=None):
     for pb in rig.pose.bones:
         pb.rotation_mode = 'XYZ'
         pb.location, pb.rotation_euler, pb.scale = (0, 0, 0), (0, 0, 0), (1, 1, 1)
-    for names, axis, deg in specs:
-        for n in names:
-            e = list(rig.pose.bones[n].rotation_euler)
-            e[axis] += math.radians(deg)
-            rig.pose.bones[n].rotation_euler = e
+    if base is None:
+        for names, axis, deg in specs:
+            for n in names:
+                e = list(rig.pose.bones[n].rotation_euler)
+                e[axis] += math.radians(deg)
+                rig.pose.bones[n].rotation_euler = e
+    else:
+        from mathutils import Quaternion, Vector
+        for pb in rig.pose.bones:
+            pb.rotation_mode = 'QUATERNION'
+            pb.location, pb.rotation_quaternion, pb.scale = base[pb.name]
+        for names, axis, deg in specs:
+            for n in names:
+                e = [0.0, 0.0, 0.0]
+                e[axis] = 1.0
+                pb = rig.pose.bones[n]
+                pb.rotation_quaternion = pb.rotation_quaternion @ Quaternion(Vector(e), math.radians(deg))
     bpy.context.view_layer.update()
+
+
+def base_pose(rig, name):
+    """{bone: (location, quaternion, scale)} of an action's first frame (scale keeps a bird's hidden wings hidden)."""
+    act = bpy.data.actions.get(name)
+    if act is None:
+        raise SystemExit(f"action '{name}' not in the blend")
+    ad = rig.animation_data or rig.animation_data_create()
+    ad.action = act
+    if hasattr(ad, "action_slot") and ad.action_slot is None and len(act.slots):
+        ad.action_slot = act.slots[0]
+    bpy.context.scene.frame_set(int(act.frame_range[0]))
+    out = {pb.name: (pb.location.copy(), pb.rotation_euler.to_quaternion(), pb.scale.copy()) for pb in rig.pose.bones}
+    ad.action = None
+    return out
 
 
 def main():
@@ -75,6 +107,7 @@ def main():
     ap.add_argument("--hold", action="append", default=[])
     ap.add_argument("--mesh")
     ap.add_argument("--near", default="")
+    ap.add_argument("--base")
     a = script_args(ap)
     if len(a.vary) > 2:
         raise SystemExit("at most two --vary")
@@ -99,23 +132,26 @@ def main():
         raise SystemExit(f"mesh not found: {a.mesh}")
     mesh = meshes[0]
     check = SelfCheck([mesh])
+    set_rotation(rig, [])
+    check.set_baseline(bpy.context.evaluated_depsgraph_get())
+    base = base_pose(rig, a.base) if a.base else None
     near = tuple(n for n in a.near.split(",") if n)
     vary = [parse_spec(v, True) for v in a.vary]
     hold = [(pose_bone_names(rig, b), ax, vals[0]) for b, ax, vals in (parse_spec(h, False) for h in a.hold)]
     rows = []
     for combo in itertools.product(*[vals for _, _, vals in vary]):
         specs = hold + [(pose_bone_names(rig, b), ax, deg) for (b, ax, _), deg in zip(vary, combo)]
-        set_rotation(rig, specs)
+        set_rotation(rig, specs, base)
         res = check.run(bpy.context.evaluated_depsgraph_get(), near)[mesh.name]
         n_near = res["near"] if near else res["pairs"]
         row = {"angles": dict(zip([b for b, _, _ in vary], combo)), "pairs": res["pairs"], "near": n_near,
-               "where": res["where"]}
+               "new": res["new"], "where": res["where"], "newWhere": res["newWhere"]}
         rows.append(row)
         log("SWEEP", " ".join(f"{v.split(':')[0]}={d:g}" for v, d in zip(a.vary, combo)),
-            "| pairs", res["pairs"], "| near", n_near)
+            "| pairs", res["pairs"], "| near", n_near, "| new", res["new"], dict(list(res["newWhere"].items())[:4]))
     with open(a.out, "w") as fh:
         json.dump({"blend": a.blend, "mesh": mesh.name, "vary": a.vary, "hold": a.hold, "near": a.near,
-                   "rows": rows}, fh, indent=1)
+                   "base": a.base, "rows": rows}, fh, indent=1)
     log("sweep", a.out, len(rows), "samples")
 
 

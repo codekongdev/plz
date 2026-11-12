@@ -143,7 +143,7 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 - **plz-model-sheet**는 대상(캐릭터, 동물, NPC, 소품)을 받아 실측 치수, 오픈 라이선스 사진, Codex 이미지 생성으로 실제 크기의 정사영 기준 시트를 만듭니다.
 - **plz-sheet-to-model**은 그 시트의 시점 이미지와 치수를 받아 텍스처가 입혀진 `.blend`와 `.glb`(새 또는 네발짐승 몸 구조), 그리고 리깅에 넘길 `landmarks.json`을 만듭니다.
-- **plz-rig-model**은 메시 모델(이 파이프라인이든 다른 곳에서 온 것이든 `.blend` 또는 `.glb`)과 `landmarks.json`을 받아 리그를 붙이고, `.glb`와 `.blend`, 본 회전 방향표를 내보냅니다.
+- **plz-rig-model**은 메시 모델(이 파이프라인이든 다른 곳에서 온 것이든 `.blend` 또는 `.glb`, 리그가 이미 있는 아바타도 됨)과 `landmarks.json`을 받아 리그를 붙이고, `.glb`와 `.blend`, 본 회전 방향표를 내보냅니다.
 
 API 키가 필요한 스킬은 없습니다. 내 컴퓨터에서 쓰는 도구는 다음과 같습니다.
 

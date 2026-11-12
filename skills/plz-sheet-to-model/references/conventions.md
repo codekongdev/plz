@@ -60,3 +60,12 @@ The definitions of bones, weights, and poses are in `references/templates.md` of
   - Hind legs: `thigh: hip_joint->knee`, `shin: knee->hock`, `hind_foot: hock->hind_ball`, `hind_paw: hind_ball->hind_toe`
 - `body` is a single-layer closed shell continuous from the leg roots. There are no other faces buried inside, so hidden faces do not poke through when the legs swing widely. The leg weights are divided within this one mesh.
 - The ears and eyes are separate meshes, so each is bound 100% to one bone (the ears to `ear.*`, the eyes to `head`).
+
+## What the humanoid template requires
+
+- Center points: `hip` (pelvis joint), `spine`, `chest`, `upper_chest`, `neck_base`, `head_base`, `head_top` (crown height above the head joint)
+- Left and right points (`.L/.R`): `eye` (informational, and the usual `scaleTo` point), `clavicle, shoulder, elbow, wrist, hand_end, hip_joint, knee, ankle, ball, toe_end`
+- Part roles: `body` (one skinned mesh; clothes, hair cards, eyes and teeth may be part of it)
+- `sourceGroups`: the source vertex group -> template bone map, written by `import_rigged.py` from the template's `sourceRigs`. The `source_groups` weight rule needs it.
+- The model is bound in an A- or T-pose; the base pose `pose_stand` lowers the arms with `aim`. Joints come from the source bone heads, so the kept weights deform around the pivots they were painted for.
+- How bones relate to points: `hips: hip->spine`, `spine: spine->chest`, `chest: chest->upper_chest`, `upper_chest: upper_chest->neck_base`, `neck: neck_base->head_base`, `head: head_base->head_top`, `clavicle: clavicle->shoulder`, `upper_arm: shoulder->elbow`, `forearm: elbow->wrist`, `hand: wrist->hand_end`, `thigh: hip_joint->knee`, `shin: knee->ankle`, `foot: ankle->ball`, `toe: ball->toe_end`.

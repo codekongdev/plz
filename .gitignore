@@ -2,3 +2,4 @@
 node_modules/
 # Personal settings. The template is references/preferences.example.md in each skill
 skills/*/references/preferences.md
+__pycache__/

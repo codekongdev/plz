@@ -1,0 +1,120 @@
+{
+ "name": "humanoid",
+ "bodyPlan": "humanoid",
+ "description": "A person standing upright, bound in an A- or T-pose. One skinned body mesh (clothes, hair, eyes may be part of it) that already carries skin weights from its source rig: `source_groups` sums them into the template bones, so the artist's weights are kept. Fingers, face and eyes ride the hand and head bones. Every bone is rolled with alignZ so local X is the sideways axis of the trunk, legs and lowered arms. The base pose `pose_stand` aims the arms down to the sides; the game adds its motions on top. Legs are FK in the game; the .blend adds foot IK controls that are switched off in the FK test poses. Validated on a Microsoft Rocketbox avatar (3ds Max Biped source rig).",
+ "units": {"points": "landmarks.json metres", "move": "cm (x lateral +left, f forward, z up)", "rotate": "degrees about local X, Y, Z applied in that order (rotateOrder ZYX, as the game bends), added on top of the base pose", "aim": "direction (x, f, z), x mirrored on .R"},
+ "rotateOrder": "ZYX",
+ "bones": [
+  {"name": "root", "head": "origin", "tail": {"from": "origin", "forward_cm": 3}, "parent": null},
+  {"name": "hips", "head": "hip", "tail": "spine", "parent": "root", "alignZ": "front"},
+  {"name": "spine", "head": "spine", "tail": "chest", "parent": "hips", "alignZ": "front"},
+  {"name": "chest", "head": "chest", "tail": "upper_chest", "parent": "spine", "alignZ": "front"},
+  {"name": "upper_chest", "head": "upper_chest", "tail": "neck_base", "parent": "chest", "alignZ": "front"},
+  {"name": "neck", "head": "neck_base", "tail": "head_base", "parent": "upper_chest", "alignZ": "front"},
+  {"name": "head", "head": "head_base", "tail": "head_top", "parent": "neck", "alignZ": "front"},
+  {"name": "clavicle", "sided": true, "head": "clavicle", "tail": "shoulder", "parent": "upper_chest", "alignZ": "back"},
+  {"name": "upper_arm", "sided": true, "head": "shoulder", "tail": "elbow", "parent": "clavicle", "alignZ": "back"},
+  {"name": "forearm", "sided": true, "head": "elbow", "tail": "wrist", "parent": "upper_arm", "alignZ": "back"},
+  {"name": "hand", "sided": true, "head": "wrist", "tail": "hand_end", "parent": "forearm", "alignZ": "back"},
+  {"name": "thigh", "sided": true, "head": "hip_joint", "tail": "knee", "parent": "hips", "alignZ": "back"},
+  {"name": "shin", "sided": true, "head": "knee", "tail": "ankle", "parent": "thigh", "alignZ": "back"},
+  {"name": "foot", "sided": true, "head": "ankle", "tail": "ball", "parent": "shin", "alignZ": "down"},
+  {"name": "toe", "sided": true, "head": "ball", "tail": "toe_end", "parent": "foot", "alignZ": "down"},
+  {"name": "foot_ik", "sided": true, "head": "ankle", "tail": "ball", "parent": "root", "deform": false, "alignZ": "down"}
+ ],
+ "ik": [
+  {"bone": "shin", "target": "foot_ik", "chain": 2, "copyRotation": "foot", "sided": true}
+ ],
+ "weights": [
+  {"part": "body", "method": "source_groups", "maxInfluences": 4}
+ ],
+ "basePoses": [
+  {"name": "pose_stand",
+   "aim": {"upper_arm.*": [14, -3, -100], "forearm.*": [16, 10, -100], "hand.*": [10, 8, -100]}}
+ ],
+ "testPoses": {
+  "action": "rig_test",
+  "interpolation": "CONSTANT",
+  "ik": false,
+  "frames": [
+   {"label": "rest", "base": "pose_stand"},
+   {"label": "look_away", "base": "pose_stand", "rotate": {"upper_chest": [0, 10, 0], "neck": [0, 25, 0], "head": [0, 35, 0]}},
+   {"label": "phone", "base": "pose_stand", "rotate": {"upper_chest": [3, 0, 0], "neck": [12, 0, 0], "head": [26, 0, 0],
+               "upper_arm.L": [-22, 0, 8], "upper_arm.R": [-22, 0, -8], "forearm.*": [-100, 0, 0], "hand.*": [-15, 0, 0]}},
+   {"label": "alert", "base": "pose_stand", "move": {"root": [0, 0, -0.8]},
+    "rotate": {"spine": [5, 0, 0], "chest": [4, 0, 0], "neck": [10, 14, 0], "head": [-12, 18, 0],
+               "thigh.*": [-10, 0, 0], "shin.*": [18, 0, 0], "foot.*": [-8, 0, 0],
+               "upper_arm.R": [-115, -60, 15], "forearm.R": [-70, 0, 0], "hand.R": [10, 0, 0],
+               "upper_arm.L": [-8, 0, 0], "forearm.L": [-20, 0, 0]}},
+   {"label": "walk", "base": "pose_stand",
+    "rotate": {"thigh.L": [-25, 0, 0], "shin.L": [8, 0, 0], "foot.L": [10, 0, 0],
+               "thigh.R": [15, 0, 0], "shin.R": [30, 0, 0], "foot.R": [-15, 0, 0],
+               "upper_arm.R": [-20, 0, 0], "forearm.R": [-20, 0, 0], "upper_arm.L": [18, 0, 0], "forearm.L": [-10, 0, 0]}},
+   {"label": "run", "base": "pose_stand", "move": {"root": [0, 0, -2]},
+    "rotate": {"spine": [8, 0, 0], "chest": [4, 0, 0],
+               "thigh.L": [-45, 0, 0], "shin.L": [25, 0, 0], "thigh.R": [25, 0, 0], "shin.R": [70, 0, 0], "foot.R": [-20, 0, 0],
+               "upper_arm.L": [35, 0, 0], "forearm.L": [-70, 0, 0], "upper_arm.R": [-40, 0, 0], "forearm.R": [-70, 0, 0]}},
+   {"label": "shoo", "base": "pose_stand", "rotate": {"spine": [7, 0, 0], "chest": [4, 0, 0], "neck": [-4, 0, 0],
+               "upper_arm.R": [-100, 0, 12], "forearm.R": [-57, 70, 0], "hand.R": [25, 0, 0],
+               "upper_arm.L": [-20, 0, 0], "forearm.L": [-40, 0, 0]}},
+   {"label": "arms_out", "base": "pose_stand", "rotate": {"upper_arm.L": [0, 0, -60], "upper_arm.R": [0, 0, 60]}},
+   {"label": "crouch", "base": "pose_stand", "move": {"root": [0, 0, -10]},
+    "rotate": {"thigh.*": [-50, 0, 0], "shin.*": [90, 0, 0], "foot.*": [-40, 0, 0], "spine": [15, 0, 0]}}
+  ]
+ },
+ "rotationSigns": {
+  "frame": "glTF axes: +X the model's left, +Y up, +Z front. Tip = the bone's tail (for axis Y, the end of local +Z); sign +1 means a positive local rotation moves the tip the listed way. Measured on top of pose_stand.",
+  "meanings": {
+   "bendForward": {"bones": ["hips", "spine", "chest", "upper_chest", "neck", "head"], "axis": "X", "tipMoves": "+Z"},
+   "turnLeft": {"bones": ["spine", "chest", "upper_chest", "neck", "head"], "axis": "Y", "tipMoves": "+X"},
+   "tiltLeft": {"bones": ["spine", "chest", "upper_chest", "neck", "head"], "axis": "Z", "tipMoves": "+X"},
+   "legForward": {"bones": ["thigh.*"], "axis": "X", "tipMoves": "+Z"},
+   "kneeBend": {"bones": ["shin.*"], "axis": "X", "tipMoves": "-Z"},
+   "toeDown": {"bones": ["foot.*", "toe.*"], "axis": "X", "tipMoves": "-Y"},
+   "armForward": {"bones": ["upper_arm.*"], "axis": "X", "tipMoves": "+Z"},
+   "elbowBend": {"bones": ["forearm.*"], "axis": "X", "tipMoves": "+Z"},
+   "wristBack": {"bones": ["hand.*"], "axis": "X", "tipMoves": "-Z"},
+   "armOutLeft": {"bones": ["upper_arm.L"], "axis": "Z", "tipMoves": "+X"},
+   "armOutRight": {"bones": ["upper_arm.R"], "axis": "Z", "tipMoves": "-X"},
+   "armRollOutLeft": {"bones": ["upper_arm.L"], "axis": "Y", "tipMoves": "-X"},
+   "armRollOutRight": {"bones": ["upper_arm.R"], "axis": "Y", "tipMoves": "+X"},
+   "palmForwardLeft": {"bones": ["forearm.L"], "axis": "Y", "tipMoves": "-X"},
+   "palmForwardRight": {"bones": ["forearm.R"], "axis": "Y", "tipMoves": "+X"}
+  }
+ },
+ "sourceRigs": {
+  "biped": {
+   "description": "3ds Max Biped as exported to FBX (Bip01 ...), e.g. the Microsoft Rocketbox avatars. {S} is L or R. Points are bone heads unless an offset or a mesh extreme is given.",
+   "points": {
+    "hip": {"bone": "Bip01 Pelvis"},
+    "spine": {"bone": "Bip01 Spine"},
+    "chest": {"bone": "Bip01 Spine1"},
+    "upper_chest": {"bone": "Bip01 Spine2"},
+    "neck_base": {"bone": "Bip01 Neck"},
+    "head_base": {"bone": "Bip01 Head"},
+    "head_top": {"bone": "Bip01 Head", "extreme": "top", "group": "Bip01 Head"},
+    "eye.*": {"bone": "Bip01 {S}Eye"},
+    "clavicle.*": {"bone": "Bip01 {S} Clavicle"},
+    "shoulder.*": {"bone": "Bip01 {S} UpperArm"},
+    "elbow.*": {"bone": "Bip01 {S} Forearm"},
+    "wrist.*": {"bone": "Bip01 {S} Hand"},
+    "hand_end.*": {"bone": "Bip01 {S} Finger2"},
+    "hip_joint.*": {"bone": "Bip01 {S} Thigh"},
+    "knee.*": {"bone": "Bip01 {S} Calf"},
+    "ankle.*": {"bone": "Bip01 {S} Foot"},
+    "ball.*": {"bone": "Bip01 {S} Toe0"},
+    "toe_end.*": {"bone": "Bip01 {S} Toe0", "extreme": "front", "group": "Bip01 {S} Toe0"}
+   },
+   "groups": {
+    "Bip01": "hips", "Bip01 Pelvis": "hips", "Bip01 Spine": "spine", "Bip01 Spine1": "chest",
+    "Bip01 Spine2": "upper_chest", "Bip01 Neck": "neck", "Bip01 Head": "head",
+    "re:^Bip01 [LRM][A-Z][A-Za-z]*$": "head",
+    "Bip01 {S} Clavicle": "clavicle.{S}", "Bip01 {S} UpperArm": "upper_arm.{S}", "Bip01 {S} Forearm": "forearm.{S}",
+    "Bip01 {S} Hand": "hand.{S}", "re:^Bip01 {S} Finger[0-4]+$": "hand.{S}",
+    "Bip01 {S} Thigh": "thigh.{S}", "Bip01 {S} Calf": "shin.{S}", "Bip01 {S} Foot": "foot.{S}", "Bip01 {S} Toe0": "toe.{S}"
+   }
+  }
+ },
+ "export": {"image_format": "AUTO", "jpeg_quality": 90, "animation_mode": "NLA_TRACKS",
+            "deform_bones_only": true, "apply_modifiers": true, "morph": false}
+}

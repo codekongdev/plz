@@ -107,7 +107,51 @@ def span_blend(rig, ob, rule, lm):
                 g.add([v.index], w, 'REPLACE')
 
 
-STRATEGIES = {"heat": heat, "rigid": rigid, "nearest_segments": nearest_segments, "span_blend": span_blend}
+def _source_target(name, mapping, patterns):
+    if name in mapping:
+        return mapping[name]
+    return next((bone for pattern, bone in patterns if pattern.search(name)), None)
+
+
+def source_groups(rig, ob, rule, lm):
+    """Keep the skin weights the model came with (a bought or downloaded rig): each source vertex group
+    is summed into the template bone that `sourceGroups` in landmarks.json maps it to (exact names, or
+    "re:<regex>" keys), then rows are renormalised. A group that carries weight but has no mapping
+    stops the run with its name, so no part of the mesh is silently left on the wrong bone."""
+    import re
+    table = lm.data.get("sourceGroups")
+    if not table:
+        raise SystemExit(f"{ob.name}: method source_groups needs `sourceGroups` in {lm.path}")
+    mapping = {k: v for k, v in table.items() if not k.startswith("re:")}
+    patterns = [(re.compile(k[3:]), v) for k, v in table.items() if k.startswith("re:")]
+    names, w = _read_weights(ob)
+    if not names:
+        raise SystemExit(f"{ob.name}: no source vertex groups to keep (was the rig stripped first?)")
+    bones = {b.name for b in rig.data.bones if b.use_deform}
+    targets = sorted({t for t in (_source_target(n, mapping, patterns) for n in names) if t})
+    missing = [t for t in targets if t not in bones]
+    if missing:
+        raise SystemExit(f"{ob.name}: sourceGroups maps to bones the template does not deform: {missing}")
+    out = np.zeros((w.shape[0], len(targets)))
+    unmapped = []
+    for i, name in enumerate(names):
+        t = _source_target(name, mapping, patterns)
+        if t is None:
+            if w[:, i].max() > 1e-4:
+                unmapped.append(name)
+            continue
+        out[:, targets.index(t)] += w[:, i]
+    if unmapped:
+        raise SystemExit(f"{ob.name}: weighted source groups with no mapping in sourceGroups: {unmapped}")
+    bind(ob, rig)
+    for t in targets:
+        ob.vertex_groups.new(name=t)
+    _write_weights(ob, targets, _normalise(out))
+    log(f"{ob.name}: kept source weights from {len(names)} groups as {len(targets)} bones")
+
+
+STRATEGIES = {"heat": heat, "rigid": rigid, "nearest_segments": nearest_segments, "span_blend": span_blend,
+              "source_groups": source_groups}
 
 
 # ---- region lock ----------------------------------------------------------------------

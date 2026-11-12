@@ -41,10 +41,11 @@ $plz-rig-model Rig this cat model so it can walk and run in my game.
 - “이 네발짐승에 아마추어, 스키닝, 다리 IK를 붙여 줘.”
 - “게임 코드에서 쓸 수 있게 본마다 어느 쪽으로 도는지 +1, -1 부호로 알려 줘.”
 - “메시를 고쳤으니 리그를 다시 붙여 줘.”
+- “뼈대가 이미 있는 이 내려받은 캐릭터를 우리 약속에 맞춰 가져오고 스킨 웨이트는 살려 줘.”
 
 ## 요구 사항
 
-- Blender 4.4 이상(5.2에서 검증). 스킬이 창 없이 백그라운드로 실행합니다: `blender -b --factory-startup -P <script> -- <arguments>`. 실행 파일이 기본 경로에 없으면 `BLENDER` 환경 변수에 경로를 지정하세요.
+- Blender 4.4 이상(macOS와 Windows의 5.2에서 검증). 스킬이 창 없이 백그라운드로 실행합니다: `blender -b --factory-startup -P <script> -- <arguments>`. 실행 파일이 기본 경로에 없으면 `BLENDER` 환경 변수에 경로를 지정하세요.
 - numpy와 glTF 애드온은 Blender에 들어 있는 Python과 애드온을 쓰므로 Python 패키지를 따로 설치하지 않습니다.
 - 시스템 `python3`는 Blender가 필요 없는 두 가지 확인에만 씁니다. `.glb`에 대한 `rig_axes.py`와 `inspect_rig.py compare`이며, 표준 라이브러리만 사용합니다.
 - 네트워크 접속과 API 키는 필요 없습니다.
@@ -53,13 +54,13 @@ $plz-rig-model Rig this cat model so it can walk and run in my game.
 
 몸 구조 템플릿(`templates/<name>.json`)이 본, 웨이트 방식, 자세를 데이터로 기술합니다. 본 위치는 모델 위의 특징점(`landmarks.json`)에서 오므로, 같은 몸 구조의 다른 개체는 특징점만 바꿔 리깅합니다.
 
-- **템플릿:** `bird`(땅에 서는 새, 접은 날개와 편 날개 전환)와 `quadruped`(고양이 같은 네발짐승, 몸·머리·꼬리·네 다리가 한 껍질이고 귀와 눈은 따로). 다른 몸 구조는 [references/templates.md](references/templates.md)의 형식으로 새 템플릿을 만듭니다.
+- **템플릿:** `bird`(땅에 서는 새, 접은 날개와 편 날개 전환), `quadruped`(고양이 같은 네발짐승, 몸·머리·꼬리·네 다리가 한 껍질이고 귀와 눈은 따로), `humanoid`(A자나 T자 자세로 묶인 사람. 메시에 원래 리그의 스킨 웨이트가 있고 그 웨이트를 그대로 씀). 다른 몸 구조는 [references/templates.md](references/templates.md)의 형식으로 새 템플릿을 만듭니다.
 - **단계:** 템플릿과 좌표 약속 확인([references/conventions.md](references/conventions.md)), `landmarks.json` 준비, 리깅, 자세 렌더와 자기 교차 수 세기, 검증(다시 불러오기, 이전 버전과 비교, 재현성, 회전 방향표, 각도 한계), 문서화와 보고.
-- **재현 가능:** 같은 입력이면 같은 결과가 나옵니다. 검증한 고양이 예시에서는 glb 바이트까지 같습니다.
+- **재현 가능:** 같은 입력이면 같은 결과가 나옵니다. 검증한 고양이와 사람 예시에서는 glb 바이트까지 같습니다.
 
 ## 입력과 출력
 
-입력: `.blend` 또는 `.glb` 메시 모델과 `landmarks.json`. 특징점을 채울 수 있도록 격자가 붙은 정사영 그림과 빈 `landmarks.todo.json`을 뽑아 줄 수도 있습니다.
+입력: `.blend` 또는 `.glb` 메시 모델과 `landmarks.json`. 특징점을 채울 수 있도록 격자가 붙은 정사영 그림과 빈 `landmarks.todo.json`을 뽑아 줄 수도 있습니다. 리그가 이미 있는 모델(FBX나 glTF 아바타)은 먼저 `import_rigged.py`로 가져옵니다. 축척을 맞추고 스킨 웨이트를 남기며, 본에서 `landmarks.json`을 쓰고, 기준 시트에 맞춰 옷 색을 바꿀 수도 있습니다.
 
 | 출력 | 내용 |
 | --- | --- |
@@ -73,7 +74,8 @@ $plz-rig-model Rig this cat model so it can walk and run in my game.
 
 ## 한계
 
-- 검증된 템플릿은 `bird`와 `quadruped`뿐입니다. 인간형, 뱀 같은 다른 몸 구조는 실제 대상으로 확인을 통과한 새 템플릿이 필요합니다.
+- 템플릿마다 대상 하나로 검증했습니다. `bird`는 비둘기, `quadruped`는 고양이, `humanoid`는 내려받은 리그 인물(Microsoft Rocketbox 아바타)입니다. 뱀 같은 다른 몸 구조는 실제 대상으로 확인을 통과한 새 템플릿이 필요합니다.
+- `humanoid` 템플릿은 원래 리그의 스킨 웨이트를 쓰고 얼굴·손가락 본을 머리와 손에 합치므로, 손가락과 표정은 움직이지 않습니다. 스킨 웨이트가 없는 사람 메시에는 다른 웨이트 규칙이 필요합니다.
 - bird의 접은 날개/편 날개 전환에는 중간 형태가 없으므로 빠른 날갯짓으로 가려야 합니다.
 - 선형 스키닝에는 충돌이 없습니다. 관절을 크게 굽히면 피부가 맞닿는 선이 남을 수 있고, 이는 없애지 않고 각도 한계로 기록합니다.
 - 리깅에는 Blender MCP를 쓰지 마세요. MCP 안전 모드는 저장된 스크립트를 실행하지 못합니다. 스킬은 사용자가 열어 둔 Blender 파일도 건드리지 않습니다.
