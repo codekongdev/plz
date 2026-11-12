@@ -133,6 +133,41 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 | [plz-3d-explain](skills/plz-3d-explain/README.md) | 기술 개념과 시스템 구조를 three.js 3D 모형으로 공부하는 단일 HTML 학습 페이지를 만듭니다. | [코드 샌드박스(한국어)](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) · [영어](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) |
 | [plz-setup-issues](skills/plz-setup-issues/README.md) | GitHub 저장소의 이슈 라벨, 버그·기능 요청 양식, 검토 규칙을 세팅합니다. | — |
 | [plz-quiz](skills/plz-quiz/README.md) | 문서 기반 퀴즈로 공부하고 이해도를 확인하며 오답을 복습합니다. | — |
+| [plz-model-sheet](skills/plz-model-sheet/README.md) | 캐릭터, 동물, NPC, 소품을 위한 사실적인 실제 크기 모델링 기준 시트(정사영 도면과 턴어라운드)를 만듭니다. | — |
+| [plz-sheet-to-model](skills/plz-sheet-to-model/README.md) | 기준 시트로 Blender를 백그라운드로 실행해 실제 크기의 텍스처 입힌 3D 모델(`.blend`, `.glb`)을 만듭니다. | — |
+| [plz-rig-model](skills/plz-rig-model/README.md) | 이미 있는 메시 모델에 게임용 리그(아마추어, 스킨 웨이트, 다리 IK, 기본 자세, 본 회전 방향표)를 붙입니다. | — |
+
+### 모델링 파이프라인
+
+스킬 세 개가 게임용 3D 모델을 만드는 파이프라인을 이룹니다. [plz-model-sheet](skills/plz-model-sheet/README.md) → [plz-sheet-to-model](skills/plz-sheet-to-model/README.md) → [plz-rig-model](skills/plz-rig-model/README.md) 순서이며, 각 스킬은 따로 써도 됩니다.
+
+- **plz-model-sheet**는 대상(캐릭터, 동물, NPC, 소품)을 받아 실측 치수, 오픈 라이선스 사진, Codex 이미지 생성으로 실제 크기의 정사영 기준 시트를 만듭니다.
+- **plz-sheet-to-model**은 그 시트의 시점 이미지와 치수를 받아 텍스처가 입혀진 `.blend`와 `.glb`(새 또는 네발짐승 몸 구조), 그리고 리깅에 넘길 `landmarks.json`을 만듭니다.
+- **plz-rig-model**은 메시 모델(이 파이프라인이든 다른 곳에서 온 것이든 `.blend` 또는 `.glb`)과 `landmarks.json`을 받아 리그를 붙이고, `.glb`와 `.blend`, 본 회전 방향표를 내보냅니다.
+
+API 키가 필요한 스킬은 없습니다. 내 컴퓨터에서 쓰는 도구는 다음과 같습니다.
+
+- **plz-model-sheet:** Python 3(처음 실행할 때 캐시 venv에 `pillow`와 `numpy`를 설치합니다), 이미지 생성이 켜져 있고 로그인된 Codex CLI(이미지마다 ChatGPT 사용량이 듭니다), `sheet.webp`를 그리는 헤드리스 Chromium(없으면 `sheet.svg`만 나옵니다), Wikimedia Commons와 Wikipedia에 접속할 수 있는 네트워크.
+- **plz-sheet-to-model:** 백그라운드로 실행하는 Blender 4.2 이상과 Python 3(처음 실행할 때 캐시 venv에 `pillow`와 `numpy`를 설치하므로 Python 패키지 인덱스에 접속할 수 있어야 합니다).
+- **plz-rig-model:** 백그라운드로 실행하는 Blender 4.4 이상. 따로 설치할 Python 패키지도, 네트워크 접속도 필요 없습니다.
+
+세트로 설치하려면 이름마다 단일 스킬 설치 명령을 실행합니다. Claude Code:
+
+```sh
+for skill in plz-model-sheet plz-sheet-to-model plz-rig-model; do
+  npx skills add codekongdev/plz --skill "$skill" -a claude-code -g
+done
+```
+
+Codex:
+
+```sh
+for skill in plz-model-sheet plz-sheet-to-model plz-rig-model; do
+  npx skills add codekongdev/plz --skill "$skill" -a codex -g
+done
+```
+
+자세한 내용은 각 스킬의 README에 있습니다.
 
 ## 기여
 

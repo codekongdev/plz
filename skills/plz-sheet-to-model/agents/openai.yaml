@@ -1,0 +1,3 @@
+interface:
+  display_name: "Sheet to 3D Model"
+  short_description: "Build a real-size textured 3D model from a reference sheet via headless Blender"
