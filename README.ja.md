@@ -143,7 +143,7 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 - **plz-model-sheet** は対象（キャラクター、動物、NPC、小物）を受け取り、実測寸法、オープンライセンスの写真、Codex の画像生成から、実寸の正投影リファレンスシートを作ります。
 - **plz-sheet-to-model** はそのシートの各視点の画像と寸法を受け取り、テクスチャ付きの `.blend` と `.glb`（鳥または四足動物の体の構造）と、リギング用の `landmarks.json` を作ります。
-- **plz-rig-model** はメッシュモデル（このパイプラインのものでも他のものでもよい `.blend` または `.glb`）と `landmarks.json` を受け取ってリグを付け、`.glb` と `.blend`、ボーン回転の符号表を書き出します。
+- **plz-rig-model** はメッシュモデル（このパイプラインのものでも他のものでもよい `.blend` または `.glb`。リグがすでにあるアバターでもよい）と `landmarks.json` を受け取ってリグを付け、`.glb` と `.blend`、ボーン回転の符号表を書き出します。
 
 API キーが必要なスキルはありません。お使いのマシンで使うツールは次のとおりです。
 

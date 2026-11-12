@@ -34,15 +34,17 @@ def load_model(path):
         raise SystemExit(f"unsupported model format: {path}")
 
 
-def strip_old_rig(lm, rig_name):
-    """Allow re-rigging: drop an existing rig, armature modifiers and vertex groups on parts."""
+def strip_old_rig(lm, rig_name, keep_groups=()):
+    """Allow re-rigging: drop an existing rig, armature modifiers and vertex groups on parts. Parts in
+    `keep_groups` (weighted by `source_groups`) keep their vertex groups, which that rule maps."""
     for role, name in lm.parts.items():
         ob = bpy.data.objects.get(name)
         if ob is None:
             continue
         for m in [m for m in ob.modifiers if m.type == 'ARMATURE']:
             ob.modifiers.remove(m)
-        ob.vertex_groups.clear()
+        if role not in keep_groups:
+            ob.vertex_groups.clear()
     old = bpy.data.objects.get(rig_name)
     if old:
         for c in list(old.children):
@@ -100,7 +102,8 @@ def main():
     os.makedirs(a.out, exist_ok=True)
 
     load_model(os.path.abspath(a.model))
-    strip_old_rig(lm, rig_name)
+    keep = {p for rule in template["weights"] if rule["method"] == "source_groups" for p in expand([rule["part"]])}
+    strip_old_rig(lm, rig_name, keep)
     check_inputs(template, lm)
 
     rig = build_armature(rig_name, template, lm)

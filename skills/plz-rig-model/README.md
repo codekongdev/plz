@@ -41,10 +41,11 @@ Example requests:
 - “Add an armature, skinning, and leg IK to this quadruped.”
 - “Tell me which way each bone rotates, with +1 or -1 signs, for the game code.”
 - “Re-attach the rig after I changed the mesh.”
+- “Bring this downloaded character, which already has a skeleton, into our conventions and keep its skin weights.”
 
 ## Requirements
 
-- Blender 4.4 or later (verified on 5.2). The skill runs it in the background, with no window: `blender -b --factory-startup -P <script> -- <arguments>`. Set the `BLENDER` environment variable to the executable if it is not at the default path.
+- Blender 4.4 or later (verified on 5.2, on macOS and Windows). The skill runs it in the background, with no window: `blender -b --factory-startup -P <script> -- <arguments>`. Set the `BLENDER` environment variable to the executable if it is not at the default path.
 - numpy and the glTF add-on are used from Blender's own bundled Python and add-ons, so no separate Python packages are installed.
 - A system `python3` is only used for two checks that do not need Blender: `rig_axes.py` on a `.glb`, and `inspect_rig.py compare`. They use only the standard library.
 - No network access and no API key.
@@ -53,13 +54,13 @@ Example requests:
 
 A body-plan template (`templates/<name>.json`) describes the bones, weight methods, and poses as data. Bone positions come from feature points on the model (`landmarks.json`), so another individual with the same body plan is rigged by changing only the points.
 
-- **Templates:** `bird` (a bird standing on the ground, switching between folded and spread wings) and `quadruped` (a four-legged animal such as a cat; body, head, tail, and four legs are one shell, and the ears and eyes are separate). For another body plan, a new template is written in the format of [references/templates.md](references/templates.md).
+- **Templates:** `bird` (a bird standing on the ground, switching between folded and spread wings) `quadruped` (a four-legged animal such as a cat; body, head, tail, and four legs are one shell, and the ears and eyes are separate), and `humanoid` (a person bound in an A- or T-pose whose mesh already has skin weights from its own rig; those weights are kept). For another body plan, a new template is written in the format of [references/templates.md](references/templates.md).
 - **Stages:** check the template and the coordinate conventions ([references/conventions.md](references/conventions.md)); prepare `landmarks.json`; rig; render poses and count self-intersections; verify (re-import, comparison with a previous version, reproducibility, rotation sign table, angle limits); document and report.
-- **Reproducible:** the same input gives the same result, down to the glb bytes in the verified cat example.
+- **Reproducible:** the same input gives the same result, down to the glb bytes in the verified cat and person examples.
 
 ## Inputs and outputs
 
-Input: a `.blend` or `.glb` mesh model and a `landmarks.json`. The skill can draw gridded orthographic images and an empty `landmarks.todo.json` to help you fill the points in.
+Input: a `.blend` or `.glb` mesh model and a `landmarks.json`. The skill can draw gridded orthographic images and an empty `landmarks.todo.json` to help you fill the points in. A model that comes with its own rig (an FBX or glTF avatar) is first brought in with `import_rigged.py`, which scales it, keeps its skin weights, writes the `landmarks.json` from its bones, and can recolour a garment to match a reference sheet.
 
 | Output | Contents |
 | --- | --- |
@@ -73,7 +74,8 @@ An angle-limit table (`sweep_limits.py`) can be added when a motion bends a join
 
 ## Limits
 
-- Only the `bird` and `quadruped` templates are verified. Humanoids, snakes, and other body plans need a new template that passes the checks on a real target.
+- Each template is verified on one target: `bird` on a pigeon, `quadruped` on a cat, and `humanoid` on a downloaded rigged person (a Microsoft Rocketbox avatar). Snakes and other body plans need a new template that passes the checks on a real target.
+- The `humanoid` template keeps the source rig's skin weights and merges face and finger bones into the head and hands, so fingers and expressions do not move. A person mesh without skin weights needs another weight rule.
 - The bird's folded/spread wing switch has no intermediate shape; cover it with fast flapping.
 - Linear skinning has no collision. Deeply bent joints can leave lines where skin touches skin, which are recorded as angle limits rather than removed.
 - Do not use the Blender MCP for rigging: its safe mode cannot run saved scripts. The skill does not touch a Blender file you have open.

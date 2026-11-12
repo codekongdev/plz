@@ -76,7 +76,8 @@ def dump(args):
                 w[ob.vertex_groups[ge.group].name][v.index] = ge.weight
         objects[ob.name] = {"verts": n, "groups": [g.name for g in ob.vertex_groups],
                             "modifiers": [m.type for m in ob.modifiers], "weights": w}
-    sys.path.insert(0, __file__.rsplit("/", 1)[0])
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # not rsplit("/"): Windows paths use "\"
     from riglib.common import action_fcurves
     actions = {}
     for a in bpy.data.actions:

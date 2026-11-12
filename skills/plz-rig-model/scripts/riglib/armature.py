@@ -13,11 +13,18 @@ def _endpoint(spec, lm, side):
     return base + Vector((0.0, -spec.get("forward_cm", 0.0) * 0.01, 0.0))
 
 
+# `alignZ` names a direction (Blender axes) that the bone's local Z is rolled towards. Without it the
+# roll is 0, which keeps local X sideways only for bones in the front-back/up-down plane; a bone that
+# leans sideways (a humanoid's A-pose arm) gets oblique axes at roll 0 (lessons.md item 17).
+ALIGN = {"front": (0.0, -1.0, 0.0), "back": (0.0, 1.0, 0.0), "up": (0.0, 0.0, 1.0),
+         "down": (0.0, 0.0, -1.0), "left": (1.0, 0.0, 0.0), "right": (-1.0, 0.0, 0.0)}
+
+
 def bone_plan(template):
-    """Ordered (name, head, tail, parent, deform, side) list: centre bones, then each side."""
+    """Ordered (name, head, tail, parent, deform, side, alignZ) list: centre bones, then each side."""
     bones = template["bones"]
     sided = {b["name"] for b in bones if b.get("sided")}
-    plan = [(b["name"], b["head"], b["tail"], b.get("parent"), b.get("deform", True), None)
+    plan = [(b["name"], b["head"], b["tail"], b.get("parent"), b.get("deform", True), None, b.get("alignZ"))
             for b in bones if not b.get("sided")]
     for side in SIDES:
         for b in bones:
@@ -26,13 +33,14 @@ def bone_plan(template):
             parent = b.get("parent")
             if parent in sided:
                 parent = parent + side
-            plan.append((b["name"] + side, b["head"], b["tail"], parent, b.get("deform", True), side))
+            plan.append((b["name"] + side, b["head"], b["tail"], parent, b.get("deform", True), side,
+                         b.get("alignZ")))
     return plan
 
 
 def required_points(template):
     names = set()
-    for _, head, tail, _, _, side in bone_plan(template):
+    for _, head, tail, _, _, side, _ in bone_plan(template):
         for spec in (head, tail):
             base = spec if isinstance(spec, str) else spec["from"]
             if base != "origin":
@@ -55,11 +63,15 @@ def build_armature(rig_name, template, lm):
     eb = arm.edit_bones
     for b in list(eb):
         eb.remove(b)
-    for name, head, tail, parent, deform, side in bone_plan(template):
+    for name, head, tail, parent, deform, side, align in bone_plan(template):
         b = eb.new(name)
         b.head = _endpoint(head, lm, side)
         b.tail = _endpoint(tail, lm, side)
         b.roll = 0.0
+        if align:
+            if align not in ALIGN:
+                raise SystemExit(f"bone {name}: alignZ must be one of {sorted(ALIGN)}, not {align!r}")
+            b.align_roll(Vector(ALIGN[align]))
         b.use_deform = deform
         if parent:
             b.parent = eb[parent]

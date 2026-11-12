@@ -1,16 +1,18 @@
 # Templates
 
-A template is JSON that describes the rig for one body plan as data (`templates/<name>.json`). Today there are the verified `bird` and `quadruped` (cat). Humanoids and others are made when rigging an actual target, and added after they are verified on that target.
+A template is JSON that describes the rig for one body plan as data (`templates/<name>.json`). Today there are the verified `bird`, `quadruped` (cat) and `humanoid` (a Rocketbox person). Others are made when rigging an actual target, and added after they are verified on that target.
 
 ## Fields
 
 | Key | Meaning |
 | --- | --- |
-| `bones` | `{name, head, tail, parent, deform, sided}`. `head` and `tail` are landmarks point names, and `"origin"` or `{"from": point, "forward_cm": d}` (d cm forward) can also be used. If `sided: true`, two bones `.L` and `.R` are made and the same suffix is added to the point names. If the parent is a left/right bone, it attaches to the bone on the same side. Order: all center bones, then left, then right. Roll is 0, and if the head equals the parent's tail, `use_connect` |
+| `bones` | `{name, head, tail, parent, deform, sided, alignZ}`. `head` and `tail` are landmarks point names, and `"origin"` or `{"from": point, "forward_cm": d}` (d cm forward) can also be used. If `sided: true`, two bones `.L` and `.R` are made and the same suffix is added to the point names. If the parent is a left/right bone, it attaches to the bone on the same side. Order: all center bones, then left, then right. Roll is 0, unless `alignZ` (`front`, `back`, `up`, `down`, `left`, `right`) rolls the bone so its local Z points that way; and if the head equals the parent's tail, `use_connect` |
+| `rotateOrder` | Euler order of the `rotate` angles in poses (default `XYZ`, as bird and quadruped were made). `ZYX` composes local X, then Y, then Z, the order an engine bends a bone in (humanoid) |
+| `sourceRigs` | For models that come with a rig: `{<rig>: {points, groups}}`. `points` reads each landmark from a source bone head (`{"bone": ...}`), optionally replaced by the highest or most forward vertex of a weight group (`"extreme": "top"\|"front"`) or offset in cm; `name.*` with `{S}` in the bone name gives both sides. `groups` maps source vertex groups (exact names or `re:` regexes) to template bones. `import_rigged.py` reads both and writes the result into `landmarks.json` |
 | `ik` | `{bone, target, chain, copyRotation}`. IK is put on `bone`, and the `copyRotation` bone follows the target's rotation. The target bone is `deform: false`, so it is left out of the glb, and the result is baked into the animation on export |
 | `weights` | One rule per part. If `part` is written like `eye.*`, it means both sides. `.*` inside a rule is replaced with the part's side, and for a center part (`body`) it becomes both sides. A rule can have `smooth` (smoothing of weights near joints) and `maxInfluences` (limit on bones per vertex) added |
 | `hideScale` | The scale used when hiding a part (default 0.001). 0 is not used (item 11 of [lessons.md](lessons.md)) |
-| `basePoses` | Base poses for the engine. `hide` (bones to hide, shrunk to `hideScale`), `move` ({bone: [x, f, z] cm}, world axes), `rotate` ({bone: [X, Y, Z] degrees}, pose-bone local Euler). Each becomes a 1-frame action and goes into the glb as a muted NLA track |
+| `basePoses` | Base poses for the engine. `hide` (bones to hide, shrunk to `hideScale`), `move` ({bone: [x, f, z] cm}, world axes), `aim` ({bone: [x, f, z]}, turn the bone, parents first, so it points that way in world axes; x is mirrored on `.R`, so `upper_arm.*` lowers both A-pose arms), `rotate` ({bone: [X, Y, Z] degrees}, pose-bone local Euler, added on top of what the bone already has). Each becomes a 1-frame action and goes into the glb as a muted NLA track |
 | `testPoses` | Check actions (`rig_test`). For each frame, the `base` (base pose name) is applied first and then overridden. `label` becomes an action marker and is added to the render file name. With `ik: false` (for the whole action or per frame), keys 0 on the influence of the IK and copy-rotation constraints so the legs follow the FK rotation as-is (like the engine). It stays only in the .blend and does not go into the glb |
 | `rotationSigns` | The meaning of rotation directions for the engine. `{meaning: {bones, axis: "X"\|"Z", tipMoves: a glTF axis such as "+Z"}}`. `rig_axes.py --template` measures it on the actual rig and outputs +1/-1 for each meaning |
 | `export` | glTF settings. Image format, NLA_TRACKS, deform bones only, apply modifiers, morph off |
@@ -26,6 +28,7 @@ A template is JSON that describes the rig for one body plan as data (`templates/
 | `span_blend` | Divide the bone chain by |x| and hand over with a smoothstep within |x| +/- `half_width_cm` of each joint | Spread wing |
 | `smooth` (added to heat etc.) | A list of passes `{around: [point], radius_cm, iterations, factor}`. Shrinking so that everything within r/2 of the point is included and it reaches 0 at r, repeatedly blend all bone weights toward the average of neighboring vertices and normalize again | Armpit, groin, elbow, knee |
 | `maxInfluences` (added) | Keep only the n largest weights per vertex and normalize. glTF exports only 4 by default, so setting 4 makes the .blend and glb deform identically | Quadruped torso |
+| `source_groups` | Keep the weights the model came with: sum each source vertex group into the template bone `sourceGroups` in landmarks.json maps it to, and normalize. A weighted group with no mapping stops the run with its name. `rig_model.py` keeps the vertex groups of parts with this rule when it strips the old rig | Humanoid body (an avatar with artist weights) |
 
 A new strategy is a function with the same signature `(rig, ob, rule, lm)` registered in `STRATEGIES`. The added steps run in the order `lock` -> `smooth` -> `maxInfluences`.
 
@@ -108,3 +111,55 @@ To remember it as a rule: local X+ rotates the bone's tip toward the bone's loca
 - Shin fold: clean up to 45 degrees (with the thigh between 40 degrees forward and 30 degrees back). 60 degrees is clean only when the thigh is 20-30 degrees forward (26-37 pairs near neutral, in the hollow of the knee), and 75 degrees or more is 113 pairs or more (the hollow of the knee and the back of the thigh touch).
 - Neck and head left/right: 0 pairs up to neck +/-40 degrees with head +/-60 degrees.
 - The gallop constants (`run_reach` 85 pairs, `run_gather` 450 pairs) exceed these ranges. The part beyond is a line where skin touches skin, and no broken-through faces or tearing were seen in the images.
+
+## humanoid template
+
+Verified on a person: the Microsoft Rocketbox avatar `Female_Adult_09` (MIT), whose FBX has a 3ds Max Biped rig (80 bones with face and finger bones) and artist skin weights. The points and parts are in the humanoid section of [conventions.md](conventions.md).
+
+### Bones (23 deform bones in the glb, 25 in the .blend)
+- Center: `root` (origin) -> `hips` (hip->spine) -> `spine` (spine->chest) -> `chest` (chest->upper_chest) -> `upper_chest` (upper_chest->neck_base) -> `neck` (neck_base->head_base) -> `head` (head_base->head_top).
+- Arms: `upper_chest` -> `clavicle` (clavicle->shoulder) -> `upper_arm` (shoulder->elbow) -> `forearm` (elbow->wrist) -> `hand` (wrist->hand_end).
+- Legs: `hips` -> `thigh` (hip_joint->knee) -> `shin` (knee->ankle) -> `foot` (ankle->ball) -> `toe` (ball->toe_end).
+- Only in the .blend: `foot_ik.L/R` (ankle->ball, two-bone IK on `shin`, with `foot` copying rotation), children of root, non-deforming.
+- `alignZ`: trunk, neck and head `front`; clavicle, arms and legs `back`; foot and toe `down`. So local X is the model's left on the trunk, the legs and the lowered arms, as on the quadruped. Without it, the A-pose arms (pointing out and down) get oblique axes at roll 0 and "arm forward" would mix two axes (lessons.md item 20).
+
+### Weights
+- `body`: `source_groups` (the Biped table in `sourceRigs.biped.groups`: pelvis, spines, neck and head one to one; the 28 face bones and the eyes onto `head`; the finger bones onto `hand`), then 4 influences per vertex. On the Rocketbox mesh no vertex lost an influence and none is unweighted.
+- No heat or smoothing: the artist weights are better than bone heat on a clothed mesh with hair cards, and bone heat fails on such disconnected parts.
+
+### Base pose and check poses
+- `pose_stand`: 1 frame. `aim` lowers the arms from the bind A-pose to the sides (upper arm (14, -3, -100), forearm (16, 10, -100), hand (10, 8, -100)). A narrower aim made the hands sink into the cardigan at the hips (about 550 new crossing pairs); this one adds 34 (inner upper arm against the torso side).
+- `rig_test` (IK off, CONSTANT, `rotateOrder` ZYX): `rest`, `look_away`, `phone`, `alert` (the visor hand), `walk`, `run`, `shoo` (right arm up waving), `arms_out` (60 degrees sideways, not used by the game), `crouch`.
+
+### Rotation directions (glTF axes, on top of `pose_stand`; measured on the .blend and glb of the person)
+| Meaning | Bones | Axis | Sign | Basis |
+| --- | --- | --- | --- | --- |
+| `bendForward` the tip goes forward | hips, spine, chest, upper_chest, neck, head | X | +1 | +Z 0.95-1.00 |
+| `turnLeft` the front turns left | spine, chest, upper_chest, neck, head | Y | +1 | local +Z end to +X 1.00 |
+| `tiltLeft` | spine, chest, upper_chest, neck, head | Z | -1 | -X 1.00 on +Z rotation |
+| `legForward` | thigh | X | -1 | -Z 0.99 on +X rotation |
+| `kneeBend` the shin folds back | shin | X | +1 | -Z 0.99 |
+| `toeDown` | foot, toe | X | +1 | -Y 0.76-1.00 |
+| `armForward` | upper_arm | X | -1 | -Z 0.99 on +X rotation |
+| `elbowBend` | forearm | X | -1 | -Z 1.00 on +X rotation |
+| `wristBack` | hand | X | +1 | -Z 1.00 |
+| `armOutLeft` / `armOutRight` | upper_arm.L / .R | Z | -1 / +1 | -X 0.97-1.00 on +Z rotation |
+| `armRollOutLeft` / `Right` (external rotation) | upper_arm.L / .R | Y | -1 / +1 | local +Z end to +X 0.98-0.99 |
+| `palmForwardLeft` / `Right` (supination) | forearm.L / .R | Y | -1 / +1 | local +Z end to +X 0.98 |
+
+The rule is the quadruped's: local X+ turns the tip toward local Z, and local Z+ turns it to the right. Turns about the bone itself (Y) have opposite signs on the two sides.
+
+### Main bones per motion (the person)
+| Motion | Bones |
+| --- | --- |
+| Idle | `chest` and `upper_chest` breathing (small X) |
+| Looking away at a phone | `neck` and `head` X+ (12 and 26 degrees), both `upper_arm` forward 22 and in 8, `forearm` bent 100 |
+| Alert (visor) | trunk X+, `neck` and `head` X and Y scan, right `upper_arm` forward 115 then rolled in 60 then out 15, `forearm` 70, `hand` 10. The elbow bends in the upper arm's own forward plane, which points up once the arm is raised, so the forearm only comes across the brow after the upper arm rolls in (lessons.md item 25) |
+| Run and shoo | `thigh` swing, `shin` fold while the leg travels forward, right `upper_arm` forward 100 and out 12, `forearm` bent and rolled palm forward 70, `hand` and `forearm` flapping |
+| Walk | `thigh` swing, `shin` fold, arms against the same-side leg, small `chest` and `hips` Y counter-turn |
+
+### Angle limits (the person, on top of `pose_stand`; contact lines only)
+- Thigh forward 50 (the cardigan hem then catches the trousers), back 30. Knee: no new crossing up to 90.
+- Upper arm forward 130 (armpit contact, 10-28 pairs), back 50. Elbow on a hanging arm: 4 or fewer pairs up to 100, 28 at 120, 58 at 140 (the inside of the elbow folds onto itself). With the upper arm forward 115 and rolled in 60, the hand reaches the forehead from an elbow of 90.
+- Neck and head left/right: up to 40 and 60, only hair cards cross the collar (100-160 pairs, all hair).
+- Arm out sideways 60 degrees (nearly level, the `arms_out` check pose): clean, 20 new pairs, fewer than the stand pose because the arms leave the torso. Beyond that was not measured; the game does not move the clavicle.

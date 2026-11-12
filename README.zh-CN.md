@@ -143,7 +143,7 @@ cp -R plz/skills/plz-3d-explain ~/.claude/skills/plz-3d-explain
 
 - **plz-model-sheet** 接收一个对象（角色、动物、NPC 或道具），根据实测尺寸、开放许可的照片和 Codex 图像生成，制作真实尺寸的正交参考图。
 - **plz-sheet-to-model** 接收这张参考图的各视图和尺寸，生成带纹理的 `.blend` 和 `.glb`（鸟类或四足动物的身体结构），以及供绑定使用的 `landmarks.json`。
-- **plz-rig-model** 接收网格模型（来自这条流水线或其他来源的 `.blend` 或 `.glb`）和 `landmarks.json`，添加绑定，并导出 `.glb`、`.blend` 和骨骼旋转符号表。
+- **plz-rig-model** 接收网格模型（来自这条流水线或其他来源的 `.blend` 或 `.glb`，也可以是已带骨骼的角色）和 `landmarks.json`，添加绑定，并导出 `.glb`、`.blend` 和骨骼旋转符号表。
 
 这些技能都不需要 API 密钥。它们在你的电脑上用到的工具如下：
 
