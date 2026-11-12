@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from html import escape
 from pathlib import Path
 
@@ -327,10 +328,16 @@ def main() -> None:
         else:
             for sx in (-1, 1):
                 svg.line(pivot_sheet + sx * col_r * S, GY - base['height'] * S, pivot_sheet + sx * col_r * S, GY, BLUE, 2.5, '4 6')
-        svg.text(pivot_sheet + col_r * S + 10, GY - max(col_h, base['height']) * S + 24,
+        label_y = GY - max(col_h, base['height']) * S + 24
+        eye_text_y = GY - eye_h * S - 8
+        if eye_h and label_y - 22 < eye_text_y + 6 and eye_text_y - 18 < label_y + 24 + 6:
+            # The two-line collider label would sit on the game eye height text (a tall subject whose eye
+            # line is close below the crown), so it goes under that line instead.
+            label_y = GY - eye_h * S + 26
+        svg.text(pivot_sheet + col_r * S + 10, label_y,
                  f"{col.get('label', 'game collider')} ×{scale:g} conversion", 18, 700, BLUE)
         height_text = f" · h {col['heightM']}m" if col_h else ''
-        svg.text(pivot_sheet + col_r * S + 10, GY - max(col_h, base['height']) * S + 48,
+        svg.text(pivot_sheet + col_r * S + 10, label_y + 24,
                  f"(r {col['radiusM']}m{height_text})", 18, 400, BLUE)
 
     # Row 2: top views aligned under the anchor, with the collider footprint.
@@ -455,10 +462,14 @@ def render_sheet(out: Path, W: int, H: int) -> None:
     if not chrome:
         print('WARN no Chromium found; set MODEL_SHEET_CHROME to render sheet.webp (sheet.svg is ready)')
         return
-    png = out / '.sheet-render.png'
-    subprocess.run([chrome, '--headless', '--hide-scrollbars', '--force-device-scale-factor=1',
-                    f'--window-size={W},{H}', f'--screenshot={png}', (out / 'sheet.svg').resolve().as_uri()],
-                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+    # An absolute path and a throwaway profile: on Windows a relative path or the default profile (when
+    # the user's Chrome is open) makes headless Chrome hand off to that browser and write no screenshot.
+    png = (out / '.sheet-render.png').resolve()
+    with tempfile.TemporaryDirectory() as profile:
+        subprocess.run([chrome, '--headless', f'--user-data-dir={profile}', '--hide-scrollbars',
+                        '--force-device-scale-factor=1', f'--window-size={W},{H}', f'--screenshot={png}',
+                        (out / 'sheet.svg').resolve().as_uri()],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
     Image.open(png).convert('RGB').save(out / 'sheet.webp', 'WEBP', quality=88, method=6)
     png.unlink()
     print(f"rendered {out / 'sheet.webp'}")

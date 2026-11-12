@@ -80,6 +80,13 @@ Generate the top view with the head up, and align it to the right with `rotate: 
 - The ear tip is the highest point, so put `"crownLabel": "ear tip"` in the spec. The eye and shoulder heights were within about 1 cm and the guide names overlapped; `compose_sheet.py` now moves a close name below its line. The game eye height is overlaid with `collider.eyeHeightM`.
 - macOS has no `timeout`. Set the time limit with `perl -e 'alarm shift; exec @ARGV' 580 codex exec ...`. If Playwright's macOS headless shell (`chromium_headless_shell-*/chrome-headless-shell-mac-arm64/chrome-headless-shell`) is not found automatically, pass it in `MODEL_SHEET_CHROME`.
 
+### Person (2026-11-12)
+- A person whose model comes from a downloaded rigged avatar: attach a real side photo for the standing anatomy and the avatar's render for the face, hair and outfit, each with its purpose written down ("copy only her anatomy... copy her face, hair and outfit, but not her A-pose arms"). Writing head count (7.3 heads), eye/shoulder/crotch heights as fractions of the height, and height over depth (6.0) gave 5.90 on the first try, so the sheet and the 3D model show the same person.
+- Use the eye height as the anchor (`anchor.landmark`): the game's eye height and the public average (stature x 0.934) agreed within 1%. Read eye and shoulder heights from a 0.01 grid over the head and shoulders; the 0.1 grid of `measure.py grid` is too coarse on a tall, narrow subject.
+- The top view kept perspective (the head close to the camera) and came out 15% narrower across the shoulders and arms than the front and back views, twice, even with the measured ratio written in. Keep the WARN and the cause in the README rather than spending more generations.
+- For an action pose (shooing pigeons) no real photo of an adult existed; a photo of a child doing it, attached for the idea of the motion only, worked, with the body taken from the side view.
+- On a tall subject the collider label and the game eye height line sat on the same row; `compose_sheet.py` now moves the collider label under the eye line when they would meet.
+
 ### General lessons from a bird test
 
 - A first side view made without a real photo came out as a showy pose with the chest pushed out, with a height/length ratio far above that of real photos. Attaching a real side photo and writing the posture (body-axis angle, leg length hidden by belly feathers, head size, height as a multiple of length) as numbers brought the ratio close to the photo.

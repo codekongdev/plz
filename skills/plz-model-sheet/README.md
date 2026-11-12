@@ -50,7 +50,7 @@ The skill itself needs no API key. It uses these tools on your machine:
 
 - **Python 3** with `venv` and `pip`. The first run creates `~/.cache/plz-model-sheet/venv` and installs `pillow` and `numpy` into it.
 - **Codex CLI** with image generation enabled and a logged-in account (`codex features list | grep image_generation` must say `true`, and `codex login status` must show a login). Every generated image uses your ChatGPT usage. If generation is off or you are not logged in, the agent tells you and stops.
-- **Headless Chromium** (for example the one installed by Playwright) to render `sheet.webp` from `sheet.svg`. It is found automatically; otherwise set `MODEL_SHEET_CHROME` to its path. Without it you still get `sheet.svg`.
+- **Headless Chromium** (for example the one installed by Playwright) to render `sheet.webp` from `sheet.svg`. It is found automatically; otherwise set `MODEL_SHEET_CHROME` to its path. An installed Google Chrome also works (on Windows, point `MODEL_SHEET_CHROME` at `chrome.exe`). Without it you still get `sheet.svg`.
 - **Network access** to Wikimedia Commons and Wikipedia (`scripts/commons_refs.py`) for reference photos, and a web search tool in your agent for measured dimensions.
 
 ## How it works
