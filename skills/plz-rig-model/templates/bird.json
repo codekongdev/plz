@@ -1,0 +1,58 @@
+{
+ "name": "bird",
+ "bodyPlan": "bird",
+ "description": "Perching bird standing on the ground. Folded wings and spread wings are separate parts; each action hides one set by scaling its root bone to hideScale (not 0: a zero-scaled parent makes exported child transforms undefined). Validated on a bird model.",
+ "hideScale": 0.001,
+ "units": {"points": "landmarks.json metres", "move": "cm (x lateral +left, f forward, z up)", "rotate": "degrees, pose-bone local Euler XYZ"},
+ "bones": [
+  {"name": "root", "head": "origin", "tail": {"from": "origin", "forward_cm": 3}, "parent": null},
+  {"name": "body", "head": "hip", "tail": "neck_base", "parent": "root"},
+  {"name": "neck_1", "head": "neck_base", "tail": "neck_mid", "parent": "body"},
+  {"name": "neck_2", "head": "neck_mid", "tail": "head_base", "parent": "neck_1"},
+  {"name": "head", "head": "head_base", "tail": "beak_base", "parent": "neck_2"},
+  {"name": "tail", "head": "tail_base", "tail": "tail_end", "parent": "body"},
+  {"name": "thigh", "sided": true, "head": "hip_joint", "tail": "heel", "parent": "body"},
+  {"name": "shin", "sided": true, "head": "heel", "tail": "ankle", "parent": "thigh"},
+  {"name": "foot", "sided": true, "head": "ankle", "tail": "foot_end", "parent": "shin"},
+  {"name": "toe_hind", "sided": true, "head": "ankle", "tail": "hind_toe_end", "parent": "shin"},
+  {"name": "foot_ik", "sided": true, "head": "ankle", "tail": "foot_end", "parent": "root", "deform": false},
+  {"name": "wing_upper", "sided": true, "head": "shoulder", "tail": "elbow", "parent": "body"},
+  {"name": "wing_fore", "sided": true, "head": "elbow", "tail": "wrist", "parent": "wing_upper"},
+  {"name": "wing_hand", "sided": true, "head": "wrist", "tail": "wing_end", "parent": "wing_fore"},
+  {"name": "wing_fold", "sided": true, "head": "wing_fold_root", "tail": "wing_fold_end", "parent": "body"}
+ ],
+ "ik": [
+  {"bone": "shin", "target": "foot_ik", "chain": 2, "copyRotation": "foot", "sided": true}
+ ],
+ "weights": [
+  {"part": "body", "method": "heat", "bones": ["body", "neck_1", "neck_2", "head", "tail"],
+   "lock": {"region": "wing_fold_cover", "bone": "body", "blend_cm": 1.0}},
+  {"part": "eye.*", "method": "rigid", "bone": "head"},
+  {"part": "wing_fold.*", "method": "rigid", "bone": "wing_fold.*"},
+  {"part": "legs", "method": "nearest_segments", "bones": ["thigh", "shin", "foot", "toe_hind"], "power": 4, "keep": 2},
+  {"part": "wing_spread.*", "method": "span_blend", "bones": ["wing_upper.*", "wing_fore.*", "wing_hand.*"],
+   "joints": ["elbow.*", "wrist.*"], "half_width_cm": 1.0}
+ ],
+ "basePoses": [
+  {"name": "pose_ground", "hide": ["wing_upper.*"]},
+  {"name": "pose_flight", "hide": ["wing_fold.*"], "move": {"foot_ik.*": [0, -4.0, 4.0]},
+   "rotate": {"body": [22, 0, 0], "neck_1": [-18, 0, 0], "head": [-6, 0, 0]}}
+ ],
+ "testPoses": {
+  "action": "rig_test",
+  "interpolation": "CONSTANT",
+  "frames": [
+   {"label": "rest", "base": "pose_ground"},
+   {"label": "peck", "base": "pose_ground",
+    "rotate": {"body": [30, 0, 0], "neck_1": [30, 0, 0], "neck_2": [25, 0, 0], "head": [20, 0, 0], "tail": [-15, 0, 0]}},
+   {"label": "step", "base": "pose_ground", "move": {"foot_ik.L": [0, 2.0, 1.6]},
+    "rotate": {"neck_1": [-12, 0, 0], "neck_2": [14, 0, 0], "head": [-4, 0, 0]}},
+   {"label": "wings up", "base": "pose_flight",
+    "rotate": {"wing_upper.*": [55, 0, 0], "wing_fore.*": [-10, 0, 0], "wing_hand.*": [15, 0, 0]}},
+   {"label": "wings down", "base": "pose_flight",
+    "rotate": {"wing_upper.*": [-35, 0, 0], "wing_fore.*": [-8, 0, 0], "wing_hand.*": [-12, 0, 0]}}
+  ]
+ },
+ "export": {"image_format": "JPEG", "jpeg_quality": 90, "animation_mode": "NLA_TRACKS",
+            "deform_bones_only": true, "apply_modifiers": true, "morph": false}
+}

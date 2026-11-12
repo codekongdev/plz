@@ -1,0 +1,93 @@
+{
+ "name": "quadruped",
+ "bodyPlan": "quadruped",
+ "description": "Four-legged mammal standing square (cat-like digitigrade legs). One closed body shell (head, neck, trunk, tail, four legs) skinned by bone heat with the root and ears left out; eyes ride the head, separate ear shells ride their ear bone. Legs are FK in the game; the .blend adds leg IK controls that are switched off in the FK test poses. Validated on a domestic cat model.",
+ "units": {"points": "landmarks.json metres", "move": "cm (x lateral +left, f forward, z up)", "rotate": "degrees, pose-bone local Euler XYZ"},
+ "bones": [
+  {"name": "root", "head": "origin", "tail": {"from": "origin", "forward_cm": 3}, "parent": null},
+  {"name": "hips", "head": "hip", "tail": "spine_mid", "parent": "root"},
+  {"name": "spine", "head": "spine_mid", "tail": "chest", "parent": "hips"},
+  {"name": "chest", "head": "chest", "tail": "neck_base", "parent": "spine"},
+  {"name": "neck", "head": "neck_base", "tail": "head_base", "parent": "chest"},
+  {"name": "head", "head": "head_base", "tail": "snout", "parent": "neck"},
+  {"name": "tail_1", "head": "tail_base", "tail": "tail_a", "parent": "hips"},
+  {"name": "tail_2", "head": "tail_a", "tail": "tail_b", "parent": "tail_1"},
+  {"name": "tail_3", "head": "tail_b", "tail": "tail_c", "parent": "tail_2"},
+  {"name": "tail_4", "head": "tail_c", "tail": "tail_end", "parent": "tail_3"},
+  {"name": "ear", "sided": true, "head": "ear_base", "tail": "ear_tip", "parent": "head"},
+  {"name": "upper_arm", "sided": true, "head": "shoulder", "tail": "elbow", "parent": "chest"},
+  {"name": "forearm", "sided": true, "head": "elbow", "tail": "wrist", "parent": "upper_arm"},
+  {"name": "front_paw", "sided": true, "head": "wrist", "tail": "front_toe", "parent": "forearm"},
+  {"name": "thigh", "sided": true, "head": "hip_joint", "tail": "knee", "parent": "hips"},
+  {"name": "shin", "sided": true, "head": "knee", "tail": "hock", "parent": "thigh"},
+  {"name": "hind_foot", "sided": true, "head": "hock", "tail": "hind_ball", "parent": "shin"},
+  {"name": "hind_paw", "sided": true, "head": "hind_ball", "tail": "hind_toe", "parent": "hind_foot"},
+  {"name": "front_ik", "sided": true, "head": "wrist", "tail": "front_toe", "parent": "root", "deform": false},
+  {"name": "hind_ik", "sided": true, "head": "hock", "tail": "hind_ball", "parent": "root", "deform": false}
+ ],
+ "ik": [
+  {"bone": "forearm", "target": "front_ik", "chain": 2, "copyRotation": "front_paw", "sided": true},
+  {"bone": "shin", "target": "hind_ik", "chain": 2, "copyRotation": "hind_foot", "sided": true}
+ ],
+ "weights": [
+  {"part": "body", "method": "heat",
+   "bones": ["hips", "spine", "chest", "neck", "head", "tail_1", "tail_2", "tail_3", "tail_4",
+             "upper_arm.*", "forearm.*", "front_paw.*", "thigh.*", "shin.*", "hind_foot.*", "hind_paw.*"],
+   "smooth": [
+    {"around": ["shoulder.*"], "radius_cm": 9, "iterations": 150, "factor": 0.5},
+    {"around": ["hip_joint.*"], "radius_cm": 8, "iterations": 120, "factor": 0.5},
+    {"around": ["elbow.*", "knee.*"], "radius_cm": 3.5, "iterations": 40, "factor": 0.5}
+   ],
+   "maxInfluences": 4},
+  {"part": "eye.*", "method": "rigid", "bone": "head"},
+  {"part": "ear.*", "method": "rigid", "bone": "ear.*"}
+ ],
+ "basePoses": [
+  {"name": "pose_stand"}
+ ],
+ "testPoses": {
+  "action": "rig_test",
+  "interpolation": "CONSTANT",
+  "ik": false,
+  "frames": [
+   {"label": "rest", "base": "pose_stand"},
+   {"label": "look_away", "base": "pose_stand", "rotate": {"neck": [0, 0, -30], "head": [0, 0, -40]}},
+   {"label": "alert", "base": "pose_stand", "move": {"root": [0, 0, -2.06]},
+    "rotate": {"upper_arm.*": [-25, 0, 0], "forearm.*": [50, 0, 0], "thigh.*": [-25, 0, 0], "shin.*": [50, 0, 0],
+               "hind_foot.*": [-25, 0, 0], "neck": [-12, 0, 0], "head": [-6, 0, 0], "ear.*": [20, 0, 0]}},
+   {"label": "walk", "base": "pose_stand",
+    "rotate": {"upper_arm.L": [-25, 0, 0], "forearm.L": [17.5, 0, 0], "upper_arm.R": [25, 0, 0],
+               "thigh.R": [-25, 0, 0], "shin.R": [17.5, 0, 0], "hind_foot.R": [-8.75, 0, 0], "thigh.L": [25, 0, 0],
+               "tail_1": [35, 0, 0], "tail_2": [15, 0, 0], "tail_3": [10, 0, 0], "tail_4": [5, 0, 0]}},
+   {"label": "run_reach", "base": "pose_stand", "move": {"root": [0, 0, -2.95]},
+    "rotate": {"upper_arm.*": [-76, 0, 0], "forearm.*": [60, 0, 0], "thigh.*": [7, 0, 0], "shin.*": [60, 0, 0],
+               "hind_foot.*": [-30, 0, 0], "hips": [6, 0, 0], "spine": [-12, 0, 0], "chest": [-6, 0, 0],
+               "neck": [10, 0, 0], "head": [-10, 0, 0], "ear.*": [-35, 0, 0], "tail_1": [20, 0, 0]}},
+   {"label": "run_gather", "base": "pose_stand", "move": {"root": [0, 0, -2.95]},
+    "rotate": {"upper_arm.*": [16, 0, 0], "forearm.*": [60, 0, 0], "thigh.*": [-67, 0, 0], "shin.*": [89, 0, 0],
+               "hind_foot.*": [-45, 0, 0], "hips": [-6, 0, 0], "spine": [12, 0, 0], "chest": [6, 0, 0],
+               "neck": [10, 0, 0], "head": [-10, 0, 0], "ear.*": [-35, 0, 0], "tail_1": [20, 0, 0]}},
+   {"label": "run_gather_clean", "base": "pose_stand", "move": {"root": [0, 0, -2.95]},
+    "rotate": {"upper_arm.*": [12, 0, 0], "forearm.*": [60, 0, 0], "thigh.*": [-35, 0, 0], "shin.*": [45, 0, 0],
+               "hind_foot.*": [-30, 0, 0], "hips": [-6, 0, 0], "spine": [12, 0, 0], "chest": [6, 0, 0],
+               "neck": [10, 0, 0], "head": [-10, 0, 0], "ear.*": [-35, 0, 0], "tail_1": [20, 0, 0]}},
+   {"label": "tail_sway", "base": "pose_stand",
+    "rotate": {"tail_1": [10, 0, -8], "tail_2": [5, 0, -10], "tail_3": [5, 0, -14], "tail_4": [5, 0, -22]}}
+  ]
+ },
+ "rotationSigns": {
+  "frame": "glTF axes: +X the model's left, +Y up, +Z front. Tip = the bone's tail; sign +1 means a positive local rotation moves the tip the listed way.",
+  "meanings": {
+   "pitchDown": {"bones": ["hips", "spine", "chest", "neck", "head"], "axis": "X", "tipMoves": "-Y"},
+   "legForward": {"bones": ["upper_arm.*", "thigh.*"], "axis": "X", "tipMoves": "+Z"},
+   "lowerBack": {"bones": ["forearm.*", "shin.*"], "axis": "X", "tipMoves": "-Z"},
+   "hindFootForward": {"bones": ["hind_foot.*"], "axis": "X", "tipMoves": "+Z"},
+   "turnLeft": {"bones": ["neck", "head"], "axis": "Z", "tipMoves": "+X"},
+   "tailSwingLeft": {"bones": ["tail_1", "tail_2", "tail_3", "tail_4"], "axis": "Z", "tipMoves": "+X"},
+   "tailLift": {"bones": ["tail_1", "tail_2", "tail_3", "tail_4"], "axis": "X", "tipMoves": "+Y"},
+   "earBack": {"bones": ["ear.*"], "axis": "X", "tipMoves": "-Z"}
+  }
+ },
+ "export": {"image_format": "JPEG", "jpeg_quality": 90, "animation_mode": "NLA_TRACKS",
+            "deform_bones_only": true, "apply_modifiers": true, "morph": false}
+}

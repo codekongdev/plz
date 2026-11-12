@@ -133,6 +133,41 @@ Details are in the [skill README](skills/plz-3d-explain/README.md).
 | [plz-3d-explain](skills/plz-3d-explain/README.md) | A single HTML learning page with three.js 3D models of technical concepts and system structures. | [Code sandbox (English)](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.en.html) · [Korean](https://codekongdev.github.io/plz/skills/plz-3d-explain/assets/example-agent-sandbox.html) |
 | [plz-setup-issues](skills/plz-setup-issues/README.md) | Issue labels, bug and feature forms, and triage rules for a GitHub repository. | — |
 | [plz-quiz](skills/plz-quiz/README.md) | Document-based quizzes for studying, checking understanding, and reviewing mistakes. | — |
+| [plz-model-sheet](skills/plz-model-sheet/README.md) | Realistic, real-size modeling reference sheets (orthographic views and turnaround) for characters, animals, NPCs, and props. | — |
+| [plz-sheet-to-model](skills/plz-sheet-to-model/README.md) | A real-size, textured 3D model (`.blend` and `.glb`) built headlessly in Blender from a reference sheet. | — |
+| [plz-rig-model](skills/plz-rig-model/README.md) | A game-ready rig (armature, skin weights, leg IK, base poses, bone rotation sign table) for an existing mesh model. | — |
+
+### Modeling pipeline
+
+Three skills form a pipeline for game-ready 3D models: [plz-model-sheet](skills/plz-model-sheet/README.md) → [plz-sheet-to-model](skills/plz-sheet-to-model/README.md) → [plz-rig-model](skills/plz-rig-model/README.md). Each one also works on its own.
+
+- **plz-model-sheet** takes a subject (a character, animal, NPC, or prop) and makes a real-size orthographic reference sheet from measured dimensions, openly licensed photos, and Codex image generation.
+- **plz-sheet-to-model** takes that sheet's views and measurements and builds a textured `.blend` and `.glb` (bird or quadruped body plan), plus a `landmarks.json` for rigging.
+- **plz-rig-model** takes a mesh model (`.blend` or `.glb`, from this pipeline or from anywhere else) and a `landmarks.json`, and adds the rig, exporting a `.glb` and a `.blend` with a bone rotation sign table.
+
+No skill needs an API key. The tools they use on your machine:
+
+- **plz-model-sheet:** Python 3 (the first run installs `pillow` and `numpy` into a cache venv), Codex CLI with image generation enabled and a logged-in account (each image uses your ChatGPT usage), headless Chromium to render `sheet.webp` (without it you still get `sheet.svg`), and network access to Wikimedia Commons and Wikipedia.
+- **plz-sheet-to-model:** Blender 4.2 or later, run in the background, and Python 3 (the first run installs `pillow` and `numpy` into a cache venv, which needs access to the Python package index).
+- **plz-rig-model:** Blender 4.4 or later, run in the background. No extra Python packages and no network access.
+
+To install the set, run the single-skill command for each name. Claude Code:
+
+```sh
+for skill in plz-model-sheet plz-sheet-to-model plz-rig-model; do
+  npx skills add codekongdev/plz --skill "$skill" -a claude-code -g
+done
+```
+
+Codex:
+
+```sh
+for skill in plz-model-sheet plz-sheet-to-model plz-rig-model; do
+  npx skills add codekongdev/plz --skill "$skill" -a codex -g
+done
+```
+
+Each skill's README has the details.
 
 ## Contributing
 

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Model Rigging"
+  short_description: "Rig a 3D mesh with bones, weights, IK, and poses via headless Blender"
