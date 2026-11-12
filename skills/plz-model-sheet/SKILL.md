@@ -54,6 +54,7 @@ codex login status
 
 - Keep the working folder at `~/.cache/plz-model-sheet/<id>/`. A `/tmp` with a per-user size quota has made installs and generations fail.
 - Sheet rendering automatically finds a headless Chromium (for example Playwright's). If none is found, pass its path in `MODEL_SHEET_CHROME`, or hand over the SVG only.
+- On Windows (Git Bash): the venv's Python is `venv/Scripts/python.exe`; run it with `-I -X utf8` (isolated mode ignores `PYTHONIOENCODING`, and the console code page cannot print accented author names) and give it script paths as `$(cygpath -w ...)`. Codex is `codex.cmd`. The installed Chrome works as `MODEL_SHEET_CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"`; the render uses a throwaway profile so an open Chrome window does not swallow the screenshot.
 - If Codex image generation is off or not logged in, tell the user and stop. Every generated image uses the user's ChatGPT quota.
 
 ## Workflow
