@@ -170,6 +170,9 @@ def main():
     cam = setup_render(a.res)
     view = [float(v) for v in a.view.split(",")]
     check = SelfCheck(meshes) if a.intersections else None
+    if check:  # the bind pose is the baseline for `new`, whether or not `rest` is among the poses
+        use_action(rig, None, 1)
+        check.set_baseline(bpy.context.evaluated_depsgraph_get())
     counts = {}
     for pose in pose_list(a.poses, rig, bool(a.glb)):
         if pose == "rest":
@@ -189,8 +192,6 @@ def main():
             render(os.path.join(a.out, f"{a.prefix}_{label}.png"))
             if check:
                 dg = bpy.context.evaluated_depsgraph_get()
-                if label == "rest":
-                    check.set_baseline(dg)
                 counts[label] = check.run(dg)
                 for name, c in counts[label].items():
                     extra = ["| new vs rest", c["new"], dict(list(c["newWhere"].items())[:6])] if "new" in c else []

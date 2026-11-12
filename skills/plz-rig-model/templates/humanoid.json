@@ -57,7 +57,7 @@
    {"label": "shoo", "base": "pose_stand", "rotate": {"spine": [7, 0, 0], "chest": [4, 0, 0], "neck": [-4, 0, 0],
                "upper_arm.R": [-100, 0, 12], "forearm.R": [-57, 70, 0], "hand.R": [25, 0, 0],
                "upper_arm.L": [-20, 0, 0], "forearm.L": [-40, 0, 0]}},
-   {"label": "arms_out", "base": "pose_stand", "rotate": {"upper_arm.L": [0, 0, 60], "upper_arm.R": [0, 0, -60]}},
+   {"label": "arms_out", "base": "pose_stand", "rotate": {"upper_arm.L": [0, 0, -60], "upper_arm.R": [0, 0, 60]}},
    {"label": "crouch", "base": "pose_stand", "move": {"root": [0, 0, -10]},
     "rotate": {"thigh.*": [-50, 0, 0], "shin.*": [90, 0, 0], "foot.*": [-40, 0, 0], "spine": [15, 0, 0]}}
   ]

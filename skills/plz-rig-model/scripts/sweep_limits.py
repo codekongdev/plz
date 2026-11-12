@@ -74,8 +74,7 @@ def set_rotation(rig, specs, base=None):
         from mathutils import Quaternion, Vector
         for pb in rig.pose.bones:
             pb.rotation_mode = 'QUATERNION'
-            pb.location = base[pb.name][0]
-            pb.rotation_quaternion = base[pb.name][1]
+            pb.location, pb.rotation_quaternion, pb.scale = base[pb.name]
         for names, axis, deg in specs:
             for n in names:
                 e = [0.0, 0.0, 0.0]
@@ -86,7 +85,7 @@ def set_rotation(rig, specs, base=None):
 
 
 def base_pose(rig, name):
-    """{bone: (location, quaternion)} of an action's first frame."""
+    """{bone: (location, quaternion, scale)} of an action's first frame (scale keeps a bird's hidden wings hidden)."""
     act = bpy.data.actions.get(name)
     if act is None:
         raise SystemExit(f"action '{name}' not in the blend")
@@ -95,7 +94,7 @@ def base_pose(rig, name):
     if hasattr(ad, "action_slot") and ad.action_slot is None and len(act.slots):
         ad.action_slot = act.slots[0]
     bpy.context.scene.frame_set(int(act.frame_range[0]))
-    out = {pb.name: (pb.location.copy(), pb.rotation_euler.to_quaternion()) for pb in rig.pose.bones}
+    out = {pb.name: (pb.location.copy(), pb.rotation_euler.to_quaternion(), pb.scale.copy()) for pb in rig.pose.bones}
     ad.action = None
     return out
 

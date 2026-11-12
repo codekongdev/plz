@@ -277,9 +277,11 @@ def main():
         raise SystemExit("give exactly one of --glb or --blend")
     action = "pose_stand" if a.action is None else a.action
     if a.glb:
+        if a.action is None and action not in {an["name"] for an in read_glb(a.glb)[0].get("animations", [])}:
+            action = ""  # no pose_stand (a bird): the bind pose, as on the blend side
         rows, on_axis = glb_axes(a.glb, action or None, a.deg)
-        print(f"AXES source glb {a.glb} action {action} | {on_axis[0]}/{on_axis[1]} parent joints have a "
-              "child on local +Y (bone direction = +Y)")
+        print(f"AXES source glb {a.glb} action {action or '(bind pose)'} | {on_axis[0]}/{on_axis[1]} parent joints "
+              "have a child on local +Y (bone direction = +Y)")
     else:
         import os
         rows, used = blend_axes(os.path.abspath(a.blend), a.deg, action, required=a.action is not None)

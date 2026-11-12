@@ -141,7 +141,7 @@ def face_filter(ob, rule):
     allowed = set()
     for p in ob.data.polygons:
         names = [dom[i] for i in p.vertices]
-        g = max(set(names), key=names.count)
+        g = max(dict.fromkeys(names), key=names.count)  # ties go to the first vertex's group, not set order
         if (keep is None or keep.search(g)) and not (drop and drop.search(g)):
             allowed.add(p.index)
     return allowed
@@ -168,7 +168,12 @@ def recolor(img, ob, material_index, rule):
     me = ob.data
     uv = np.empty(len(me.loops) * 2)
     me.uv_layers.active.data.foreach_get("uv", uv)
-    uv = uv.reshape(-1, 2) % 1.0
+    uv = uv.reshape(-1, 2)
+    # Move each face as a whole into the 0..1 tile, so a face that touches u or v = 1 (or lies on another
+    # tile) keeps its shape; wrapping each corner on its own would fold such a face to nothing.
+    for p in me.polygons:
+        loops = list(p.loop_indices)
+        uv[loops] -= np.floor(uv[loops].min(axis=0) + 1e-6)
     h, w = vote.shape
     cols = np.clip((uv[:, 0] * w).astype(int), 0, w - 1)
     rows = np.clip((uv[:, 1] * h).astype(int), 0, h - 1)

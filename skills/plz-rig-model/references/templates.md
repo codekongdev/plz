@@ -162,4 +162,4 @@ The rule is the quadruped's: local X+ turns the tip toward local Z, and local Z+
 - Thigh forward 50 (the cardigan hem then catches the trousers), back 30. Knee: no new crossing up to 90.
 - Upper arm forward 130 (armpit contact, 10-28 pairs), back 50. Elbow on a hanging arm: 4 or fewer pairs up to 100, 28 at 120, 58 at 140 (the inside of the elbow folds onto itself). With the upper arm forward 115 and rolled in 60, the hand reaches the forehead from an elbow of 90.
 - Neck and head left/right: up to 40 and 60, only hair cards cross the collar (100-160 pairs, all hair).
-- Arm out sideways beyond 60: the shoulder turns angular (no separate clavicle motion).
+- Arm out sideways 60 degrees (nearly level, the `arms_out` check pose): clean, 20 new pairs, fewer than the stand pose because the arms leave the torso. Beyond that was not measured; the game does not move the clavicle.
