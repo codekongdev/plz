@@ -211,7 +211,6 @@
     .stage[data-state="failed"] :is(.canvas-wrap, .hud, .legend, .hint) { display: none; }
     .stage[data-state="failed"] .fallback { position: static; padding: 1.25rem; }
     .layout:has(.stage[data-state="failed"]) .text { grid-row: 2; border-right: 0; }
-    .layout:has(.stage[data-state="failed"]) [data-scene] { scroll-margin-top: 0; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -1863,7 +1862,7 @@ window.__explainer = {
   autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // Reads the auto-play state. If a value is given, changes it (and saves it) and returns the new state
   azimuth: () => controls.getAzimuthalAngle(),  // for checking whether the model rotated
   async run(name) {
-    // In the stacked layout, scroll so the chapter's top sits just below the stage (CSS scroll-margin-top); in the side-by-side layout, scroll it to the center.
+    // In the stacked layout, scroll so the chapter's top sits just below the stage (root scroll-padding-top); in the side-by-side layout, scroll it to the center.
     const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
     document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center' });
     await new Promise(r => setTimeout(r, 900));
