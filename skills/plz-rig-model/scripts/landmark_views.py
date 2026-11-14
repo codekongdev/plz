@@ -150,6 +150,8 @@ def main():
     sc.render.engine = 'BLENDER_WORKBENCH'
     sc.display.shading.light, sc.display.shading.color_type = 'STUDIO', 'TEXTURE'
     sc.render.resolution_percentage = 100
+    # The scene's own output format would otherwise override the .png paths written to views.json.
+    sc.render.image_settings.file_format = 'PNG'
     sc.world = sc.world or bpy.data.worlds.new("lv_world")
     sc.world.color = (0.92, 0.93, 0.94)
     meshes = [o for o in bpy.data.objects if o.type == 'MESH' and not o.hide_render]

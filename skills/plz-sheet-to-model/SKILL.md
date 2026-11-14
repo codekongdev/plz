@@ -52,7 +52,7 @@ SK=<skill dir>/scripts   # <skill dir> is the directory that contains this SKILL
 V=~/.cache/plz-sheet-to-model/venv/bin/python
 [ -x $V ] || { python3 -m venv ~/.cache/plz-sheet-to-model/venv && ~/.cache/plz-sheet-to-model/venv/bin/pip install -q pillow numpy; }
 B=${BLENDER:-$(command -v blender || echo /Applications/Blender.app/Contents/MacOS/Blender)}
-$B -b --factory-startup --python-expr "import bpy; print(bpy.app.version_string)"   # 4.2 or later (validated on 5.2)
+"$B" -b --factory-startup --python-expr "import bpy; print(bpy.app.version_string)"   # 4.2 or later (validated on 5.2)
 W=~/.cache/plz-sheet-to-model/<id>/work; O=~/.cache/plz-sheet-to-model/<id>/out
 ```
 
@@ -85,17 +85,17 @@ In `debug_side_legs.png`, check that the red parts are only legs and toes (if th
 
 ### 4. Build
 ```bash
-$B -b --factory-startup -P $SK/blender/build_model.py -- <art>/<id>/model/spec.json $W $O
+"$B" -b --factory-startup -P "$SK/blender/build_model.py" -- <art>/<id>/model/spec.json $W $O
 ```
 This takes about 5 seconds for a bird-sized subject and about 4 seconds for a cat-sized subject. A bird goes in this order: body cross-section lofting, eyes (raycast onto the head surface), legs (Skin), baking the projection materials (the folded look, and for a bird also the look without wings), the folded-wing shell, the spread wings, then glb, blend, landmarks, and report. A quadruped goes in this order: body and tail cross-section lofting and leg capsules, SDF union, leg-root fillet and smoothing, eyes, ears, Smart UV, projection baking for body and ears, landmarks (checking that the joints are inside the body), then output.
 
 ### 5. Check
 ```bash
-$B -b $O/<id>_<ver>.blend -P $SK/blender/inspect_model.py -- $O/inspect
+"$B" -b $O/<id>_<ver>.blend -P "$SK/blender/inspect_model.py" -- $O/inspect
 ```
 Look at `render_left/front/top/back/three_quarter.png` yourself and compare with the sheet. For hand-placed parts such as legs and ears, overlay the model silhouette on the view pictures pixel by pixel (red = model only, blue = sheet only, IoU in `overlay.json`).
 ```bash
-$B -b $O/<id>_<ver>.blend -P $SK/blender/overlay_views.py -- <art>/<id>/model/spec.json $W $O/overlay
+"$B" -b $O/<id>_<ver>.blend -P "$SK/blender/overlay_views.py" -- <art>/<id>/model/spec.json $W $O/overlay
 ```
 A rigged file is also read in the rest pose. If there is a previous version, compare the two dumps.
 ```bash

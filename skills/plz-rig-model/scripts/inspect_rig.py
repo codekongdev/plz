@@ -132,7 +132,9 @@ def _compare_glb_animations(ga, gb):
         aa, ab = ga["animations"][an], gb["animations"][an]
         for ch in sorted(set(aa) | set(ab)):
             va, vb = aa.get(ch), ab.get(ch)
-            if va is None or vb is None or len(va["values"]) != len(vb["values"]):
+            # A changed sampler time (for example 1 s became 10 s) is a difference even when the values match.
+            if (va is None or vb is None or len(va["values"]) != len(vb["values"])
+                    or len(va["times"]) != len(vb["times"]) or _maxdiff(va["times"], vb["times"]) > 1e-5):
                 vd = max(vd, 1.0)
                 continue
             pairs = [(x, y) for x, y in zip(va["values"], vb["values"]) if abs(x - y) > 1e-5]
@@ -206,6 +208,9 @@ def compare(a_path, b_path):
         ca, cb = a["actions"][name]["curves"], b["actions"][name]["curves"]
         same_keys = set(ca) == set(cb)
         frames = all([k[0] for k in ca[c]] == [k[0] for k in cb[c]] for c in set(ca) & set(cb))
+        # Keyframe interpolation (CONSTANT, BEZIER, ...) changes the poses between keys.
+        interp = all([k[2] for k in ca[c]] == [k[2] for k in cb[c]] for c in set(ca) & set(cb))
+        frames = frames and interp
         vd, hidden = 0.0, []
         for c in set(ca) & set(cb):
             pairs = [(x[1], y[1]) for x, y in zip(ca[c], cb[c]) if abs(x[1] - y[1]) > 1e-5]
@@ -228,6 +233,16 @@ def compare(a_path, b_path):
         ga, gb = a["glb"], b["glb"]
         check("glb joints", ga["skins"] == gb["skins"], f"{[len(s) for s in ga['skins']]} joints")
         check("glb meshes/materials", ga["meshes"] == gb["meshes"] and ga["materials"] == gb["materials"])
+        common_nodes = set(ga["nodes"]) & set(gb["nodes"])
+        same_tree = set(ga["nodes"]) == set(gb["nodes"]) and all(
+            ga["nodes"][n]["parent"] == gb["nodes"][n]["parent"] for n in common_nodes)
+        check("glb node hierarchy", same_tree, f"{len(ga['nodes'])} vs {len(gb['nodes'])} nodes")
+        # A rotation and its negation are the same rotation, so accept either sign.
+        rest = max((min(_maxdiff(ga["nodes"][n]["r"], gb["nodes"][n]["r"]),
+                        _maxdiff(ga["nodes"][n]["r"], [-x for x in gb["nodes"][n]["r"]]))
+                    if k == "r" else _maxdiff(ga["nodes"][n][k], gb["nodes"][n][k])
+                    for n in common_nodes for k in ("t", "r", "s")), default=0.0)
+        check("glb rest transforms", rest <= REST_TOL, f"max dev {rest:.2e}")
         check("glb animation names", set(ga["animations"]) == set(gb["animations"]), f"{sorted(ga['animations'])}")
         if any(not isinstance(v, dict) for an in (ga, gb) for ch in an["animations"].values() for v in ch.values()):
             print("FAIL glb animation data  dump made by an older inspect_rig.py; dump again")

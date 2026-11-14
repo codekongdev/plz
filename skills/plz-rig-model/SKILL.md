@@ -49,7 +49,7 @@ Paths below are relative to this skill's directory. Set `SK` to the absolute pat
 SK=<absolute path of this skill's scripts directory>
 B=${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}   # Linux: blender
 # Windows (Git Bash): B="/c/Program Files/Blender Foundation/Blender 5.2/blender.exe"; pass paths as $(cygpath -w ...)
-$B -b --factory-startup --python-expr "import bpy; print(bpy.app.version_string)"
+"$B" -b --factory-startup --python-expr "import bpy; print(bpy.app.version_string)"
 ```
 
 - Blender 4.4 or later is required (verified on 5.2, macOS and Windows). numpy and the glTF add-on come with Blender.
@@ -64,7 +64,7 @@ Pick the template that matches the target's body plan. Today there are `bird` (a
 
 **A model that already has a rig** (bought or downloaded, FBX or glTF): bring it in with `import_rigged.py` instead of fixing it by hand. It applies the transforms, scales the model so a chosen point sits at a given height (a person's eye height), keeps the source skin weights as vertex groups, writes `landmarks.json` from the source bones through the template's `sourceRigs` table, and can rebuild the materials and recolour one garment to match the reference sheet. Its settings live in a `spec.json` next to the model in the art folder (format in the script's header):
 ```bash
-$B -b --factory-startup -P $SK/import_rigged.py -- --model <in.fbx|in.glb> --spec <art>/<id>/model/spec.json \
+"$B" -b --factory-startup -P "$SK/import_rigged.py" -- --model <in.fbx|in.glb> --spec <art>/<id>/model/spec.json \
    --template humanoid --out ~/.cache/plz-rig-model/<id>/model
 ```
 Check the `report` line (height, triangles, `unmapped none`) and look at the recoloured texture and a render before rigging. Keep the source files outside the repository and the source's license text next to the shipped model.
@@ -73,19 +73,19 @@ Check the `report` line (height, triangles, `unmapped none`) and look at the rec
 - For a `plz-sheet-to-model` or `import_rigged.py` result, use the `landmarks.json` that came with it.
 - Otherwise, make it yourself. Render gridded orthographic images and an empty skeleton:
   ```bash
-  $B -b --factory-startup -P $SK/landmark_views.py -- --model <in.blend|in.glb> --out ~/.cache/plz-rig-model/<id>/views --template <bird|quadruped> --id <id>
+  "$B" -b --factory-startup -P "$SK/landmark_views.py" -- --model <in.blend|in.glb> --out ~/.cache/plz-rig-model/<id>/views --template <bird|quadruped> --id <id>
   ```
   This produces `side.png`, `front.png`, and `top.png` (1 cm grid, with a bold line and a number every 5 cm), `views.json` (the pixel-to-cm formula), and `landmarks.todo.json`. Read the joint positions off the images in cm, convert them to m and fill them in, and write the part role -> object name mapping in `parts`. Place joints at the bone position inside the body, not on the surface (hip, neck base, and shoulder at mid-depth of the body; the ankle where the toes meet). A rule that needs a torso region (`wing_fold_cover`) is written as an (f, z) cm polygon on the side view.
 
 ### 3. Rig
 ```bash
-$B -b --factory-startup -P $SK/rig_model.py -- --model <in.blend|in.glb> --landmarks <landmarks.json> --template <bird|quadruped> --out <out> --name <id>_vNNN
+"$B" -b --factory-startup -P "$SK/rig_model.py" -- --model <in.blend|in.glb> --landmarks <landmarks.json> --template <bird|quadruped> --out <out> --name <id>_vNNN
 ```
 If a feature point or part is missing, the script reports its name and stops. If the input file already has a rig, the old rig and weights are removed and attached again. In the `report` line at the end of the output, check that it says `unweighted verts none`.
 
 ### 4. Pose renders and self-intersections
 ```bash
-$B -b --factory-startup -P $SK/render_poses.py -- --blend <out>/<name>.blend --out <out>/renders --prefix <name> --intersections
+"$B" -b --factory-startup -P "$SK/render_poses.py" -- --blend <out>/<name>.blend --out <out>/renders --prefix <name> --intersections
 ```
 This renders `rest` (bind), the base poses (in NLA track order), and each frame of `rig_test` (with the template label, as in `rig_test_3_alert`) from the same direction. Always look at the images yourself with Read. Render other directions, such as side or top, with `--view x,y,z`. For each pose, `--intersections` records the number of self-intersecting face pairs per mesh and the bones those faces mainly belong to, in `INTERSECT` lines and in `<prefix>_intersections.json`, plus `new vs rest`: the pairs the pose adds to the bind pose. Read `new` for a model with crossings built in (hair cards on the scalp, layered clothes: the Rocketbox person has 1,079 pairs at rest). `--mark` also renders `<prefix>_<pose>_cross.png` with the faces of the new pairs in red. If the number is not 0, look at where, and use the red images to tell whether it is a line where skin touches skin (thigh and belly), hair cards against a collar, or a face that has broken through. If there is a previous version to compare with, render that file with the same arguments and view them side by side.
 
@@ -93,8 +93,8 @@ This renders `rest` (bind), the base poses (in NLA track order), and each frame 
 - **Re-import**: `render_poses.py -- --glb <out>/<name>.glb --out ...` (renders all actions by default; for a bird, `pose_ground,pose_flight`, for a quadruped, `pose_stand`). In the `ROUNDTRIP` line, check that the deform bone count, skinned mesh count, and action names are right, and that the pose images are right. The glTF export writes even a 1-frame action with the same two keys; an engine only needs to read the first key.
 - **Compare with the previous version** (when there is one):
   ```bash
-  $B -b --factory-startup -P $SK/inspect_rig.py -- dump --blend old.blend --glb old.glb --out old.json
-  $B -b --factory-startup -P $SK/inspect_rig.py -- dump --blend new.blend --glb new.glb --out new.json
+  "$B" -b --factory-startup -P "$SK/inspect_rig.py" -- dump --blend old.blend --glb old.glb --out old.json
+  "$B" -b --factory-startup -P "$SK/inspect_rig.py" -- dump --blend new.blend --glb new.glb --out new.json
   python3 $SK/inspect_rig.py compare old.json new.json
   ```
   This reports differences in bone positions, parents, weights, actions, and glb animation as PASS/FAIL. If there is a FAIL other than where you changed things on purpose, find the cause. When comparing with an old file whose hiding scale was 0 and was changed to `hideScale` (older bird rigs and similar), that difference is reported separately as `INFO … hide scale changed` and `children of zero-scaled bones … rest-local` lines (lessons.md item 11). Re-dump old dumps with this script.
@@ -102,12 +102,12 @@ This renders `rest` (bind), the base poses (in NLA track order), and each frame 
 - **Rotation sign table** (when the engine rotates bones on their local axes): if the template has `rotationSigns`,
   ```bash
   python3 $SK/rig_axes.py --glb <out>/<name>.glb --template <t> --out <out>/axes_glb.json
-  $B -b --factory-startup -P $SK/rig_axes.py -- --blend <out>/<name>.blend --template <t> --out <out>/axes_blend.json
+  "$B" -b --factory-startup -P "$SK/rig_axes.py" -- --blend <out>/<name>.blend --template <t> --out <out>/axes_blend.json
   ```
   For each bone, this reports where the tip goes on the glTF axes (+X left, +Y up, +Z front) when local X, Y and Z are rotated +10 degrees on top of `pose_stand` (the bind pose for a template without it, such as `bird`) (`AXES`; for Y, which turns a bone about itself, the probe is the end of local +Z), and the sign per meaning (`SIGN pitchDown 1` and so on). The two results must match. If it says `MIXED`, the axes differ by side or by segment, so find the cause (bone direction, roll, `alignZ`).
 - **Angle limits** (when there are motions that bend a joint a lot):
   ```bash
-  $B -b --factory-startup -P $SK/sweep_limits.py -- --blend <out>/<name>.blend --out <out>/sweep_front.json \
+  "$B" -b --factory-startup -P "$SK/sweep_limits.py" -- --blend <out>/<name>.blend --out <out>/sweep_front.json \
      --vary "upper_arm.*:X:-80:40:10" --vary "forearm.*:X:0,30,45,60,75,90" --near upper_arm,forearm,front_paw
   ```
   This counts self-intersections for each angle combination and leaves the clean range as numbers (`--hold` fixes other bones, such as spine bend; several holds on one bone apply in the order given). Add `--base pose_stand` when the base pose differs from the bind pose (a humanoid's lowered arms): the angles are then added on top of it, as the engine does, and `new` counts the pairs added to the bind pose. Sweep the joints in the positions the motions actually use (a raised arm reaches the head at a smaller elbow angle than a hanging one). Copy the ranges into the README's limits.
