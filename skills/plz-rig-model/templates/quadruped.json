@@ -40,7 +40,7 @@
    ],
    "maxInfluences": 4},
   {"part": "eye.*", "method": "rigid", "bone": "head"},
-  {"part": "ear.*", "method": "rigid", "bone": "ear.*"}
+  {"part": "ear.*", "method": "rigid", "bone": "ear.*", "optional": true}
  ],
  "basePoses": [
   {"name": "pose_stand"}
