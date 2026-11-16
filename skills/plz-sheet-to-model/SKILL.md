@@ -48,12 +48,12 @@ Axes, units, pivot, and naming follow [references/conventions.md](references/con
 ## Setup
 
 ```bash
-SK=<skill dir>/scripts   # <skill dir> is the directory that contains this SKILL.md
-V=~/.cache/plz-sheet-to-model/venv/bin/python
-[ -x $V ] || { python3 -m venv ~/.cache/plz-sheet-to-model/venv && ~/.cache/plz-sheet-to-model/venv/bin/pip install -q pillow numpy; }
+SK="<skill dir>/scripts"   # <skill dir> is the directory that contains this SKILL.md
+V="${HOME}/.cache/plz-sheet-to-model/venv/bin/python"
+[ -x "$V" ] || { python3 -m venv "${HOME}/.cache/plz-sheet-to-model/venv" && "${HOME}/.cache/plz-sheet-to-model/venv/bin/pip" install -q pillow numpy; }
 B=${BLENDER:-$(command -v blender || echo /Applications/Blender.app/Contents/MacOS/Blender)}
 "$B" -b --factory-startup --python-expr "import bpy; print(bpy.app.version_string)"   # 4.2 or later (validated on 5.2)
-W=~/.cache/plz-sheet-to-model/<id>/work; O=~/.cache/plz-sheet-to-model/<id>/out
+W="${HOME}/.cache/plz-sheet-to-model/<id>/work"; O="${HOME}/.cache/plz-sheet-to-model/<id>/out"
 ```
 
 Run Blender **only in the background (`-b`)**. In safe mode the Blender MCP blocks numpy, file reads, and opening other .blend files, so it cannot run these scripts. Use the MCP only to look at a result in a Blender the user has opened, and never touch a file the user has open.
@@ -66,7 +66,7 @@ Check that `<art>/<id>/views/*.webp` and `measurements.json` exist. The orientat
 ### 2. Write the spec
 Start from the example values in [references/spec-format.md](references/spec-format.md) (a small bird for the bird plan, a cat for the quadruped plan) and adjust them to the subject. The hand-chosen values are the leg skeleton points and toes, the wing outline (`foldOutlinePx`), and the anatomical feature points (`skeleton`). Read outlines from a picture with a grid overlaid.
 ```bash
-$V -I $SK/grid.py <art>/<id>/views/side.webp $W/grid-side.png --step 50
+"$V" -I "$SK/grid.py" "<art>/<id>/views/side.webp" "$W/grid-side.png" --step 50
 ```
 Write feature points in cm (x, f, z) by looking at the side image and the silhouette height. Joints must sit inside the body (between the top and bottom of the cross section).
 
@@ -79,27 +79,27 @@ For a quadruped, also decide the following.
 
 ### 3. Measure
 ```bash
-$V -I $SK/measure_views.py <art>/<id>/model/spec.json $W
+"$V" -I "$SK/measure_views.py" "<art>/<id>/model/spec.json" "$W"
 ```
 In `debug_side_legs.png`, check that the red parts are only legs and toes (if the belly is cut off in red, fix `legRemoval`). Compare the eye height in the output with `landmarks_cm` in `measurements.json`.
 
 ### 4. Build
 ```bash
-"$B" -b --factory-startup -P "$SK/blender/build_model.py" -- <art>/<id>/model/spec.json $W $O
+"$B" -b --factory-startup -P "$SK/blender/build_model.py" -- "<art>/<id>/model/spec.json" "$W" "$O"
 ```
 This takes about 5 seconds for a bird-sized subject and about 4 seconds for a cat-sized subject. A bird goes in this order: body cross-section lofting, eyes (raycast onto the head surface), legs (Skin), baking the projection materials (the folded look, and for a bird also the look without wings), the folded-wing shell, the spread wings, then glb, blend, landmarks, and report. A quadruped goes in this order: body and tail cross-section lofting and leg capsules, SDF union, leg-root fillet and smoothing, eyes, ears, Smart UV, projection baking for body and ears, landmarks (checking that the joints are inside the body), then output.
 
 ### 5. Check
 ```bash
-"$B" -b $O/<id>_<ver>.blend -P "$SK/blender/inspect_model.py" -- $O/inspect
+"$B" -b "$O/<id>_<ver>.blend" -P "$SK/blender/inspect_model.py" -- "$O/inspect"
 ```
 Look at `render_left/front/top/back/three_quarter.png` yourself and compare with the sheet. For hand-placed parts such as legs and ears, overlay the model silhouette on the view pictures pixel by pixel (red = model only, blue = sheet only, IoU in `overlay.json`).
 ```bash
-"$B" -b $O/<id>_<ver>.blend -P "$SK/blender/overlay_views.py" -- <art>/<id>/model/spec.json $W $O/overlay
+"$B" -b "$O/<id>_<ver>.blend" -P "$SK/blender/overlay_views.py" -- "<art>/<id>/model/spec.json" "$W" "$O/overlay"
 ```
 A rigged file is also read in the rest pose. If there is a previous version, compare the two dumps.
 ```bash
-$V -I $SK/compare_models.py $O/inspect <previous dump> --map <new image>=<old image> --montage $O/montage
+"$V" -I "$SK/compare_models.py" "$O/inspect" "<previous dump>" --map "<new image>=<old image>" --montage "$O/montage"
 ```
 In `vsSheet` of `report.json`, check that length and height are within ±1%, that the width is near the range of the sheet's front, back, and top values, and that the wingspan matches the sheet. For a quadruped, the height includes the ears, and `landmarksOutside` and `landmarksMissing` must be empty.
 
