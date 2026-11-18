@@ -25,6 +25,7 @@ scripts/check-templates.mjs                               template ENGINE and UI
 scripts/check-templates.test.mjs                          tests for the template check
 scripts/check-3d-loading.test.mjs                         browser regression tests for 3D initialization
 scripts/check-explain-shell.test.mjs                      browser tests for the plz-explain page shell
+scripts/check-explain-svg.test.mjs                        browser tests for the plz-explain svg kit
 scripts/browser-harness.mjs                               shared page server, browser launch, and CDN route for the browser tests
 skills/<skill-name>/
   SKILL.md          instructions the agent follows (frontmatter: name, description)

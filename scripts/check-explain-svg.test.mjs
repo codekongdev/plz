@@ -1,0 +1,477 @@
+// Browser checks for the plz-explain `svg` kit (2D step diagrams): kit loading, kit switching on a mixed page,
+// the timing contract (run, reset, instant, reduced motion, speed, mid-run split drag), layout checks at every size,
+// scale on a large stage, and part states restored by reset.
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { after, before, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { launchBrowser, nextFrames, openExplainPage, railTexts, sleep, startPageServer, variantWithScenes } from './browser-harness.mjs';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const assets = join(root, 'skills/plz-explain/assets');
+const DESKTOP = { width: 1440, height: 900 };
+let browser, server, origin;
+
+// Scenes that use every svg part: a row-level step diagram with a filter (s1), side-by-side panels fed by one trigger (s2),
+// and an operator tree next to node columns (s3).
+const SVG_SCENES = `
+const KEYS = [8, 17, 23, 31, 42, 56], IN = [17, 42], HIT = KEYS.map(k => IN.includes(k));
+defineScene('s1', {
+  kit: 'svg',
+  title: '1  Filter before the join',
+  build(d) {
+    const inner = d.table({ title: 'Inner table', keys: IN, tone: 'matter', header: ['key', 'rest'] });
+    const outer = d.table({ title: 'Outer table', keys: KEYS, header: ['key', 'rest'] });
+    const hash = d.buckets({ title: 'Hash table (key mod 4)', count: 4, label: b => 'bucket ' + b, short: b => '#' + b });
+    const join = d.box({ title: 'Join', lanes: KEYS.length, header: ['rows', 'lookup'], counter: 'Join input {n}', tally: 'Dropped {n}' });
+    const gate = d.gate(outer, { label: 'Filter', pass: 'Pass: ' + IN.join(' · '), hidden: true });
+    d.link([inner.right(hash.left()), hash.left()]);
+    KEYS.forEach((k, i) => d.link([outer.out(i), gate.in(i)]));
+    const post = KEYS.map((k, i) => d.link([gate.out(i), join.in(i)]));
+    const sip = d.link([hash.left(0.15), d.corner(hash.left(0.15), gate.top()), gate.top()], { dashed: true, tone: 'bound', label: 'SIP', hidden: true });
+    window.__parts = { ...window.__parts, inner, outer, hash, join, gate };
+    return {
+      diagram: d.grid([[inner, hash], [outer, join]]),
+      async run(a, say) {
+        const ins = IN.map((k, i) => d.token(k, inner.src(i), { tone: 'matter' }));
+        await Promise.all(ins.map((t, i) => a.along(t, [inner.src(i), hash.left(), hash.slot(IN[i] % 4)])));
+        IN.forEach(k => hash.fill(k % 4));
+        await a.flash(hash);
+        say('1. The keys built the hash table.', { anchor: hash });
+        await a.wait(600);
+        await Promise.all([a.fade(gate, 1), a.fade(sip, 1)]);
+        say('2. The filter went up beside the scan.', { anchor: gate });
+        await a.wait(600);
+        const rows = [];
+        let dropped = 0, passed = 0;
+        await a.groups(KEYS.map((k, i) => i), async i => {
+          rows[i] = d.token(KEYS[i], outer.src(i));
+          await a.along(rows[i], [outer.src(i), gate.before(i)]);
+          if (HIT[i]) return;
+          outer.row(i).mark('gone');
+          join.tally(++dropped); a.tick(join.tallyNode);
+          await Promise.all([a.fade(rows[i], 0), a.fade(post[i], 0.12)]);
+        }, { size: 3, pause: 300 });
+        say('3. Rows without a match were dropped at the filter.', { anchor: join.tallyNode });
+        await a.groups(KEYS.map((k, i) => i).filter(i => HIT[i]), async i => {
+          await a.along(rows[i], [gate.before(i), gate.after(i), join.chip(i)]);
+          outer.row(i).mark('hit'); rows[i].mark('hit');
+          join.count(++passed); a.tick(join.counterNode);
+          join.laneText(i, 'bucket ' + (KEYS[i] % 4) + ' match', { short: '#' + (KEYS[i] % 4), tone: 'actor' });
+          await a.fade(join.lane(i), 1, 150);
+        });
+        say('Only the matching rows reached the join.');
+      },
+    };
+  },
+});
+defineScene('s2', {
+  kit: 'svg',
+  title: '2  Same input, filter off and on',
+  build(d) {
+    const side = filter => {
+      const t = d.table({ title: 'Scan', keys: [8, 17, 23], header: ['key', 'rest'] });
+      const b = d.box({ title: 'Join', lanes: 3, counter: 'in {n}' });
+      const g = filter ? d.gate(t, { label: 'Filter', pass: 'Pass: 17' }) : null;
+      [0, 1, 2].forEach(i => (g ? (d.link([t.out(i), g.in(i)]), d.link([g.out(i), b.in(i)])) : d.link([t.out(i), b.in(i)])));
+      return { t, b, g, grid: d.grid([[t, b]]) };
+    };
+    const off = side(false), on = side(true);
+    const play = async (a, s) => {
+      let n = 0;
+      await a.groups([0, 1, 2], async i => {
+        const tok = d.token([8, 17, 23][i], s.t.src(i));
+        if (s.g && i !== 1) { await a.along(tok, [s.t.src(i), s.g.before(i)]); s.t.row(i).mark('gone'); await a.fade(tok, 0); return; }
+        await a.along(tok, s.g ? [s.t.src(i), s.g.before(i), s.g.after(i), s.b.chip(i)] : [s.t.src(i), s.b.chip(i)]);
+        s.b.count(++n); a.tick(s.b.counterNode);
+      });
+    };
+    return {
+      diagram: d.panels([{ title: 'Filter off', body: off.grid }, { title: 'Filter on', body: on.grid }]),
+      async run(a, say) {
+        say('1. The same three rows went to both sides.');
+        await Promise.all([play(a, off), play(a, on)]);
+        say('2. Without the filter the join got 3 rows; with it, 1.', { anchor: on.b });
+      },
+    };
+  },
+});
+defineScene('s3', {
+  kit: 'svg',
+  title: '3  Plan and nodes',
+  build(d) {
+    const tree = d.tree({ id: 'del', label: 'DELETE', metric: '2 rows', children: [
+      { id: 'join', label: 'Hash join', metric: '2 rows', children: [{ id: 'scanA', label: 'Scan target', metric: '6 rows' }, { id: 'scanB', label: 'Scan temp', metric: '2 rows' }] },
+    ] });
+    const nodes = d.columns(['Node 1', 'Node 2', 'Node 3'], { slots: 3 });
+    window.__parts = { ...window.__parts, tree, nodes };
+    return {
+      diagram: d.stack([tree, nodes], { dir: 'row' }),
+      async run(a, say) {
+        tree.node('scanA').mark('active');
+        say('1. The scan read 6 rows.', { anchor: tree.node('scanA') });
+        await a.wait(400);
+        tree.node('scanA').mark('active', false);
+        tree.node('join').mark('active');
+        tree.node('join').metric('kept 2'); // node text stays short: it must fit the node on phones
+        say('2. The join kept 2.', { anchor: tree.node('join') });
+        const toks = [17, 42].map((k, i) => d.token(k, nodes.col(0).slot(i)));
+        await a.fade(toks[1], 0.3); // a dimmed token keeps its opacity while it moves (reduced motion included)
+        await a.groups(toks, (t, i) => a.along(t, [nodes.col(0).slot(i), nodes.col(i + 1).slot(0)]));
+        window.__tokOpacity = toks[1].g.style.opacity;
+        say('3. Each row moved to the node that owns its key.', { anchor: [12, 12] }); // a badge at a fixed point
+      },
+    };
+  },
+});
+`;
+
+// Long Korean text in every framed label: counters, tally, gate chip, link label, lane text.
+const KO_SCENES = `
+defineScene('s1', { kit: 'svg', title: '1  한국어 라벨', build(d) {
+  const t = d.table({ title: '바깥쪽: 대상 테이블', keys: [8, 17, 23], header: ['키', '나머지 열'] });
+  const b = d.box({ title: '', lanes: 3, header: ['받은 행', '해시 조회'], counter: '조인 입력 {n}행 (예상보다 많음)', tally: '버려진 행 {n}개 (스캔 단계)' });
+  const g = d.gate(t, { label: 'SIP 필터 (런타임 필터)', pass: '통과: 17 · 42 · 108 · 2048' });
+  [0, 1, 2].forEach(i => { d.link([t.out(i), g.in(i)]); d.link([g.out(i), b.in(i)]); });
+  d.link([b.right(0.2), d.corner(b.right(0.2), g.top()), g.top()], { dashed: true, tone: 'bound', label: '사이드웨이 정보 전달' });
+  return { diagram: d.grid([[t, b]]), async run(a, say) {
+    b.count(2); b.tally(1);
+    b.laneText(0, '버킷 0 ✕ 짝 없음', { short: '버킷 0 ✕' }); await a.fade(b.lane(0), 1);
+    say('조인 입력과 버려진 행을 셌습니다.');
+  } };
+} });
+defineScene('s2', { kit: 'svg', title: '2  빈 장', build(d) { const t = d.table({ title: '표', keys: [1] }); return { diagram: d.grid([[t]]), async run(a, say) { say('끝.'); } }; } });
+defineScene('s3', { kit: 'svg', title: '3  빈 장', build(d) { const t = d.table({ title: '표', keys: [1] }); return { diagram: d.grid([[t]]), async run(a, say) { say('끝.'); } }; } });
+`;
+const BAD_GATE = `
+defineScene('s1', { kit: 'svg', title: '1', build(d) { const b = d.box({ title: 'Join', lanes: 2 }); const t = d.table({ title: 'T', keys: [1, 2] }); d.gate(t, { label: 'F' }); return { diagram: d.grid([[b, t]]), async run() {} }; } });
+`;
+const BAD_LINK = `
+defineScene('s1', { kit: 'svg', title: '1', build(d) { const t = d.table({ title: 'T', keys: [1, 2] }); d.link([t.out(0)]); return { diagram: d.grid([[t]]), async run() {} }; } });
+`;
+
+before(async () => {
+  const tpl = await readFile(join(assets, 'template.html'), 'utf8');
+  const variants = {
+    'variant-svg-only.html': variantWithScenes(tpl, SVG_SCENES, 'svg'),
+    'variant-svg-ko.html': variantWithScenes(tpl, KO_SCENES, 'svg').replace('<html lang="en">', '<html lang="ko">'),
+    'variant-svg-bad-gate.html': variantWithScenes(tpl, BAD_GATE, 'svg'),
+    'variant-svg-bad-link.html': variantWithScenes(tpl, BAD_LINK, 'svg'),
+  };
+  server = await startPageServer(path => variants[path] ?? (path === 'template.html' ? readFile(join(assets, path)) : null));
+  origin = server.origin;
+  browser = await launchBrowser();
+}, { timeout: 30_000 });
+
+after(async () => {
+  await browser?.close();
+  await server?.close();
+}, { timeout: 15_000 });
+
+const openPage = (t, file, opts) => openExplainPage(browser, origin, t, file, opts);
+
+// Classes of every part element and the opacity of every link: the visible state of a diagram (also defined in the page as __partState).
+const PART_STATE = () => {
+  const sceneEl = [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none');
+  return [...sceneEl.querySelectorAll('.parts *, .flows > g')].map(n => `${n.getAttribute('class') ?? ''}|${n.style.opacity}`).join('\n');
+};
+const partState = page => page.evaluate(PART_STATE);
+const stampRun = (page, name, speed = 1) => page.evaluate(async ([name, speed]) => {
+  window.__explainer.speed(speed);
+  const list = document.querySelector('.rail-list'), stamps = [];
+  const mo = new MutationObserver(() => stamps.push(performance.now()));
+  mo.observe(list, { childList: true, subtree: true, characterData: true });
+  const text = await window.__explainer.run(name);
+  mo.disconnect();
+  const timing = window.__explainer.timing();
+  window.__explainer.speed(1);
+  return { text, timing, firstToLast: Math.round(stamps.at(-1) - stamps[0]), moments: new Set(stamps.map(s => Math.round(s / 60))).size };
+}, [name, speed]);
+
+test('an svg-only page never requests three.js and hides rotation controls', async t => {
+  const { page, errors, threeRequests } = await openPage(t, 'variant-svg-only.html');
+  for (const name of ['s1', 's2', 's3']) {
+    const text = await page.evaluate(n => window.__explainer.run(n), name);
+    assert.ok(text.length > 0, `${name} final caption`);
+    const labels = await page.evaluate(() => [...document.querySelectorAll('.svg-scene text')].filter(n => n.textContent.trim()).length);
+    assert.ok(labels > 5, `${name} draws labels`);
+  }
+  assert.deepEqual(threeRequests, []);
+  assert.equal(await page.locator('.hint').isVisible(), false);
+  assert.equal(await page.locator('.reset-view').isVisible(), false);
+  assert.deepEqual(errors, []);
+});
+
+test('a mixed page switches between the axo and svg kits on chapter change', async t => {
+  const { page, errors, threeRequests } = await openPage(t, 'template.html');
+  const layers = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.kit-layer')].map(l => [l.dataset.kit, !l.hidden])));
+  await page.evaluate(() => window.__explainer.run('s3'));
+  assert.deepEqual(await layers(), { axo: false, svg: true });
+  assert.equal(await page.locator('.hint').isVisible(), false);
+  await page.evaluate(() => window.__explainer.run('s1'));
+  assert.deepEqual(await layers(), { axo: true, svg: false });
+  assert.equal(await page.locator('.hint').isVisible(), true);
+  assert.ok(threeRequests.length > 0);
+  assert.deepEqual(errors, []);
+});
+
+test('svg runs: instant mode reaches the same end state, and reset restores every part (dimmed connectors included)', { timeout: 60_000 }, async t => {
+  const { page, errors } = await openPage(t, 'variant-svg-only.html');
+  const fresh = await partState(page);
+  const normal = await page.evaluate(() => window.__explainer.run('s1'));
+  const caps = await railTexts(page), end = await partState(page);
+  const dimmed = await page.evaluate(() => [...document.querySelectorAll('.svg-scene .flows > g')].filter(g => parseFloat(g.style.opacity) < 0.2).length);
+  assert.equal(dimmed, 4, 'the four dropped rows dim their connector past the filter');
+  const badges = await page.evaluate(() => [...document.querySelectorAll('.svg-scene .sb')].filter(b => b.style.opacity !== '0').map(b => b.textContent));
+  assert.deepEqual(badges, ['1', '2', '3'], 'say(…, { anchor }) puts numbered badges on svg parts');
+  await page.evaluate(() => window.__explainer.instant(true));
+  assert.equal(await page.evaluate(() => window.__explainer.run('s1')), normal);
+  assert.deepEqual(await railTexts(page), caps);
+  assert.equal(await partState(page), end);
+  await page.evaluate(() => window.__explainer.instant(false));
+  // A new run starts from the reset state: nothing dimmed, no row marked, no token left. The state is captured in the page
+  // at the moment reset clears the rail (before the run's first step can change anything), so machine load cannot shift it.
+  const atReset = await page.evaluate(async src => {
+    const state = new Function(`return (${src})()`);
+    const list = document.querySelector('.rail-list');
+    let snap = null;
+    const mo = new MutationObserver(() => {
+      if (snap === null && list.children.length === 0) snap = { parts: state(), tokens: document.querySelectorAll('.svg-scene .tok').length };
+    });
+    mo.observe(list, { childList: true });
+    await window.__explainer.run('s1');
+    mo.disconnect();
+    return snap;
+  }, PART_STATE.toString());
+  assert.ok(atReset, 'the rail was cleared when the run started');
+  assert.equal(atReset.parts, fresh, 'reset restores the initial state of every part');
+  assert.ok(atReset.tokens <= 2, `only the new run's first tokens exist (${atReset.tokens})`);
+  assert.deepEqual(errors, []);
+});
+
+test('svg timing: speed scales the run, and reduced motion keeps captions arriving one by one', { timeout: 90_000 }, async t => {
+  const { page, errors } = await openPage(t, 'variant-svg-only.html');
+  const x1 = await stampRun(page, 's1', 1), x2 = await stampRun(page, 's1', 2);
+  // The director's own timeline is load-independent; the wall clock gets a loose check only.
+  assert.ok(x1.timing.base > 1000 && x2.timing.base === x1.timing.base, JSON.stringify([x1.timing, x2.timing]));
+  assert.ok(Math.abs(x1.timing.scaled / x2.timing.scaled - 2) < 0.02, `2× halves the schedule (${x1.timing.scaled} / ${x2.timing.scaled})`);
+  assert.ok(x1.firstToLast > x2.firstToLast * 1.1, `2× is also faster on the wall clock (${x1.firstToLast} / ${x2.firstToLast} ms)`);
+  assert.equal(x2.text, x1.text);
+  const reduced = await openPage(t, 'variant-svg-only.html', { reducedMotion: 'reduce' });
+  const r = await stampRun(reduced.page, 's1', 1);
+  assert.equal(r.text, x1.text);
+  assert.ok(r.timing.scaled >= r.timing.base * 0.99, `reduced motion keeps every step's time (${JSON.stringify(r.timing)})`);
+  assert.ok(r.firstToLast > 1500 && r.moments >= 4, `reduced motion kept the steps apart: ${JSON.stringify(r)}`);
+  assert.deepEqual([...errors, ...reduced.errors], []);
+});
+
+test('svg: dragging the split mid-run keeps the run, and tokens continue on the new layout', { timeout: 60_000 }, async t => {
+  const { page, errors } = await openPage(t, 'variant-svg-only.html');
+  const ref = await page.evaluate(() => window.__explainer.run('s1'));
+  const refCaps = await railTexts(page);
+  await page.evaluate(() => { window.__drag = window.__explainer.run('s1'); });
+  await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length >= 2);
+  const h = await page.$eval('.split-v', el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: innerHeight / 2 }; });
+  await page.mouse.move(h.x, h.y); await page.mouse.down();
+  for (let i = 1; i <= 10; i++) { await page.mouse.move(h.x + (i % 2 ? -1 : 1) * i * 20, h.y); await sleep(60); } // pacing a user's drag
+  await page.mouse.up();
+  assert.equal(await page.evaluate(() => window.__drag), ref);
+  assert.deepEqual(await railTexts(page), refCaps);
+  assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+  assert.deepEqual(errors, []);
+});
+
+// Smallest rendered label size (font-size × diagram scale) among visible svg labels.
+const minFont = page => page.evaluate(() => {
+  const k = window.__explainer.kitInfo()?.scale ?? 1;
+  const sizes = [...document.querySelectorAll('.svg-scene text')].filter(n => n.textContent.trim() && n.getBoundingClientRect().width > 0)
+    .filter(n => { for (let e = n; e && e.tagName !== 'svg'; e = e.parentNode) { const cs = getComputedStyle(e); if (cs.display === 'none' || parseFloat(cs.opacity) < 0.05) return false; } return true; })
+    .map(n => parseFloat(getComputedStyle(n).fontSize) * k);
+  return Math.min(...sizes);
+});
+async function svgChapterChecks(page, tag, { phone }) {
+  for (const n of await page.evaluate(() => window.__explainer.scenes())) {
+    const r = await page.evaluate(async n => { const text = await window.__explainer.run(n); return { text, kit: window.__explainer.kitInfo(), overlaps: window.__explainer.overlaps(), clipped: window.__explainer.clipped() }; }, n);
+    if (r.kit?.scale === undefined) continue; // an axo chapter of the mixed template
+    assert.ok(r.text.length > 0, `${tag} ${n}: final caption`);
+    assert.deepEqual(r.overlaps, [], `${tag} ${n}: overlaps`);
+    assert.deepEqual(r.clipped, [], `${tag} ${n}: clipped`);
+    const f = await minFont(page);
+    assert.ok(f >= (phone ? 11 : 12) - 0.01, `${tag} ${n}: smallest label ${f}px`);
+    if (phone && (await page.evaluate(() => document.querySelector('.rail').classList.contains('compact')))) {
+      await page.evaluate(() => window.__explainer.rail(true));
+      assert.deepEqual(await page.evaluate(() => window.__explainer.clipped()), [], `${tag} ${n}: clipped with the sheet open`);
+      await page.evaluate(() => window.__explainer.rail(false));
+    }
+  }
+}
+
+for (const file of ['variant-svg-only.html', 'template.html']) {
+  test(`${file}: svg chapters have no overlaps or clipped labels at every size, and scale up on a large stage`, { timeout: 240_000 }, async t => {
+    await t.test('1440x900 default, min and max split', async t => {
+      const { page, errors } = await openPage(t, file);
+      await page.evaluate(() => window.__explainer.instant(true));
+      await svgChapterChecks(page, 'default', { phone: false });
+      const k = await page.evaluate(async () => { await window.__explainer.run('s3'); return window.__explainer.kitInfo().scale; });
+      assert.ok(k >= 1, `scale ${k} at 1440x900`);
+      for (const key of ['Home', 'End']) {
+        await page.focus('.split-v'); await page.keyboard.press(key); await nextFrames(page);
+        await svgChapterChecks(page, key === 'Home' ? 'min' : 'max', { phone: false });
+      }
+      assert.deepEqual(errors, []);
+    });
+    await t.test('2282x1293', async t => {
+      const { page, errors } = await openPage(t, file, { viewport: { width: 2282, height: 1293 } });
+      await page.evaluate(() => window.__explainer.instant(true));
+      await svgChapterChecks(page, '2282', { phone: false });
+      const k = await page.evaluate(async () => { await window.__explainer.run('s3'); return window.__explainer.kitInfo().scale; });
+      assert.ok(k > 1.15 && k <= 1.6, `scale ${k} grows on a large stage`);
+      assert.deepEqual(errors, []);
+    });
+    for (const viewport of [{ width: 390, height: 844 }, { width: 360, height: 800 }, { width: 844, height: 390 }]) {
+      await t.test(`${viewport.width}x${viewport.height}`, async t => {
+        const { page, errors } = await openPage(t, file, { viewport });
+        await page.evaluate(() => window.__explainer.instant(true));
+        await svgChapterChecks(page, `${viewport.width}x${viewport.height}`, { phone: true });
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth === innerWidth), true);
+        assert.deepEqual(errors, []);
+      });
+    }
+  });
+}
+
+// Text wider than its frame: every framed svg label (pills, gate chip, link label, lane text in its box).
+const frameOverflow = page => page.evaluate(() => {
+  const sceneEl = [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none');
+  const out = [];
+  const check = (text, frame) => {
+    if (!text?.textContent.trim() || getComputedStyle(text).opacity === '0') return;
+    const a = text.getBoundingClientRect(), b = frame.getBoundingClientRect();
+    if (a.width && (a.left < b.left - 0.5 || a.right > b.right + 0.5)) out.push(text.textContent);
+  };
+  sceneEl.querySelectorAll('.pill').forEach(p => check(p.querySelector('text'), p.querySelector('rect')));
+  sceneEl.querySelectorAll('.gate').forEach(g => g.querySelectorAll('text').forEach(t => check(t, g.querySelector('.chip'))));
+  sceneEl.querySelectorAll('.opbox').forEach(b => b.querySelectorAll(':scope > text.meta').forEach(t => check(t, b.querySelector('.box'))));
+  return out;
+});
+
+test('B1: framed labels grow with their text (Korean), and clipped() reports text wider than its frame', async t => {
+  for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
+    await t.test(`${viewport.width}x${viewport.height}`, async t => {
+      const { page, errors } = await openPage(t, 'variant-svg-ko.html', { viewport });
+      await page.evaluate(() => window.__explainer.run('s1'));
+      assert.deepEqual(await frameOverflow(page), [], 'no text wider than its frame');
+      assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+      // clipped() itself catches an overflow: squeeze a pill frame and look again.
+      const reported = await page.evaluate(() => {
+        const r = [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').querySelector('.pill.counter rect');
+        r.setAttribute('width', 20);
+        return window.__explainer.clipped();
+      });
+      assert.ok(reported.some(text => text.includes('조인 입력')), `clipped() reports the overflowing pill text: ${JSON.stringify(reported)}`);
+      assert.deepEqual(errors, []);
+    });
+  }
+});
+
+test('B2: reset clears lane text set during the previous run', async t => {
+  const { page, errors } = await openPage(t, 'variant-svg-only.html');
+  await page.evaluate(() => window.__explainer.instant(true));
+  await page.evaluate(() => window.__explainer.run('s1'));
+  const atReset = await page.evaluate(async () => {
+    const list = document.querySelector('.rail-list');
+    let snap = null;
+    const lanes = () => [...window.__parts.join.g.querySelectorAll(':scope > text.meta')].slice(2).map(n => n.textContent);
+    const mo = new MutationObserver(() => { if (snap === null && list.children.length === 0) snap = lanes(); });
+    mo.observe(list, { childList: true });
+    window.__explainer.instant(false);
+    window.__explainer.speed(2);
+    await window.__explainer.run('s1');
+    mo.disconnect();
+    return snap;
+  });
+  assert.ok(atReset.length === 6 && atReset.every(text => text === ''), `lane text after reset: ${JSON.stringify(atReset)}`);
+  assert.deepEqual(errors, []);
+});
+
+test('B3: the stage-height minimum follows the chapter (svg diagrams are never cut off on phones)', async t => {
+  await t.test('shrunk on a short chapter, then a tall one', async t => {
+    const { page, errors } = await openPage(t, 'variant-svg-only.html', { viewport: { width: 390, height: 844 } });
+    await page.evaluate(() => window.__explainer.instant(true));
+    await page.evaluate(() => window.__explainer.run('s3'));
+    await page.focus('.split-h'); await page.keyboard.press('Home'); await nextFrames(page);
+    await page.evaluate(() => window.__explainer.run('s1'));
+    assert.deepEqual(await page.evaluate(() => window.__explainer.clipped()), [], 'the tall diagram fits after the chapter change');
+    assert.deepEqual(errors, []);
+  });
+  await t.test('no saved height on a short phone', async t => {
+    const { page, errors } = await openPage(t, 'variant-svg-only.html', { viewport: { width: 360, height: 600 } });
+    await page.evaluate(() => window.__explainer.instant(true));
+    await page.evaluate(() => window.__explainer.run('s1'));
+    assert.deepEqual(await page.evaluate(() => window.__explainer.clipped()), [], 'the default stage grows to the diagram\'s minimum');
+    assert.deepEqual(errors, []);
+  });
+});
+
+test('B4: a gate sits in its grid gutter, and an unsupported placement fails with a clear error', async t => {
+  const good = await openPage(t, 'variant-svg-only.html');
+  await good.page.evaluate(() => window.__explainer.run('s1'));
+  const pos = await good.page.evaluate(() => {
+    const P = window.__parts, b = P.gate.g.querySelector('.barrier').getBoundingClientRect();
+    return { barrier: b.left + b.width / 2, left: P.outer.g.querySelector('.tbl').getBoundingClientRect().right, right: P.join.g.querySelector('.box').getBoundingClientRect().left };
+  });
+  assert.ok(Math.abs(pos.barrier - (pos.left + pos.right) / 2) < 1, `the gate is centered in the gutter: ${JSON.stringify(pos)}`);
+  const { page, errors } = await openPage(t, 'variant-svg-bad-gate.html', { waitReady: false });
+  await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
+  assert.ok(errors.some(e => /d\.gate.*gutter/i.test(e)), `clear error: ${JSON.stringify(errors)}`);
+});
+
+test('B5: reduced motion keeps a token\'s opacity while it moves', async t => {
+  for (const reducedMotion of ['no-preference', 'reduce']) {
+    const { page } = await openPage(t, 'variant-svg-only.html', { reducedMotion });
+    await page.evaluate(() => window.__explainer.run('s3'));
+    assert.equal(await page.evaluate(() => window.__tokOpacity), '0.3', `${reducedMotion}: the faded token stays at 0.3`);
+  }
+});
+
+test('B6: the ink-outline emphasis (mark(\'on\') / a.flash) shows on every part type', async t => {
+  const { page, errors } = await openPage(t, 'variant-svg-only.html');
+  await page.evaluate(() => window.__explainer.instant(true)); // no CSS transitions: the computed stroke is the final one
+  const ink = 'rgb(30, 42, 51)';
+  const check = async (name, scene, mark, frame) => {
+    await page.evaluate(n => window.__explainer.run(n), scene);
+    const r = await page.evaluate(([mark, frame]) => {
+      const P = window.__parts, target = new Function('P', `return ${mark}`)(P);
+      target.mark('on');
+      const el = new Function('P', `return ${frame}`)(P), cs = getComputedStyle(el);
+      const out = { stroke: cs.stroke, width: parseFloat(cs.strokeWidth) };
+      target.mark('on', false);
+      return out;
+    }, [mark, frame]);
+    assert.equal(r.stroke, ink, `${name}: ink outline`);
+    assert.ok(r.width >= 2, `${name}: stroke width ${r.width}`);
+  };
+  await check('table', 's1', 'P.outer', "P.outer.g.querySelector('.tbl')");
+  await check('row', 's1', 'P.outer.row(1)', "P.outer.row(1).bg");
+  await check('buckets', 's1', 'P.hash', "P.hash.g.querySelector('.box')");
+  await check('bucket cell', 's1', 'P.hash.cell(0)', "P.hash.cell(0).rect");
+  await check('box', 's1', 'P.join', "P.join.g.querySelector('.box')");
+  await check('gate', 's1', 'P.gate', "P.gate.g.querySelector('.barrier')");
+  await check('tree', 's3', 'P.tree', "P.tree.node('del').rect");
+  await check('tree node', 's3', "P.tree.node('join')", "P.tree.node('join').rect");
+  await check('columns', 's3', 'P.nodes', "P.nodes.col(0).rect");
+  await check('column', 's3', 'P.nodes.col(1)', "P.nodes.col(1).rect");
+  assert.deepEqual(errors, []);
+});
+
+test('B7: a badge may sit at a fixed point, and a one-point link fails with a clear error', async t => {
+  const ok = await openPage(t, 'variant-svg-only.html');
+  await ok.page.evaluate(() => window.__explainer.run('s3'));
+  const badges = await ok.page.evaluate(() => [...document.querySelectorAll('.svg-scene .sb')].filter(b => b.isConnected).map(b => b.textContent));
+  assert.ok(badges.includes('3'), `badge at a fixed point: ${JSON.stringify(badges)}`);
+  assert.deepEqual(ok.errors, []);
+  const bad = await openPage(t, 'variant-svg-bad-link.html', { waitReady: false });
+  await bad.page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
+  assert.ok(bad.errors.some(e => /d\.link.*two points/i.test(e)), `clear error: ${JSON.stringify(bad.errors)}`);
+});

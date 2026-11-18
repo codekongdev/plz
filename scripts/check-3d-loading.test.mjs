@@ -190,11 +190,16 @@ for (const { path: file, lang, noticePattern } of pages) {
       // plz-explain keeps step timing under reduced motion; its verification instant mode is the fast equivalent.
       api.instant?.(true);
       const name = api.scenes().includes('kernel') ? 'kernel' : 's2';
+      // three.js counts a geometry once it has rendered it, so sample only after the end state was drawn.
+      // run() returns after a fixed delay; when frames are slow (busy CPU, software GL) no frame may fit in it.
+      const drawn = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       await api.run(name); // Warm renderer allocations and persistent label state first.
+      await drawn();
       const baseline = api.resources();
       const runs = [];
       for (let i = 0; i < 8; i += 1) {
         const text = await api.run(name);
+        await drawn();
         runs.push({ text, resources: api.resources() });
       }
       return { baseline, runs };
@@ -215,6 +220,7 @@ for (const { path: file, lang, noticePattern } of pages) {
       const api = window.__explainer;
       const name = api.scenes().includes('kernel') ? 'kernel' : 's2';
       await api.run(name);
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); // the end state was drawn (see above)
       return { name, next: api.scenes()[0], baseline: api.resources() };
     });
     // dispatchEvent clicks without scrolling, so no other chapter crosses the reading line and uploads its geometry.

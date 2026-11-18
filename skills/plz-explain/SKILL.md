@@ -6,7 +6,7 @@ description: |
   chapter, and a button in each chapter plays out cause and effect step by step, with numbered step
   captions on the stage (where code is blocked, how a request flows, when a resource is created and
   destroyed). Readers can change the playback speed, resize the text and model, and turn on auto-play.
-  The stage currently draws a three.js axonometric block model. The page is written in the user's
+  The stage draws, per chapter, a three.js axonometric block model or a 2D step diagram. The page is written in the user's
   language; screen text is built in for en, ko, ja, zh-CN. Use when someone wants to learn or understand
   a concept visually, or knows nothing about a topic and wants interactive study material. Not for
   static architecture or sequence diagrams (archify), data charts, Blender modeling, or product landing
@@ -25,7 +25,7 @@ of the explanation, not decoration. Motion carries only the change being learned
 
 ## Output
 
-- One HTML file. Libraries and web fonts load from a CDN (three.js r170 only when the page has an axo scene), so opening the page needs internet. There is no build step.
+- One HTML file. Web fonts load from a CDN, and three.js r170 too when the page has an axo chapter, so opening the page needs internet. There is no build step.
 - Left: title, intro, numbered chapters, glossary, sources. Right: a fixed stage with the current chapter title, the auto-play switch, the reset-view button, the semantic color legend, and the caption rail.
 - Scrolling switches the stage to the scene of the chapter crossing the reading line. Each chapter has one run button. Pressing it plays the steps on the model, and each step's caption appears on the stage, next to the model, numbered like the steps in the text.
 - The run button is a split button: `[Run][1× ▾]`. The segment opens a speed menu (0.5×, 1×, 1.5×, 2×). The speed is shared by every chapter and remembered.
@@ -38,7 +38,18 @@ of the explanation, not decoration. Motion carries only the change being learned
 The page has two layers of engine code. Neither is edited when building a page.
 
 - **The shell** owns the layout, chapter switching, HUD, caption rail, speed menu, split, auto-play, timing (the director), and verification hooks. It does not draw anything.
-- **A kit** draws the stage. Each scene names its kit with `kit:` (default `'axo'`). The only kit today is `axo`: a three.js axonometric model of white blocks with ink outlines. The stage lists the kits the page uses in `data-kits` on `aside.stage` (template default `axo`).
+- **A kit** draws the stage. Each scene names its kit with `kit:` (default `'axo'`). There are two:
+  - `axo`: a three.js axonometric model of white blocks with ink outlines.
+  - `svg`: a 2D step diagram (tables of rows with keys, hash buckets, operator boxes with lanes, filters, operator trees, node columns), with no library.
+- The stage lists the kits the page uses in `data-kits` on `aside.stage`: the template has `axo svg`; use `svg` alone when there is no axo chapter, so three.js is never downloaded.
+
+### Choosing a kit per chapter
+
+Decide by where the information lives.
+
+- **svg** when the lesson is about values and order: which row, key, or request goes where, in what order, and what is dropped or matched (joins, filters, hashing, queues, routing rows to nodes, a query plan with counts). Removing a third dimension loses nothing here, and 2D keeps every key readable without rotating.
+- **axo** when depth or containment is the concept: layers on layers, rooms inside a boundary, what sits under what (kernels, sandboxes, VMs, network zones).
+- A page may mix them; each chapter uses one kit. Keep the three semantic colors and the same labels for the same thing in both kits.
 
 ## Page language
 
@@ -76,6 +87,7 @@ A chapter with no action in mind is either well served by text alone or should b
 This style is an architectural model (white massing model + ink outlines) seen in axonometric view. It is chosen so that learners read "structure", so keep it when the topic changes.
 
 - Orthographic (axonometric) camera, white model, ink outlines, light shadows. They are in the axo kit.
+- svg chapters use the same paper: white tables and boxes with hairline borders, keys in the mono font, the active element marked by an ink outline or halo (never an extra color).
 - Use a light background. A white model reads well against a light ground, with clear outlines and shadows.
 - There are only three semantic colors. actor (the protagonist that moves and causes things, red), bound (boundary, rule, intermediary, blue), matter (data, resource, material, brass). Give each color exactly one meaning, and draw everything else in white and ink. Write what each means on this page in the legend.
 - Motion happens only when a button is pressed and when the chapter changes, by default. If the user turns on "Auto-play", the action of the current chapter replays in a loop. When auto-play is off, use no autoplay or looping animation.
@@ -90,6 +102,7 @@ This style is an architectural model (white massing model + ink outlines) seen i
 Copy `assets/template.html` to the output location and fill in only the HTML marked `TEXT` and the `SCENES` section. Do not edit the `ENGINE` sections, which hold the shell, the director, and the axo kit (renderer, camera fitting, label handling, animator). They already contain fixes for bugs we hit.
 
 - Make one scene with `defineScene(name, { title, base, target, fitW, fitH, build })` (`kit: 'axo'` is the default). The `data-scene` in the body and the `data-run` on the button must equal `name`.
+- An svg scene is `defineScene(name, { kit: 'svg', title, build(d) })`: build parts with `d`, arrange them with `d.grid` / `d.panels` / `d.stack`, and return `{ diagram, run }`. The kit sizes the diagram for every stage and restores every part on reset. The template's `s3` is a short example.
 - `build()` returns `{ group, reset, run }`. `reset()` restores everything `run()` changed (position, size, visibility, label text). The engine restores colors and clears the captions.
 - `run(a, say)`: `a` is the animator, `say(text, { anchor })` adds a step caption to the rail. Start a step's caption with its number, a period, and a space (`say('2. The broker checked the request.')`) to match `ol.steps` in the body. A caption with the same number as the newest one updates that step in place (useful for "trying…" followed by "blocked"). `anchor` puts the same number in a badge next to that object; use it when it is not obvious which object a step is about.
 - The action row holds only the button: `<div class="act"><button type="button" disabled data-run="name">…</button></div>`. The engine adds the speed segment. There is no result line in the text column.
@@ -140,6 +153,7 @@ The phone layout is built into the template.
 - Wide stages (720px and wider, side by side) show every caption in a column beside the model; the camera fits the model into the rest. Narrower stages show one caption bar: the newest caption, "k / n", and a toggle that opens all captions as a sheet inside the stage.
 - One line of the stage title bar holds the chapter title, the auto-play switch, and the reset-view button (the chapter title takes up to two lines and is truncated with an ellipsis if longer). At 430px wide and below, the switch text shrinks to a short per-language phrase (English "Auto"; the accessible name stays the long phrase "Auto-play"), and tap targets are 44px or more. Code blocks do not wrap; they scroll horizontally inside the block only.
 - Touch: on the stage, a vertical swipe scrolls the page and a horizontal drag rotates the model. Tilting up and down is not supported.
+- svg chapters: on wide stages the diagram is scaled up to 1.6× with the captions beside or below it; on narrow stages and phones the columns compress and the rows adapt (text stays at least 12px on desktop, 11px on phones).
 - A stage 600px or narrower (phones, or a narrow stage beside the text) uses smaller labels. When the model area is narrower than 700px, the axo kit also pulls labels toward the inside of the model area and shifts them apart when they overlap. Overlaps beyond the cap (56px) remain.
 - When you build a page, write short labels and do not place two long labels close together.
 

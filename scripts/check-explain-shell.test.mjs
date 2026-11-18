@@ -5,14 +5,13 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { launchBrowser, routeNetwork, startPageServer } from './browser-harness.mjs';
+import { launchBrowser, nextFrames, openExplainPage, railTexts, sleep, startPageServer, variantWithScenes } from './browser-harness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const assets = join(root, 'skills/plz-explain/assets');
 const examples = ['template.html', 'example-agent-sandbox.html', 'example-agent-sandbox.en.html'];
 const DESKTOP = { width: 1440, height: 900 };
 const PHONES = [{ width: 390, height: 844 }, { width: 360, height: 800 }, { width: 844, height: 390 }];
-const sleep = ms => new Promise(r => setTimeout(r, ms));
 let browser, server, origin;
 
 // A page with no axo scene: the template with its SCENES section replaced by a small DOM-only kit.
@@ -96,23 +95,11 @@ defineScene('s2', {
 });
 `;
 
-async function variantWithScenes(code) {
-  const html = await readFile(join(assets, 'template.html'), 'utf8');
-  const lines = html.split('\n');
-  const scenes = lines.findIndex(l => /^SCENES\b/.test(l.trim()));
-  const cont = lines.findIndex(l => /^ENGINE \(/.test(l.trim()));
-  assert.ok(scenes > 0 && cont > scenes, 'template banners');
-  // Keep the banner comment lines; replace only the code between them.
-  const sceneCodeStart = lines.findIndex((l, i) => i > scenes && l.includes('*/')) + 1;
-  const sceneCodeEnd = cont - 1; // the "/* ====" line that opens the continued banner
-  const out = [...lines.slice(0, sceneCodeStart), code, ...lines.slice(sceneCodeEnd)].join('\n');
-  assert.match(out, /data-kits="axo"/, 'the template declares its kits on the stage');
-  return out;
-}
-const variantNoAxo = async () => (await variantWithScenes(DOM_KIT_SCENES)).replace('data-kits="axo"', 'data-kits="dom"');
+const templateSource = () => readFile(join(assets, 'template.html'), 'utf8');
+const variantNoAxo = async () => variantWithScenes(await templateSource(), DOM_KIT_SCENES, 'dom');
 
 before(async () => {
-  const variants = { 'variant-no-axo.html': await variantNoAxo(), 'variant-axo-probe.html': await variantWithScenes(AXO_PROBE_SCENES) };
+  const variants = { 'variant-no-axo.html': await variantNoAxo(), 'variant-axo-probe.html': variantWithScenes(await templateSource(), AXO_PROBE_SCENES) };
   server = await startPageServer(path => variants[path] ?? (examples.includes(path) ? readFile(join(assets, path)) : null));
   origin = server.origin;
   browser = await launchBrowser();
@@ -123,23 +110,7 @@ after(async () => {
   await server?.close();
 }, { timeout: 15_000 });
 
-// waitReady: false returns while the stage may still be loading; cdn(url) may hold or abort three.js requests.
-async function openPage(t, file, { viewport = DESKTOP, reducedMotion = 'no-preference', storage = {}, waitReady = true, cdn } = {}) {
-  const phone = viewport.width <= 860 || viewport.height <= 520;
-  const context = await browser.newContext({ viewport, reducedMotion, ...(phone ? { deviceScaleFactor: 3, isMobile: true, hasTouch: true } : {}) });
-  t.after(() => context.close());
-  if (Object.keys(storage).length) await context.addInitScript(s => { for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v); }, storage);
-  const threeRequests = [];
-  await routeNetwork(context, origin, { cdn, onThree: url => threeRequests.push(url) });
-  const page = await context.newPage();
-  page.setDefaultTimeout(30_000);
-  const errors = [];
-  page.on('pageerror', e => errors.push(e.message));
-  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`${origin}/${file}`, { waitUntil: waitReady ? 'load' : 'commit' });
-  if (waitReady) await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'ready');
-  return { page, errors, threeRequests };
-}
+const openPage = (t, file, opts) => openExplainPage(browser, origin, t, file, opts);
 
 // Runs a scene and records when each caption joined the rail (or changed in place).
 const stampRun = (page, name, { speed = 1, speedAt = null, speedTo = null } = {}) => page.evaluate(async ([name, speed, speedAt, speedTo]) => {
@@ -158,8 +129,9 @@ const stampRun = (page, name, { speed = 1, speedAt = null, speedTo = null } = {}
   mo.disconnect();
   t0 = first()?.t ?? 0;
   const caps = [...list.children].map(c => c.textContent);
+  const timing = api.timing();
   api.speed(1);
-  return { text, caps, firstToLast: Math.round(stamps.at(-1).t - t0), distinctTimes: new Set(stamps.filter(s => s.n > 0).map(s => Math.round(s.t / 50))).size };
+  return { text, caps, timing, firstToLast: Math.round(stamps.at(-1).t - t0), distinctTimes: new Set(stamps.filter(s => s.n > 0).map(s => Math.round(s.t / 50))).size };
 }, [name, speed, speedAt, speedTo]);
 
 const railCaps = page => page.$$eval('.rail-list .cap', caps => caps.map(c => ({
@@ -172,7 +144,7 @@ test('speed menu: opens from the split button, syncs every chapter, persists, an
       const { page, errors } = await openPage(t, 'template.html', { viewport });
       const seg = '[data-scene="s2"] .speed-seg';
       await page.evaluate(() => document.querySelector('[data-scene="s2"] .act').scrollIntoView({ block: 'center', behavior: 'instant' }));
-      await sleep(400);
+      await nextFrames(page);
       const attrs = await page.$eval(seg, s => ({ haspopup: s.getAttribute('aria-haspopup'), expanded: s.getAttribute('aria-expanded'), label: s.getAttribute('aria-label'), h: s.getBoundingClientRect().height }));
       assert.equal(attrs.haspopup, 'menu');
       assert.equal(attrs.expanded, 'false');
@@ -207,7 +179,7 @@ test('speed menu: opens from the split button, syncs every chapter, persists, an
       assert.equal(await page.evaluate(() => window.__explainer.speed()), 0.5);
       // flips above the button when there is no room below
       await page.evaluate(() => document.querySelector('[data-scene="s2"] .act').scrollIntoView({ block: 'end', behavior: 'instant' }));
-      await sleep(300);
+      await nextFrames(page);
       await page.click(seg);
       const flip = await page.evaluate(sel => { const m = document.querySelector('.speed-menu').getBoundingClientRect(); const s = document.querySelector(sel).getBoundingClientRect(); return { inside: m.top >= 0 && m.bottom <= innerHeight, above: m.bottom <= s.top + 1 }; }, seg);
       assert.ok(flip.inside && flip.above, `menu flips above: ${JSON.stringify(flip)}`);
@@ -221,17 +193,23 @@ test('speed menu: opens from the split button, syncs every chapter, persists, an
   }
 });
 
-test('director: run time scales with speed, and a mid-run speed change applies live', { timeout: 90_000 }, async t => {
+// Timing is checked on the director's own timeline (__explainer.timing(): the time each wait and tween asked for at 1×,
+// and the time it was scheduled for at the speeds in effect), which does not depend on machine load. Wall clock gets a loose check only.
+test('director: run time scales with speed, and a mid-run speed change applies live', { timeout: 120_000 }, async t => {
   const { page, errors } = await openPage(t, 'template.html');
   const x1 = await stampRun(page, 's2', { speed: 1 });
   const x2 = await stampRun(page, 's2', { speed: 2 });
-  const ratio = x1.firstToLast / x2.firstToLast;
-  assert.ok(ratio > 1.6 && ratio < 2.5, `1x/2x ratio ${ratio} (${x1.firstToLast} / ${x2.firstToLast} ms)`);
+  assert.ok(x1.timing.base > 1000, `the run asked for ${x1.timing.base} ms`);
+  assert.equal(x2.timing.base, x1.timing.base, 'the same steps at both speeds');
+  assert.ok(Math.abs(x1.timing.scaled - x1.timing.base) <= x1.timing.base * 0.01, `1× is scheduled at 1× (${JSON.stringify(x1.timing)})`);
+  assert.ok(Math.abs(x1.timing.scaled / x2.timing.scaled - 2) < 0.02, `2× halves the schedule (${x1.timing.scaled} / ${x2.timing.scaled})`);
+  assert.ok(x1.firstToLast > x2.firstToLast * 1.1, `2× is also faster on the wall clock (${x1.firstToLast} / ${x2.firstToLast} ms)`);
   assert.equal(x2.text, x1.text);
   const mid = await stampRun(page, 's2', { speed: 1, speedAt: 700, speedTo: 2 });
   assert.equal(mid.text, x1.text, 'same final caption after a mid-run speed change');
   assert.deepEqual(mid.caps, x1.caps);
-  assert.ok(mid.firstToLast < x1.firstToLast * 0.9, `mid-run change shortened the run (${mid.firstToLast} vs ${x1.firstToLast})`);
+  assert.equal(mid.timing.base, x1.timing.base);
+  assert.ok(mid.timing.scaled < x1.timing.scaled * 0.95 && mid.timing.scaled > x2.timing.scaled * 1.05, `a mid-run change applied to the rest of the run (${JSON.stringify(mid.timing)})`);
   assert.deepEqual(errors, []);
 });
 
@@ -242,11 +220,11 @@ test('split: dragging the divider mid-run keeps the run and its final caption', 
   await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length >= 1);
   const h = await page.$eval('.split-v', el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: innerHeight / 2 }; });
   await page.mouse.move(h.x, h.y); await page.mouse.down();
-  for (let i = 1; i <= 10; i++) { await page.mouse.move(h.x + (i % 2 ? -1 : 1) * i * 20, h.y); await sleep(60); }
+  for (let i = 1; i <= 10; i++) { await page.mouse.move(h.x + (i % 2 ? -1 : 1) * i * 20, h.y); await sleep(60); } // pacing a user's drag
   await page.mouse.up();
   const text = await page.evaluate(() => window.__drag);
   assert.equal(text, ref.text);
-  assert.deepEqual((await railCaps(page)).map(c => c.text), ref.caps);
+  assert.deepEqual(await railTexts(page), ref.caps);
   assert.equal(await page.evaluate(() => window.__explainer.current()), 's2');
   const stored = await page.evaluate(() => localStorage.getItem('plz-explain:split-x'));
   assert.ok(stored && Number.isFinite(parseFloat(stored)), 'the split position is persisted');
@@ -345,6 +323,7 @@ test('reduced motion keeps the step order and the dwell: captions arrive one by 
   const { page, errors } = await openPage(t, 'template.html', { reducedMotion: 'reduce' });
   const r = await stampRun(page, 's2');
   assert.equal(r.caps.length, 4);
+  assert.ok(r.timing.scaled >= r.timing.base * 0.99, `reduced motion keeps every step's time (${JSON.stringify(r.timing)})`);
   assert.ok(r.firstToLast >= 1500, `sequence lasted ${r.firstToLast} ms`);
   assert.ok(r.distinctTimes >= 4, 'captions arrive at separate moments');
   assert.deepEqual(errors, []);
@@ -355,15 +334,13 @@ test('instant mode reaches the same final state without waiting', { timeout: 60_
   const normal = await stampRun(page, 's2');
   const labelsNormal = await page.evaluate(() => [...document.querySelectorAll('.tag')].filter(e => e.style.display !== 'none' && e.offsetParent).map(e => e.textContent).sort());
   assert.equal(await page.evaluate(() => window.__explainer.instant(true)), true);
-  const t0 = Date.now();
   const fast = await stampRun(page, 's2');
-  const took = Date.now() - t0;
   const labelsFast = await page.evaluate(() => [...document.querySelectorAll('.tag')].filter(e => e.style.display !== 'none' && e.offsetParent).map(e => e.textContent).sort());
   assert.equal(fast.text, normal.text);
   assert.deepEqual(fast.caps, normal.caps);
   assert.deepEqual(labelsFast, labelsNormal);
-  assert.ok(fast.firstToLast < 100, `instant run took ${fast.firstToLast} ms between captions`);
-  assert.ok(took < 1500, `instant run() call took ${took} ms`);
+  assert.equal(fast.timing.base, normal.timing.base, 'instant mode runs the same steps');
+  assert.equal(fast.timing.scaled, 0, 'and schedules no time for them');
   assert.equal(await page.evaluate(() => window.__explainer.instant(false)), false);
   assert.deepEqual(errors, []);
 });
@@ -391,7 +368,7 @@ for (const file of examples) {
       await page.evaluate(() => window.__explainer.instant(true));
       await chapterChecks(page, 'default');
       for (const key of ['Home', 'End']) {
-        await page.focus('.split-v'); await page.keyboard.press(key); await sleep(200);
+        await page.focus('.split-v'); await page.keyboard.press(key); await nextFrames(page);
         await chapterChecks(page, key === 'Home' ? 'min' : 'max');
       }
       const legend = await page.evaluate(() => { const b = document.querySelector('.legend').getBoundingClientRect(); return b.top >= 0 && b.bottom <= innerHeight; });
@@ -421,10 +398,10 @@ test('auto-play loops at the chosen speed and remembers its state under the plz-
     new MutationObserver(() => { if (list.children.length === 0 && had > 0) window.__ends += 1; had = list.children.length; }).observe(list, { childList: true });
     document.querySelector('[data-scene="s1"].chapter').scrollIntoView({ block: 'center', behavior: 'instant' });
   });
-  await sleep(500);
+  await page.waitForFunction(() => window.__explainer.current() === 's1' && scrollY > 40);
   await page.evaluate(() => window.__explainer.autorun(true));
   assert.equal(await page.evaluate(() => localStorage.getItem('plz-explain:autorun')), '1');
-  await page.waitForFunction(() => window.__ends >= 2, null, { timeout: 40_000, polling: 100 });
+  await page.waitForFunction(() => window.__ends >= 2, null, { timeout: 90_000, polling: 100 });
   assert.equal(await page.evaluate(() => window.__explainer.current()), 's1');
   await page.evaluate(() => window.__explainer.autorun(false));
   assert.deepEqual(errors, []);
@@ -474,7 +451,7 @@ test('a badge whose anchor is disposed mid-run stays where it was until reset, a
     .map(b => { const r = b.getBoundingClientRect(); return { text: b.textContent, x: Math.round(r.left), y: Math.round(r.top) }; }));
   const shown = await badges();
   assert.deepEqual(shown.map(b => b.text), ['1'], 'the badge outlives its disposed anchor');
-  await sleep(300);
+  await nextFrames(page, 10);
   assert.deepEqual(await badges(), shown, 'it stays at its last position');
   await page.evaluate(() => window.__explainer.run('s1'));
   assert.deepEqual(await badges(), [], 'reset removes it');
@@ -515,10 +492,10 @@ test('side-by-side windows narrower than 920px keep a working divider range', { 
         const start = await info();
         assert.ok(start.min < start.max, `divider range ${start.min}-${start.max}`);
         assert.ok(start.min <= start.now && start.now <= start.max);
-        await page.focus('.split-v'); await page.keyboard.press('Home'); await sleep(150);
+        await page.focus('.split-v'); await page.keyboard.press('Home'); await nextFrames(page);
         const lo = await info();
         await chapterChecks(page, `${viewport.width} min`);
-        await page.focus('.split-v'); await page.keyboard.press('End'); await sleep(150);
+        await page.focus('.split-v'); await page.keyboard.press('End'); await nextFrames(page);
         const hi = await info();
         await chapterChecks(page, `${viewport.width} max`);
         assert.ok(hi.text > lo.text + 40, `the divider moves the column (${lo.text} → ${hi.text})`);
@@ -534,7 +511,7 @@ test('auto-play resume after a hidden tab does not reset a run that is still pla
   await page.evaluate(() => {
     document.querySelector('[data-scene="s1"].chapter').scrollIntoView({ block: 'center', behavior: 'instant' });
   });
-  await sleep(400);
+  await page.waitForFunction(() => window.__explainer.current() === 's1' && scrollY > 40);
   await page.evaluate(() => window.__explainer.autorun(true));
   // First loop run ends: two captions, then the hold timer is pending.
   await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length === 2);
@@ -548,7 +525,8 @@ test('auto-play resume after a hidden tab does not reset a run that is still pla
     window.__mo.observe(list, { childList: true });
     document.querySelector('[data-run="s1"]').dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
-  await sleep(300);
+  // Show the tab while the button run is still playing (it has said its first caption and has more steps to go).
+  await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length === 1);
   await setHidden(false);
   // The button run must reach its last caption without the rail being cleared under it.
   await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length === 2, null, { timeout: 15_000 });

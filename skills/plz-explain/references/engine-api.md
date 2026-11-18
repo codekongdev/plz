@@ -5,7 +5,10 @@ What the `ENGINE` sections of `assets/template.html` provide. Build scenes in th
 The engine has two parts:
 
 - **The shell**: layout, chapter switching, HUD, caption rail, speed menu, split, auto-play, the director (timing), and the verification hooks. It draws nothing.
-- **Kits**: each kit draws the stage for the scenes that name it. The only kit today is `axo` (three.js axonometric block model). Sections marked "axo kit" below apply to axo scenes.
+- **Kits**: each kit draws the stage for the scenes that name it. There are two:
+  - `axo` (default): a three.js axonometric block model. Sections marked "axo kit" apply to it.
+  - `svg`: 2D step diagrams in native SVG (tables, hash buckets, operator boxes, filters, trees, node columns). See "svg kit" below. It needs no library.
+- One page may mix both; each chapter shows the kit of its scene.
 
 ## Scene definition
 
@@ -31,7 +34,7 @@ defineScene('name', {
 
 - The kit builds every scene when the page starts, after its libraries have loaded. Chapter order does not depend on the order you call `defineScene`; the `data-scene` in the body sets the order.
 - `build()` must return `reset()` and `run()`. The engine calls `reset()` before every run and on every chapter change, after restoring the colors itself.
-- The page lists its kits in `data-kits` on `aside.stage` (`data-kits="axo"`; a missing attribute means `axo`). Listed kits load before `SCENES` runs, so `SCENES` can use their parts at the top level (for example `base.add(block(...))`). A page that lists no axo scene never downloads three.js.
+- The page lists its kits in `data-kits` on `aside.stage` (the template has `data-kits="axo svg"`; a missing attribute means `axo`). Listed kits load before `SCENES` runs, so `SCENES` can use their parts at the top level (for example `base.add(block(...))`). A page with only svg scenes uses `data-kits="svg"` and never downloads three.js.
 
 ## Step captions: `say(text, { anchor })`
 
@@ -134,6 +137,88 @@ objects built but not yet attached to the scene. The external owner remains resp
 final disposal. Do not reuse disposed objects; build a fresh object for the next run. Textures are
 not disposed by these helpers because materials may borrow them.
 
+## svg kit (2D step diagrams)
+
+Use it when the lesson is about values and order: which row, key, or request goes where, and what happens to it.
+
+```js
+defineScene('filter', {
+  kit: 'svg',
+  title: '2  Filter before the join',
+  build(d) {                                  // d: the diagram builder
+    const src = d.table({ title: 'Target table', keys: [8, 17, 23, 31], header: ['key', 'rest'] });
+    const join = d.box({ title: 'Join', lanes: 4, counter: 'Join input {n}', tally: 'Dropped {n}' });
+    const gate = d.gate(src, { label: 'Filter', pass: 'Pass: 17' });
+    [0, 1, 2, 3].forEach(i => d.link([src.out(i), gate.in(i)]));
+    const after = [0, 1, 2, 3].map(i => d.link([gate.out(i), join.in(i)]));
+    return {
+      diagram: d.grid([[src, join]]),         // the layout; the kit sizes it for the stage
+      async run(a, say) { /* tokens, marks, captions */ },
+      reset() {},                             // optional: the kit restores every part itself
+    };
+  },
+});
+```
+
+`build(d)` returns `{ diagram, run }` (and optionally `reset`).
+- The kit records the built state of every part and restores it before each run and on chapter changes: row marks, dimmed links, counters, lane text, opacity.
+- It also removes tokens and badges.
+- `reset()` is only for your own variables.
+
+### Layout
+
+- The kit lays the diagram out from the parts' natural sizes. You do not place parts in pixels.
+- **Wide stage (720px and up), rail beside or below:**
+  - The diagram is laid out at natural size and scaled by k from 1 to 1.6 to fill the stage. Captions scale with it.
+  - Two arrangements compete: rail right and rail below. Below wins only when its k is 1.3 times larger.
+  - When neither fits at k = 1, the kit uses the narrower layout described next.
+- **Narrower stages and phones:**
+  - Columns are compressed toward their minimum widths, and the diagram is fitted between the HUD and the legend.
+  - When desktop sizes do not fit the height, phone sizes are used. The row height then adapts from 20px down to 15px; at 17px and below, table header rows are hidden.
+- Text is at least 12px on desktop sizes and at least 11px on phone sizes.
+- On phones, the stage-height minimum comes from the active chapter's diagram at its smallest rows. It is applied on every chapter change, also when no height is saved, so a diagram is never cut off.
+
+| Container | Arranges |
+|---|---|
+| `d.grid(rows, { gutter })` | Rows of cells (parts or `null`). Columns take the widest part; a gutter (96px, 60px on phones) separates columns and holds connectors and gates. Parts in one grid row share a top line, so a table and a box with the same row count line up lane by lane |
+| `d.panels([{ title, body }, …])` | The same kind of diagram side by side, each with a title (stacked when they do not fit, always stacked on phones). One run can feed both: `await Promise.all([play(a, off), play(a, on)])` |
+| `d.stack(items, { dir: 'row' \| 'col', gap })` | A plain row or column of parts or containers |
+
+### Parts
+
+Points are functions that return `[x, y]` in diagram units. Pass them to links, tokens, and badges; they follow every relayout, including one in the middle of a run.
+
+| Part | Options | Points and methods |
+|---|---|---|
+| `d.table({ title, keys, tone, header })` | `keys`: the key shown per row (mono); a faint payload bar fills the rest. `tone: 'matter'` gives brass row bars. `header`: two column titles | `row(i).mark('hit' \| 'gone' \| 'active', on)` (matched: red; dropped: dimmed, struck through, × mark; active: ink outline). `out(i)` right edge of row i, `src(i)` where a row's token rests, `rowC(i)` |
+| `d.buckets({ title, count, label, short })` | `label(b)` / `short(b)`: cell index text (short on narrow cells and phones) | `slot(b)` where a key chip rests, `fill(b)` hides the "—", `cell(b).mark('active')` |
+| `d.box({ title, lanes, header, counter, tally })` | An operator with lanes. `counter`: pill text by the title, `{n}` replaced. `tally`: a pill under the box, hidden until first set | `in(i)` left edge of lane i, `chip(i)` where a token rests, `count(n)`, `tally(n)`, `counterNode`, `tallyNode`, `laneText(i, text, { short, tone })` (fade it in with `a.fade(box.lane(i), 1)`), `lane(i)` |
+| `d.gate(table, { label, pass, hidden })` | A filter in the gutter right of `table`, spanning its rows, with a chip below listing what passes (`pass`; the chip grows with its text). `table` must sit in a `d.grid` cell with another column to its right; anywhere else (the last column, a `d.stack`) the page fails to start with an error that says so. `hidden` starts invisible (show with `a.fade(gate, 1)`) | `in(i)` / `out(i)` barrier edges for connectors, `before(i)` / `after(i)` where tokens stop, `top()`. Flash with `a.flash(gate, 'hot')` |
+| `d.tree(spec)` | `spec = { id, label, metric, children: [...] }`. An operator tree; edges carry data up to the parent | `node(id).mark('active' \| 'hit', on)`, `node(id).metric(text)`, `node(id).top()`, `.bottom()` |
+| `d.columns(names, { slots })` | Nodes or servers side by side, each with `slots` places for rows | `col(i).slot(j)`, `col(i).mark('active')` |
+| `d.link(points, { dashed, tone, label, labelAt, arrow, hidden, opacity })` | A connector through two or more points (functions or fixed `[x, y]`) with an arrowhead. `dashed` + `tone: 'bound'` + `label` for a signal passed sideways (`labelAt` a point for the label pill, which grows with its text) | Fade or dim it with `a.fade(link, 0.12)` |
+| `d.token(text, at, { tone, w })` | A chip resting at point `at`. `tone: 'matter' \| 'bound'`. Create tokens during `run()`, when their group starts | `mark('hit' \| 'active', on)` (active: ink halo) |
+
+Every part also has `left(at)`, `right(at)`, `top(at)`, `bottom(at)` (a point on its frame; `at` is a 0–1 fraction along the edge or another point whose coordinate to use), `mid()`, and `mark(cls, on)`. `d.corner(a, b)` is the point `[b.x, a.y]` for an elbow. `d.phone()` tells whether phone sizes are in use.
+
+`mark('on')` (and `a.flash(target)`) draws the ink outline on any part: a table, buckets and each cell, a box, a gate, a tree and each node, columns and each column, and a table row.
+Pills (counter, tally, link label) and the gate chip are sized from their measured text, so long or CJK text stays inside. Text that still does not fit its frame (lane text in a box, tree node labels, bucket labels) is reported by `clipped()`.
+
+### Animator `a` (svg kit)
+
+| Method | Description |
+|---|---|
+| `await a.along(token, points, ms=1000)` | Moves a token along points (about 1 s per tracked move); it rests at the last one. Points are read every frame, so the move follows a relayout. Reduced motion: the token cuts to the end and fades in there to its own opacity; the step keeps its time |
+| `await a.groups(items, fn, { size = 3, pause = 400 })` | Runs `fn(item, i)` for items in groups that move together (at most 4), with a pause between groups. The easy way to move many rows |
+| `await a.fade(target, to, ms=250)` | Opacity of a part, link, token, or `box.lane(i)` (color and opacity still animate under reduced motion) |
+| `await a.flash(target, cls='on', ms=200)` | A brief emphasis: the ink outline (`'on'`), or `'hot'` on a gate |
+| `a.tick(node)` | A small pulse on a counter after its number changed (not awaited) |
+| `a.wait(ms)`, `a.tween(ms, fn, opts)`, `a.live()` | As in the director |
+
+Captions: `say('2. …', { anchor })` puts the step number in a badge at the anchor: a part (its top-right corner), a point function, a fixed `[x, y]` in diagram units, or an SVG node such as `box.tallyNode`.
+
+Rotation: the svg kit is not rotatable, so the drag hint and Reset view are hidden on its chapters.
+
 ## Kits: `defineKit(name, kit)`
 
 A page author does not write kits; this section is for engine changes. A kit is an object with these methods (only `load` and `build` are required):
@@ -147,7 +232,11 @@ A page author does not write kits; this section is for engine changes. A kit is 
 | `reset(scene)` | Restore what the engine owns (colors) before the scene's own `reset()` |
 | `clear(scene)` | Drop temporary objects after a failed run |
 | `animator(dir, scene)` | Returns the `a` passed to `run()`; without it, `a` is the director |
-| `fit(rect, W, H)` | Fit the drawing into `rect` (px inside the layer of size W × H); the rest is under the caption rail |
+| `fit(rect, W, H, chrome)` | Fit the drawing into `rect` (px inside the layer of size W × H); the rest is under the caption rail. `chrome = { top, bottom }` is the band between the HUD and the legend |
+| `place(geom)` | Optional, wide stages only: arrange the drawing and the caption column together. Returns `{ rail, scale, model }` (the scale also sizes the captions) or `null` for the default |
+| `minHeight()` | Optional: the smallest model height (px) for the stage-height handle on phones; re-applied on every chapter change |
+| `settled()` | Optional: `false` while the drawing is still easing toward its end state (axo: labels decluttering, the camera gliding). `run()` waits for it |
+| `overflowing()` | Optional: text wider than its own frame; `clipped()` reports it |
 | `frame()` | Every animation frame while the kit's layer is shown |
 | `labels()` | Label elements now visible, for `overlaps()` and `clipped()`. Labels must be DOM elements |
 | `badge(anchor, n)` | Put step number `n` next to `anchor`; return a function that removes it |
@@ -164,15 +253,17 @@ a Retry button that reloads the page. On small screens the failed stage becomes 
 | `scenes()` | Array of scene names |
 | `current()` | The scene name the stage is showing now. After scrolling, check that it matches the chapter being read on screen |
 | `lang()` | The language used for screen text (`en`, `ko`, `ja`, `zh-CN`, or an override key) |
-| `await run(name)` | Scrolls to that chapter, runs the action to the end, waits until the end state is drawn, and returns the last caption. In the side-by-side layout it scrolls the chapter to the middle of the screen; on a portrait phone it scrolls the top of the chapter just below the stage |
+| `await run(name)` | Scrolls to that chapter, runs the action to the end, waits until the end state is drawn and the kit has settled (labels done moving apart), and returns the last caption. In the side-by-side layout it scrolls the chapter to the middle of the screen; on a portrait phone it scrolls the top of the chapter just below the stage |
 | `overlaps(minArea=24)` | Pairs of currently visible labels (badges included) that overlap each other: `[text, text, overlap area px²]`. Labels hidden under the open caption sheet are skipped |
-| `clipped()` | Text of labels outside the model area (the canvas cell minus the caption rail), plus `'[legend]'` if the legend is not fully inside the stage and the window |
+| `clipped()` | Text of labels outside the model area (the canvas cell minus the caption rail), text wider than its own frame (svg pills, chips, lane text), plus `'[legend]'` if the legend is not fully inside the stage and the window |
 | `autorun(on?)` | Reads or sets auto-play (turning on runs the chapter being read right away and loops it; saved) |
 | `speed(v?)` | Reads or sets the speed (0.5, 1, 1.5, 2; saved) |
 | `instant(on?)` | Reads or sets instant mode (all durations 0; not saved) |
 | `rail(open?)` | Reads or sets whether the caption sheet is open on a narrow stage |
 | `resources()` | axo: counts of registered labels, decluttering state entries, and renderer geometries (`labels`, `labelStates`, `geometries`), step badges excluded. Compare after warming up the same scene and after repeated runs |
 | `azimuth()` | axo: camera azimuth (radians). Use it to check whether the model rotated |
+| `kitInfo()` | The active kit's state. svg: `{ scale, arrangement, row }` (`arrangement`: `right`, `below`, `fit`, or `phone`) |
+| `timing()` | The latest run's own timeline: `{ base, scaled }` in ms. `base` is the time every wait and tween asked for at 1×, `scaled` the time they were scheduled for at the speeds in effect (0 in instant mode; parallel steps add up). Use it to check speed without depending on machine load |
 
 ## Speed menu
 

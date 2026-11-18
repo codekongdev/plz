@@ -283,6 +283,69 @@
     .chapter h2 .n { transition: none; }
     .autorun .track, .autorun .track::after { transition: none; }
   }
+  /* Kit "svg": 2D step diagrams. Ink outline for the active element, the 3 semantic colors for meaning, nothing else. */
+  :root { --hair: rgba(85, 97, 107, 0.55); }
+  .svg-stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+  .svg-stage text { font-family: var(--sans); fill: var(--ink); dominant-baseline: central; }
+  .svg-stage .mono { font-family: var(--mono); font-weight: 500; }
+  .svg-stage .g { font-weight: 600; }
+  .svg-stage .meta { fill: var(--ink-soft); }
+  .svg-stage .t-bound { fill: var(--bound); }
+  .svg-stage .t-matter { fill: var(--matter-ink); }
+  .svg-stage .t-actor { fill: var(--actor-ink); font-weight: 600; }
+  .svg-stage .panel-title { font-family: var(--serif); font-weight: 700; }
+  .svg-stage :is(.tbl, .hl, .box, .cell > rect, .flow, .tnode > rect) { vector-effect: non-scaling-stroke; }
+  .svg-stage :is(.tbl, .cell > rect) { fill: #fff; stroke: var(--hair); stroke-width: 1; }
+  .svg-stage .hl { stroke: var(--hair); stroke-width: 1; stroke-opacity: .6; }
+  .svg-stage .skel { fill: var(--ink-soft); fill-opacity: .22; }
+  .svg-stage .row .bg, .svg-stage .row .bar { fill: transparent; transition: fill .18s; }
+  .svg-stage .row.brass .bar { fill: var(--matter); }
+  .svg-stage .row .key { transition: opacity .18s; }
+  .svg-stage .row .x { opacity: 0; transition: opacity .18s; }
+  .svg-stage .row.gone .key { opacity: .5; text-decoration: line-through; }
+  .svg-stage .row.gone .skel { fill-opacity: .1; }
+  .svg-stage .row.gone .x { opacity: 1; }
+  .svg-stage .row.hit .bg { fill: #F7DADF; }
+  .svg-stage .row.hit .bar { fill: var(--actor); }
+  .svg-stage .row.hit .key { font-weight: 600; }
+  .svg-stage .row.active .bg { stroke: var(--ink); stroke-width: 2; }
+  .svg-stage .box { fill: rgba(47, 111, 178, 0.05); stroke: var(--bound); stroke-width: 1; transition: stroke .15s, stroke-width .15s; }
+  /* Emphasis (mark('on') or a.flash): an ink outline on the part's frame, whatever the part. */
+  .svg-stage :is(.part.on > .box, .part.on > .tbl, .col.on > .box, .col.active > .box, .columns.on .col > .box, .cell.on > rect, .tnode.on > rect, .tree.on .tnode > rect, .gate.on .barrier) { stroke: var(--ink); stroke-width: 2.5; stroke-opacity: 1; }
+  .svg-stage .row.on .bg { stroke: var(--ink); stroke-width: 2; }
+  .svg-stage .cell > rect { stroke-opacity: .7; transition: stroke .15s, stroke-width .15s; }
+  .svg-stage .cell.active > rect { stroke: var(--ink); stroke-width: 2.5; stroke-opacity: 1; }
+  .svg-stage .flow { fill: none; stroke: var(--ink-soft); stroke-opacity: .5; stroke-width: 1.25; }
+  .svg-stage .flow.dashed { stroke-dasharray: 5 4; }
+  .svg-stage .flow.t-bound { stroke: var(--bound); stroke-opacity: .85; }
+  .svg-stage .linklabel rect { fill: #fff; stroke: var(--bound); stroke-width: 1; }
+  .svg-stage .linklabel text { fill: var(--bound); }
+  .svg-stage .gate .barrier { fill: rgba(47, 111, 178, 0.16); stroke: var(--bound); stroke-width: 1; transition: stroke .15s, stroke-width .15s, fill .15s; }
+  .svg-stage .gate .post { fill: var(--bound); }
+  .svg-stage .gate .tick { stroke: var(--bound); stroke-width: 1.5; stroke-opacity: .7; }
+  .svg-stage .gate .chip { fill: #fff; stroke: var(--bound); stroke-width: 1; }
+  .svg-stage .gate.hot .barrier { stroke: var(--ink); stroke-width: 2.5; fill: rgba(30, 42, 51, 0.14); }
+  .svg-stage .pill rect { fill: #fff; stroke: var(--hair); stroke-width: 1; }
+  .svg-stage .pill { transform-box: fill-box; transform-origin: center; }
+  .svg-stage .tnode > rect { fill: #fff; stroke: var(--hair); stroke-width: 1; transition: stroke .15s, stroke-width .15s, fill .15s; }
+  .svg-stage .tnode.active > rect { stroke: var(--ink); stroke-width: 2.5; }
+  .svg-stage .tnode.hit > rect { fill: #F7DADF; stroke: var(--actor); }
+  .svg-stage .sb circle { fill: var(--ink); }
+  .svg-stage .sb text { fill: #fff; font-weight: 600; }
+  .svg-stage .tok .b { fill: #fff; stroke: var(--ink-soft); stroke-width: 1; transition: fill .15s, stroke .15s, stroke-width .15s; }
+  .svg-stage .tok .halo { fill: var(--ink); fill-opacity: .16; opacity: 0; transition: opacity .12s; }
+  .svg-stage .tok.matter .b { fill: var(--matter); stroke: #A67A15; }
+  .svg-stage .tok.bound .b { fill: var(--bound); stroke: #244F80; }
+  .svg-stage .tok.bound text { fill: #fff; }
+  .svg-stage .tok.hit .b { fill: var(--actor); stroke: var(--actor-ink); }
+  .svg-stage .tok.hit text { fill: #fff; }
+  .svg-stage .tok.active .halo { opacity: 1; }
+  .svg-stage .tok.active .b { stroke: var(--ink); stroke-width: 2; }
+  /* A kit may scale the caption column with its diagram (--cap-k). */
+  .rail.side { --k: var(--cap-k, 1); }
+  .rail.side .rail-list { gap: calc(9px * var(--k)); }
+  .rail.side .cap { grid-template-columns: calc(22px * var(--k)) minmax(0, 1fr); column-gap: calc(9px * var(--k)); font-size: calc(14px * var(--k)); }
+  .rail.side .cap .n { width: calc(22px * var(--k)); height: calc(22px * var(--k)); font-size: calc(12px * var(--k)); line-height: calc(20px * var(--k)); }
   /* Labels follow the stage's own width: a stage 600px or narrower (phones, or a narrow window or divider beside the text) gets the small labels. */
   .stage { container-type: inline-size; }
   @container (max-width: 600px) {
@@ -776,19 +839,32 @@ function bumpRun() {
   return runToken;
 }
 function rescaleJobs() { for (const job of [...pendingJobs]) job.rescale(); }
+// The run's own timeline, for checks that must not depend on machine load: `base` is the time every wait and tween asked for
+// at 1×; `scaled` is the time they were scheduled for at the speeds in effect (0 in instant mode). Parallel steps add up.
+const timeline = { token: 0, base: 0, scaled: 0 };
+function account(token, base, scaled) {
+  if (timeline.token !== token) Object.assign(timeline, { token, base: 0, scaled: 0 });
+  timeline.base += base; timeline.scaled += scaled;
+}
 function director(token) {
   const live = () => token === runToken;
   function wait(ms) {
     if (!live()) return Promise.reject(CANCEL);
-    if (INSTANT || !(ms > 0)) return Promise.resolve();
+    if (INSTANT || !(ms > 0)) { account(token, Math.max(0, ms || 0), 0); return Promise.resolve(); }
     return new Promise((resolve, reject) => {
       const job = { token, left: ms, since: performance.now(), rate: speed, timer: 0 };
       const arm = () => {
-        job.timer = setTimeout(() => { pendingJobs.delete(job); if (live()) resolve(); else reject(CANCEL); }, Math.max(0, job.left) / job.rate);
+        job.timer = setTimeout(() => {
+          pendingJobs.delete(job);
+          account(token, Math.max(0, job.left), Math.max(0, job.left) / job.rate); // the rest, at the rate it was scheduled for
+          if (live()) resolve(); else reject(CANCEL);
+        }, Math.max(0, job.left) / job.rate);
       };
       job.rescale = () => { // re-arm the rest of the wait at the current speed
         const now = performance.now();
-        job.left -= (now - job.since) * job.rate;
+        const used = Math.min(Math.max(0, job.left), (now - job.since) * job.rate);
+        account(token, used, used / job.rate);
+        job.left -= used;
         job.since = now; job.rate = speed;
         if (INSTANT) job.left = 0;
         clearTimeout(job.timer); arm();
@@ -801,7 +877,7 @@ function director(token) {
   // fn receives eased progress 0→1. motion: true for movement (cut under reduced motion), false for color or opacity.
   function tween(ms, fn, { motion = true, ease = easeInOutCubic } = {}) {
     if (!live()) return Promise.reject(CANCEL);
-    if (INSTANT || !(ms > 0)) { fn(1); return Promise.resolve(); }
+    if (INSTANT || !(ms > 0)) { fn(1); account(token, Math.max(0, ms || 0), 0); return Promise.resolve(); }
     if (motion && REDUCE) { fn(1); return wait(ms); }
     return new Promise((resolve, reject) => {
       let p = 0, last = performance.now();
@@ -811,7 +887,9 @@ function director(token) {
       const frame = now => {
         if (!pendingJobs.has(job)) return;
         if (!live()) { job.cancel(); return; }
-        p = INSTANT ? 1 : Math.min(1, p + Math.max(0, now - last) * speed / ms);
+        const next = INSTANT ? 1 : Math.min(1, p + Math.max(0, now - last) * speed / ms);
+        account(token, (next - p) * ms, INSTANT ? 0 : (next - p) * ms / speed);
+        p = next;
         last = Math.max(last, now);
         fn(ease(p));
         if (p < 1) requestAnimationFrame(frame);
@@ -990,12 +1068,21 @@ function layoutStage() {
   const bands = barred ? [] : [legendEl, hintEl].filter(n => n.offsetParent).map(n => n.getBoundingClientRect().top - wr.top);
   const bottomEdge = Math.min(H, ...bands);
   const side = !barred && W >= RAIL_SIDE_MIN;
+  const kit = activeKit();
+  // A kit may arrange its drawing and the caption column itself (place); null means "use the default".
+  const placed = side && kit?.place ? kit.place({ W, H, top: topInset, bottom: bottomEdge }) : null;
   railEl.classList.toggle('side', side);
   railEl.classList.toggle('compact', !side);
   railEl.classList.toggle('open', !side && railOpen);
   const pad = 16;
   Object.assign(railEl.style, { left: '', right: '', top: '', bottom: '', width: '', height: '', maxHeight: '' });
-  if (side) {
+  railEl.style.removeProperty('--cap-k');
+  if (placed) {
+    const r = placed.rail;
+    Object.assign(railEl.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, maxHeight: `${Math.max(80, r.h)}px` });
+    railEl.style.setProperty('--cap-k', String(+placed.scale.toFixed(4)));
+    modelRect = placed.model;
+  } else if (side) {
     const railW = Math.round(clamp(240, W * 0.3, 340));
     Object.assign(railEl.style, { right: `${pad}px`, top: `${topInset}px`, width: `${railW}px`, maxHeight: `${Math.max(80, bottomEdge - 12 - topInset)}px` });
     modelRect = { x: 0, y: 0, w: W - railW - pad - 8, h: H };
@@ -1009,8 +1096,7 @@ function layoutStage() {
   }
   // The HUD chapter title grows gently with the stage (up to 1.25×) where the HUD lies over a large stage.
   hudNow.style.fontSize = barred ? '' : `${(1.05 * clamp(1, Math.min(W / 760, H / 820), 1.25)).toFixed(3)}rem`;
-  const kit = activeKit();
-  if (kit?.fit) kit.fit(modelRect, W, H);
+  if (!placed && kit?.fit) kit.fit(modelRect, W, H, { top: barred ? 0 : topInset, bottom: barred ? H : bottomEdge });
 }
 // Height of the closed bar (the fixed --bar-h), so the model does not jump when the sheet opens. Measured once; re-measured after a resize.
 let barHeight = 0;
@@ -1063,10 +1149,12 @@ const Split = (() => {
     } else {
       root.style.removeProperty('--text-w');
       if (stackedQ.matches) {
-        // No saved height: the CSS default (44svh + caption bar). The handle still reports where it is.
-        const { min, max } = limH();
-        if (ph === null) root.style.removeProperty('--stage-h');
-        else root.style.setProperty('--stage-h', `${clamp(min, ph, max)}${CSS.supports('height', '1svh') ? 'svh' : 'vh'}`);
+        // No saved height: the CSS default (44svh + caption bar), raised to the active chapter's minimum when that is larger.
+        // The minimum depends on the chapter's drawing, so activate() applies the split again on every chapter change.
+        const { min, max } = limH(), unit = CSS.supports('height', '1svh') ? 'svh' : 'vh';
+        root.style.removeProperty('--stage-h');
+        if (ph !== null) root.style.setProperty('--stage-h', `${clamp(min, ph, max)}${unit}`);
+        else if (stageEl.getBoundingClientRect().height / innerHeight * 100 < min) root.style.setProperty('--stage-h', `${min}${unit}`);
         const pct = ph === null ? stageEl.getBoundingClientRect().height / innerHeight * 100 : clamp(min, ph, max);
         hh.setAttribute('aria-valuemin', String(Math.floor(min))); hh.setAttribute('aria-valuemax', String(Math.ceil(max))); hh.setAttribute('aria-valuenow', String(Math.round(pct)));
       }
@@ -1114,7 +1202,8 @@ const Split = (() => {
   sideQ.addEventListener('change', apply);
   return Object.assign(api, { apply });
 })();
-Split.minStage = () => (stackedQ.matches ? hudEl.offsetHeight + legendEl.offsetHeight + railBarHeight() + 150 : 0);
+// Title bar + legend + caption bar + the active kit's smallest drawing (+ the 6px gap under the model).
+Split.minStage = () => (stackedQ.matches ? hudEl.offsetHeight + legendEl.offsetHeight + railBarHeight() + (activeKit()?.minHeight?.() ?? 150) + 6 : 0);
 Split.apply(); // the saved split holds while kits load, and after a load failure
 
 /* ---- Kits and scenes ----
@@ -1127,11 +1216,16 @@ Split.apply(); // the saved split holds while kits load, and after a load failur
      reset(scene)         restore what the engine owns (colors) before the scene's own reset()
      clear(scene)         drop temporary objects after a failed run
      animator(dir, scene) the `a` passed to run(); defaults to the director { wait, tween, live }
-     fit(rect, W, H)      fit the drawing to rect (px inside the layer W × H); the rest is under the caption rail
+     fit(rect, W, H, chrome) fit the drawing to rect (px inside the layer W × H); the rest is under the caption rail.
+                          chrome = { top, bottom }: the band between the HUD and the legend, for kits that must stay clear of them
+     place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom };
+                          return { rail: { x, y, w, h }, scale, model } (scale also sizes the captions), or null for the default
+     minHeight()          optional: the smallest model height (px) for the stage-height handle on phones
      frame(dt)            every animation frame
      labels()             label elements currently visible, for overlaps() and clipped()
      badge(anchor, n)     put step number n next to anchor; returns a function that removes it
-     resetView(), info()  optional: Reset view button; { resources, azimuth } for the hooks */
+     resetView(), info()  optional: Reset view button; { resources, azimuth } for the hooks
+     settled()            optional: false while the drawing is still easing toward its end state (run() waits for it) */
 const kits = {};
 function defineKit(name, kit) {
   if (kits[name]) throw new Error(`[plz] kit already defined: ${name}`);
@@ -1155,7 +1249,8 @@ function loadKit(name) {
   }
   return kit.loading;
 }
-const activeKit = () => (current ? kits[scenes[current].kit] : null);
+// A hoisted function: the split calls it at startup, before any chapter (and before kits/scenes exist).
+function activeKit() { return current ? kits[scenes[current].kit] : null; }
 
 /* ---- Kit "axo": three.js axonometric block model (white massing model, ink outlines). three.js is imported only in its load(). ---- */
 const COLOR = {
@@ -1361,6 +1456,7 @@ function declutter() {
   const W = wrap.clientWidth, H = wrap.clientHeight, R = modelRect;
   const on = R.w > 0 && R.w < DECLUTTER_BELOW;
   const placed = [];
+  let moving = false;
   for (const o of allTags) {
     const el = o.element;
     const st = labelState.get(o) || { x: 0, y: 0 };
@@ -1377,12 +1473,15 @@ function declutter() {
         placed.push(fin);
       }
     }
+    if (INSTANT || REDUCE) { st.x = tx; st.y = ty; } // no easing: the end state is exact at once
     st.x += (tx - st.x) * 0.5; st.y += (ty - st.y) * 0.5;
     if (Math.abs(tx - st.x) < 0.3) st.x = tx;
     if (Math.abs(ty - st.y) < 0.3) st.y = ty;
+    if (st.x !== tx || st.y !== ty) moving = true;
     const css = st.x || st.y ? `${st.x.toFixed(1)}px ${st.y.toFixed(1)}px` : '';
     if (el.style.translate !== css) el.style.translate = css;
   }
+  return moving;
 }
 
 // The animator `a` that axo scenes receive. Every duration and wait goes through the director (speed, instant, reduced motion, CANCEL).
@@ -1482,7 +1581,6 @@ defineKit('axo', {
     this.badgeRoot = new THREE.Group(); // step badges live here, not under their anchors (see badge())
     scene.add(this.badgeRoot);
     this.baseState = { group: base, k: 1, target: 1 };
-    this.relayout = host.relayout;
     this.clock = new THREE.Clock();
   },
   build(def) {
@@ -1558,8 +1656,9 @@ defineKit('axo', {
     syncTags();
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
-    declutter();
+    this.easing = declutter() || Boolean(this.camGoal); // labels or the camera are still moving toward their end state
   },
+  settled() { return !this.easing; },
   labels() { return [...allTags].filter(labelShown).map(o => o.element); },
   // A step badge (CSS2D label) at the top corner of the object that faces screen-right. It follows the object and hides with it.
   // If the object is disposed during the run, the badge stays at its last position until the scene resets.
@@ -1599,6 +1698,714 @@ defineKit('axo', {
       azimuth: controls.getAzimuthalAngle(),
     };
   },
+});
+
+/* ---- Kit "svg": 2D step diagrams in native SVG. No library. ----
+   A scene's build(d) makes parts with the builder `d` (table, buckets, box, gate, tree, columns, link, token) and arranges them
+   with d.grid / d.panels / d.stack. The kit computes the layout for the stage: natural size on desktop scaled by k (1 to 1.6),
+   compressed columns and adaptive row heights on narrow stages and phones. Parts expose points (functions returning [x, y]
+   in diagram units); links, tokens and badges are drawn from those points, so they follow every relayout, also mid-run.
+   Movement goes through the director (speed, instant, reduced motion, CANCEL). Reset restores every part to its built state. */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgNode(tag, attrs = {}, parent = null, text = null) {
+  const n = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (text !== null) n.textContent = String(text);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+const svgSet = (n, attrs) => { for (const k in attrs) n.setAttribute(k, typeof attrs[k] === 'number' ? +attrs[k].toFixed(2) : attrs[k]); };
+const toneClass = tone => (tone ? ` t-${tone}` : '');
+// Natural sizes in px at scale 1. Desktop text is at least 12px. Phones adapt the row height (20 → 15) to the stage; text is at least 11px.
+function svgMetrics(phone, row = 20) {
+  if (!phone) {
+    return { phone, row: 36, hdr: 28, title: 30, cell: 60, tokW: 50, tokH: 28, key: 14.5, text: 13, meta: 12, kw: 64, pad: 16, gapY: 32, gutter: 96, hp: 8,
+      pill: 24, pillW: 116, chipH: 46, nodeW: 132, nodeH: 46, colW: 132, hgap: 16, vgap: 30, panelGap: 40, badge: 9 };
+  }
+  const big = row >= 18;
+  return { phone, row, hdr: big ? 17 : 0, title: big ? 20 : 17, cell: big ? 42 : 34, tokW: 30, tokH: row - 3, key: row < 17 ? 11.5 : 12.5, text: 12, meta: 11, kw: 36, pad: 5,
+    gapY: 6, gutter: 60, hp: 5, pill: 18, pillW: 88, chipH: 20, nodeW: 96, nodeH: 36, colW: 96, hgap: 8, vgap: 16, panelGap: 12, badge: 8 };
+}
+// Width of an SVG text in diagram units: measured when the text is rendered, estimated otherwise (wide for CJK).
+function textWidth(node, fontSize) {
+  try { const w = node.getComputedTextLength(); if (w > 0) return w; } catch (e) { /* not rendered yet: estimate */ }
+  return [...node.textContent].reduce((sum, ch) => sum + fontSize * (ch.codePointAt(0) >= 0x2E80 ? 1 : 0.6), 0);
+}
+// Point helpers: a point is a function returning [x, y] (or a fixed [x, y]).
+const pointOf = p => (typeof p === 'function' ? p() : p);
+function alongPolyline(pts, t) {
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const d = t * cum.at(-1);
+  for (let i = 1; i < pts.length; i++) {
+    if (d <= cum[i] + 1e-6) {
+      const k = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
+      return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * k, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * k];
+    }
+  }
+  return pts.at(-1);
+}
+
+// The builder for one scene. sc holds the scene's SVG layers, its parts, links, tokens and the current metrics (sc.m).
+function svgBuilder(sc) {
+  const P = parent => svgNode('g', {}, parent);
+  const label = (parent, cls, text) => svgNode('text', { class: cls, 'data-lbl': '1' }, parent, text);
+  // Every part: g (its SVG group), box (the framed rectangle after layout), size(m, w) → { w, h, min }, place(m, x, y, w), draw(m).
+  const edgePoint = (part, side, at) => () => {
+    const b = part.box;
+    const along = (lo, len, axis) => (typeof at === 'function' ? at()[axis] : lo + len * (at ?? 0.5));
+    if (side === 'left') return [b.x, along(b.y, b.h, 1)];
+    if (side === 'right') return [b.x + b.w, along(b.y, b.h, 1)];
+    if (side === 'top') return [along(b.x, b.w, 0), b.y];
+    return [along(b.x, b.w, 0), b.y + b.h];
+  };
+  // Default points and methods; a part's own (for example a gate's top()) win.
+  const withEdges = part => {
+    const defaults = {
+      left: at => edgePoint(part, 'left', at), right: at => edgePoint(part, 'right', at),
+      top: at => edgePoint(part, 'top', at), bottom: at => edgePoint(part, 'bottom', at),
+      mid: () => () => [part.box.x + part.box.w / 2, part.box.y + part.box.h / 2],
+      badgeAt: () => [part.box.x + part.box.w - (sc.m.phone ? 4 : 0), part.box.y],
+      mark(cls, on = true) { part.g.classList.toggle(cls, on); },
+    };
+    for (const [k, v] of Object.entries(defaults)) if (!(k in part)) part[k] = v;
+    return part;
+  };
+  const register = part => { sc.parts.push(withEdges(part)); return part; };
+  // Text that must stay inside a frame (pills, chips, lanes, nodes): checked by clipped() through the kit's overflowing().
+  const framed = (text, frame) => sc.framed.push({ text, frame });
+
+  // Table: a title, a header row, and rows that carry a key (mono) and a faint payload. Row states: hit, gone, active.
+  function table({ title = '', keys = [], tone = '', header = null } = {}) {
+    const g = svgNode('g', { class: 'part table' }, sc.layer.parts);
+    const ttl = label(g, 'g' + toneClass(tone), title);
+    const frame = svgNode('rect', { class: 'tbl', rx: 6 }, g);
+    const heads = (header ?? []).map(h => label(g, 'meta', h));
+    const hline = svgNode('line', { class: 'hl' }, g), vline = svgNode('line', { class: 'hl' }, g);
+    const rows = keys.map((k, i) => {
+      const r = svgNode('g', { class: 'row' + (tone === 'matter' ? ' brass' : '') }, g);
+      const n = { g: r, bg: svgNode('rect', { class: 'bg' }, r), bar: svgNode('rect', { class: 'bar' }, r), sep: i ? svgNode('line', { class: 'hl' }, r) : null };
+      n.key = label(r, 'key mono', k);
+      n.skel = svgNode('rect', { class: 'skel', rx: 3 }, r);
+      const x = svgNode('g', { class: 'x' }, r);
+      n.xc = svgNode('circle', { fill: 'none', stroke: 'var(--ink-soft)', 'stroke-width': 1.2 }, x);
+      n.xp = svgNode('path', { fill: 'none', stroke: 'var(--ink-soft)', 'stroke-width': 1.2 }, x);
+      n.mark = (cls, on = true) => r.classList.toggle(cls, on);
+      return n;
+    });
+    const part = {
+      kind: 'table', g, rows,
+      size: m => ({ w: m.phone ? 128 : 184, min: m.phone ? 104 : 140, h: m.title + m.hdr + keys.length * m.row + part.below(m) }),
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: m.hdr + keys.length * m.row }; },
+      rowC: i => part.box.y + sc.m.hdr + i * sc.m.row + sc.m.row / 2,
+      row: i => rows[i],
+      out: i => () => [part.box.x + part.box.w, part.rowC(i)],
+      src: i => () => [part.box.x + part.box.w - sc.m.tokW / 2 - 8, part.rowC(i)],
+      draw(m) {
+        const { x, y, w, h } = part.box, kw = Math.min(m.kw, w * 0.35);
+        svgSet(ttl, { x, y: y - m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x, y, width: w, height: h });
+        heads.forEach((n, i) => svgSet(n, { x: i ? x + kw + 8 : x + 10, y: y + m.hdr / 2, 'font-size': m.meta, opacity: m.hdr ? 1 : 0 }));
+        svgSet(hline, { x1: x, x2: x + w, y1: y + m.hdr, y2: y + m.hdr, opacity: m.hdr ? 1 : 0 });
+        svgSet(vline, { x1: x + kw, x2: x + kw, y1: y, y2: y + h });
+        rows.forEach((n, i) => {
+          const top = y + m.hdr + i * m.row, cy = top + m.row / 2;
+          svgSet(n.bg, { x: x + 1, y: top + 0.5, width: w - 2, height: m.row - 1 });
+          svgSet(n.bar, { x: x + 1, y: top + 0.5, width: 3, height: m.row - 1 });
+          if (n.sep) svgSet(n.sep, { x1: x, x2: x + w, y1: top, y2: top });
+          svgSet(n.key, { x: x + 14, y: cy, 'font-size': m.key });
+          svgSet(n.skel, { x: x + kw + 8, y: cy - 3, width: Math.max(8, (w - kw - 16) * 0.55), height: 6 });
+          const cx = x + w - 14;
+          svgSet(n.xc, { cx, cy, r: 6 });
+          svgSet(n.xp, { d: `M${cx - 2.5},${cy - 2.5} L${cx + 2.5},${cy + 2.5} M${cx + 2.5},${cy - 2.5} L${cx - 2.5},${cy + 2.5}` });
+        });
+      },
+    };
+    part.below = () => 0;
+    return register(part);
+  }
+
+  // Buckets (hash table): a row of cells with an index label, a "—" while empty, and a slot for a key chip.
+  function buckets({ title = '', count = 4, tone = 'bound', label: lab = b => `${b}`, short = b => `#${b}` } = {}) {
+    const g = svgNode('g', { class: 'part buckets' }, sc.layer.parts);
+    const ttl = label(g, 'g' + toneClass(tone), title);
+    const frame = svgNode('rect', { class: 'box', rx: 6 }, g);
+    const cells = Array.from({ length: count }, (_, b) => {
+      const c = svgNode('g', { class: 'cell' }, g);
+      const n = { g: c, rect: svgNode('rect', { rx: 6 }, c), idx: label(c, 'meta', ''), dash: label(c, 'meta', '—') };
+      framed(n.idx, n.rect);
+      n.mark = (cls, on = true) => c.classList.toggle(cls, on);
+      return n;
+    });
+    const geo = () => {
+      const m = sc.m, b = part.box, cw = (b.w - 2 * m.hp - (count - 1) * 4) / count;
+      return { cw, cx: i => b.x + m.hp + i * (cw + 4), cy: b.y + m.hp };
+    };
+    const part = {
+      kind: 'buckets', g, cells, frame,
+      size: m => ({ w: m.phone ? 184 : 248, min: m.phone ? 150 : 200, h: m.title + 2 * m.hp + m.cell }),
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: 2 * m.hp + m.cell }; },
+      cell: b => cells[b],
+      slot: b => () => { const { cw, cx, cy } = geo(); return [cx(b) + cw / 2, cy + sc.m.cell - sc.m.tokH / 2 - (sc.m.phone ? 3 : 6)]; },
+      fill(b, on = true) { cells[b].dash.style.opacity = on ? 0 : ''; },
+      draw(m) {
+        const { x, y, w, h } = part.box, { cw, cx, cy } = geo();
+        svgSet(ttl, { x, y: y - m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x, y, width: w, height: h });
+        cells.forEach((n, i) => {
+          svgSet(n.rect, { x: cx(i), y: cy, width: cw, height: m.cell });
+          n.idx.textContent = !m.phone && cw >= 52 ? lab(i) : short(i);
+          svgSet(n.idx, { x: cx(i) + 5, y: cy + (m.phone ? 8 : 10), 'font-size': m.meta });
+          svgSet(n.dash, { x: cx(i) + cw / 2, y: cy + m.cell - m.tokH / 2 - (m.phone ? 3 : 6), 'text-anchor': 'middle', 'font-size': m.key });
+        });
+      },
+    };
+    return register(part);
+  }
+
+  // A pill with a counter text; "{n}" in the template is replaced by the number.
+  const pill = (g, cls) => {
+    const p = svgNode('g', { class: 'pill ' + cls }, g), out = { g: p, rect: svgNode('rect', {}, p), text: label(p, 'g', '') };
+    framed(out.text, out.rect);
+    return out;
+  };
+  // Size a pill around its text, right-aligned at x (or centered when center is true).
+  const fitPill = (pl, m, x, cy, { minW = 0, center = false } = {}) => {
+    const fs = m.meta + 0.5, h = m.pill;
+    svgSet(pl.text, { 'font-size': fs });
+    const w = Math.max(minW, textWidth(pl.text, fs) + (m.phone ? 16 : 24));
+    const left = center ? x - w / 2 : x - w;
+    svgSet(pl.rect, { x: left, y: cy - h / 2, width: w, height: h, rx: h / 2 });
+    svgSet(pl.text, { x: left + w / 2, y: cy + 0.5, 'text-anchor': 'middle' });
+  };
+
+  // Operator box: a title with a counter pill, lanes (aligned with a table of the same row count in the same grid row),
+  // per-lane result text, and an optional tally pill under the box (hidden until first set).
+  function box({ title = '', lanes = 0, tone = 'bound', header = null, counter = null, tally = null } = {}) {
+    const g = svgNode('g', { class: 'part opbox' }, sc.layer.parts);
+    const ttl = label(g, 'g' + toneClass(tone), title);
+    const frame = svgNode('rect', { class: 'box', rx: 6 }, g);
+    const heads = (header ?? []).map(h => label(g, 'meta', h));
+    const seps = Array.from({ length: lanes + (header ? 1 : 0) }, () => svgNode('line', { class: 'hl' }, g));
+    const laneTexts = Array.from({ length: lanes }, () => { const t = label(g, 'meta', ''); t.style.opacity = 0; framed(t, frame); return { g: t, full: '', short: '' }; });
+    const cnt = counter ? pill(g, 'counter') : null;
+    const tal = tally ? pill(g, 'tally') : null;
+    if (cnt) cnt.text.textContent = counter.replace('{n}', 0);
+    if (tal) { tal.text.textContent = tally.replace('{n}', 0); tal.g.style.opacity = 0; }
+    const hasHdr = () => (header ? sc.m.hdr : 0);
+    const part = {
+      kind: 'box', g, frame, counterNode: cnt?.g ?? null, tallyNode: tal?.g ?? null,
+      size: m => ({ w: m.phone ? 184 : 248, min: m.phone ? 150 : 200, h: m.title + (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row + (tally ? m.pill + 8 : 0) }),
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row }; },
+      laneC: i => part.box.y + hasHdr() + i * sc.m.row + sc.m.row / 2,
+      in: i => () => [part.box.x, part.laneC(i)],
+      chip: i => () => [part.box.x + 8 + sc.m.tokW / 2, part.laneC(i)],
+      lane: i => laneTexts[i],
+      laneText(i, text, { short = text, tone: t = '' } = {}) {
+        Object.assign(laneTexts[i], { full: text, short });
+        laneTexts[i].g.setAttribute('class', 'meta' + toneClass(t));
+        laneTexts[i].g.textContent = sc.m.phone ? short : text;
+      },
+      count(n) { if (cnt) cnt.text.textContent = counter.replace('{n}', n); },
+      tally(n) { if (tal) { tal.text.textContent = tally.replace('{n}', n); tal.g.style.opacity = 1; } },
+      restore() { laneTexts.forEach(t => { t.full = ''; t.short = ''; }); }, // reset: forget the previous run's lane text
+      draw(m) {
+        const { x, y, w, h } = part.box, hh = hasHdr();
+        svgSet(ttl, { x, y: y - m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x, y, width: w, height: h });
+        heads.forEach((n, i) => svgSet(n, { x: i ? x + 8 + m.tokW + 8 : x + 8, y: y + hh / 2, 'font-size': m.meta, opacity: hh ? 1 : 0 }));
+        seps.forEach((n, i) => { const yy = y + hh + i * m.row; svgSet(n, { x1: x, x2: x + w, y1: yy, y2: yy, opacity: i || hh ? 1 : 0 }); });
+        laneTexts.forEach((t, i) => { if (t.full) t.g.textContent = m.phone ? t.short : t.full; svgSet(t.g, { x: x + 8 + m.tokW + 8, y: part.laneC(i), 'font-size': m.meta }); });
+        if (cnt) fitPill(cnt, m, x + w, y - m.title / 2, { minW: m.pillW });
+        if (tal) fitPill(tal, m, x + w, y + h + 6 + m.pill / 2, { minW: m.pillW });
+      },
+    };
+    return register(part);
+  }
+
+  // Gate (filter) in the gutter right of a table, spanning its rows, with a chip below listing what passes.
+  function gate(tbl, { label: name = '', pass = '', tone = 'bound', hidden = false } = {}) {
+    const g = svgNode('g', { class: 'part gate' }, sc.layer.parts);
+    const barrier = svgNode('rect', { class: 'barrier', rx: 2 }, g);
+    const posts = [svgNode('rect', { class: 'post', rx: 3 }, g), svgNode('rect', { class: 'post', rx: 3 }, g)];
+    const ticks = tbl.rows.map(() => svgNode('line', { class: 'tick' }, g));
+    const chip = svgNode('rect', { class: 'chip', rx: 6 }, g);
+    const t1 = label(g, 'g' + toneClass(tone), name), t2 = label(g, 'mono' + toneClass(tone), pass);
+    framed(t1, chip); framed(t2, chip);
+    if (hidden) g.style.opacity = 0;
+    // The gate stands in the gutter between its table's grid column and the next one.
+    const slot = () => {
+      if (!tbl.gridSlot?.right) throw new Error('[plz] d.gate(table): the table must be in a d.grid cell with another column to its right; the gate stands in the gutter between them');
+      return tbl.gridSlot;
+    };
+    const cx = () => tbl.box.x + tbl.box.w + slot().gutter / 2;
+    const chipBox = () => {
+      const m = sc.m, b = tbl.box;
+      svgSet(t1, { 'font-size': m.text }); svgSet(t2, { 'font-size': m.meta + 0.5 });
+      const w = Math.max(m.phone ? 94 : 104, (m.phone ? 0 : textWidth(t1, m.text)) + 16, textWidth(t2, m.meta + 0.5) + 16);
+      return { x: cx() - w / 2, y: b.y + b.h + (m.phone ? 6 : 18), w, h: m.chipH };
+    };
+    const rows0 = () => tbl.box.y + sc.m.hdr, rowsB = () => tbl.box.y + tbl.box.h;
+    tbl.below = m => (m.phone ? 6 : 18) + m.chipH; // the chip sits under the table: the grid row makes room for it
+    const part = {
+      kind: 'gate', g, layoutless: true,
+      size: () => ({ w: 0, h: 0, min: 0 }),
+      place() { const c = cx(); part.box = { x: c - 6, y: rows0() - 14, w: 12, h: rowsB() - rows0() + 28 }; },
+      top: () => () => [cx(), rows0() - 14],
+      in: i => () => [cx() - 15, tbl.rowC(i)],   // barrier edges, for connectors
+      out: i => () => [cx() + 15, tbl.rowC(i)],
+      before: i => () => [cx() - 6 - 6 - sc.m.tokW / 2, tbl.rowC(i)], // where a token stops in front of the barrier
+      after: i => () => [cx() + 15 + sc.m.tokW / 2, tbl.rowC(i)],
+      badgeAt: () => [cx() + 16, rows0() - 14],
+      draw(m) {
+        const c = cx(), r0 = rows0(), rb = rowsB(), b = chipBox();
+        svgSet(barrier, { x: c - (m.phone ? 5 : 6), y: r0 - 4, width: m.phone ? 10 : 12, height: rb - r0 + 8 });
+        svgSet(posts[0], { x: c - 15, y: r0 - 14, width: 30, height: 10 });
+        svgSet(posts[1], { x: c - 15, y: rb + 4, width: 30, height: 10 });
+        ticks.forEach((t, i) => svgSet(t, { x1: c - 13, x2: c + 13, y1: tbl.rowC(i), y2: tbl.rowC(i) }));
+        svgSet(chip, { x: b.x, y: b.y, width: b.w, height: b.h });
+        svgSet(t1, { x: c, y: b.y + b.h * 0.27, 'text-anchor': 'middle', 'font-size': m.text, opacity: m.phone ? 0 : 1 });
+        svgSet(t2, { x: c, y: b.y + b.h * (m.phone ? 0.52 : 0.74), 'text-anchor': 'middle', 'font-size': m.meta + 0.5 });
+      },
+    };
+    return register(part);
+  }
+
+  // Operator tree: nodes with a label and a metric line; edges carry data up from children to parents. tree.node(id) is highlightable.
+  function tree(spec) {
+    const g = svgNode('g', { class: 'part tree' }, sc.layer.parts);
+    const nodes = [], byId = {};
+    const walk = (s, depth, parent) => {
+      const ng = svgNode('g', { class: 'tnode' }, g);
+      const n = { spec: s, depth, parent, g: ng, rect: svgNode('rect', { rx: 6 }, ng), name: label(ng, 'g', s.label), met: label(ng, 'meta', s.metric ?? ''), kids: [] };
+      framed(n.name, n.rect); framed(n.met, n.rect);
+      n.mark = (cls, on = true) => ng.classList.toggle(cls, on);
+      n.metric = text => { n.met.textContent = text; };
+      n.badgeAt = () => [n.x + n.w, n.y];
+      n.top = () => () => [n.x + n.w / 2, n.y];
+      n.bottom = () => () => [n.x + n.w / 2, n.y + n.h];
+      nodes.push(n); if (s.id) byId[s.id] = n;
+      n.kids = (s.children ?? []).map(c => walk(c, depth + 1, n));
+      if (parent) n.edge = svgNode('path', { class: 'flow', 'marker-end': 'url(#plz-arr)' }, sc.layer.flows);
+      return n;
+    };
+    const rootN = walk(spec, 0, null);
+    const leaves = nodes.filter(n => !n.kids.length);
+    const depth = Math.max(...nodes.map(n => n.depth)) + 1;
+    const part = {
+      kind: 'tree', g, nodes,
+      node: id => byId[id],
+      size: m => ({ w: leaves.length * m.nodeW + (leaves.length - 1) * m.hgap, min: leaves.length * (m.phone ? 70 : 90) + (leaves.length - 1) * m.hgap, h: depth * m.nodeH + (depth - 1) * m.vgap }),
+      place(m, x, y, w) {
+        const nw = Math.min(m.nodeW, (w - (leaves.length - 1) * m.hgap) / leaves.length);
+        leaves.forEach((n, i) => { n.x = x + i * (nw + m.hgap); });
+        const setX = n => { if (n.kids.length) { n.kids.forEach(setX); n.x = (n.kids[0].x + n.kids.at(-1).x) / 2; } };
+        setX(rootN);
+        nodes.forEach(n => Object.assign(n, { w: nw, h: m.nodeH, y: y + n.depth * (m.nodeH + m.vgap) }));
+        part.box = { x, y, w: leaves.length * nw + (leaves.length - 1) * m.hgap, h: depth * m.nodeH + (depth - 1) * m.vgap };
+      },
+      draw(m) {
+        nodes.forEach(n => {
+          svgSet(n.rect, { x: n.x, y: n.y, width: n.w, height: n.h });
+          svgSet(n.name, { x: n.x + n.w / 2, y: n.y + n.h * 0.34, 'text-anchor': 'middle', 'font-size': m.text });
+          svgSet(n.met, { x: n.x + n.w / 2, y: n.y + n.h * 0.72, 'text-anchor': 'middle', 'font-size': m.meta });
+          if (n.edge) {
+            const cx = n.x + n.w / 2, px = n.parent.x + n.parent.w / 2, top = n.y, mid = n.parent.y + n.parent.h + m.vgap / 2;
+            svgSet(n.edge, { d: `M${cx},${top} V${mid} H${px} V${n.parent.y + n.parent.h + 1}` });
+          }
+        });
+      },
+    };
+    return register(part);
+  }
+
+  // Columns: several nodes or servers side by side, each with slots that rows (tokens) move between.
+  function columns(names, { slots = 3, tone = 'bound' } = {}) {
+    const g = svgNode('g', { class: 'part columns' }, sc.layer.parts);
+    const cols = names.map(name => {
+      const cg = svgNode('g', { class: 'col' }, g);
+      const c = { g: cg, ttl: label(cg, 'g' + toneClass(tone), name), rect: svgNode('rect', { class: 'box', rx: 6 }, cg), lines: Array.from({ length: slots - 1 }, () => svgNode('line', { class: 'hl' }, cg)) };
+      c.mark = (cls, on = true) => cg.classList.toggle(cls, on);
+      c.slot = j => () => [c.x + c.w / 2, c.y + 4 + j * sc.m.row + sc.m.row / 2];
+      c.badgeAt = () => [c.x + c.w, c.y];
+      return c;
+    });
+    const part = {
+      kind: 'columns', g, cols,
+      col: i => cols[i],
+      size: m => ({ w: names.length * m.colW + (names.length - 1) * m.hgap, min: names.length * (m.tokW + 20) + (names.length - 1) * m.hgap, h: m.title + slots * m.row + 8 }),
+      place(m, x, y, w) {
+        const cw = Math.min(m.colW, (w - (names.length - 1) * m.hgap) / names.length);
+        cols.forEach((c, i) => Object.assign(c, { x: x + i * (cw + m.hgap), y: y + m.title, w: cw, h: slots * m.row + 8 }));
+        part.box = { x, y: y + m.title, w: names.length * cw + (names.length - 1) * m.hgap, h: slots * m.row + 8 };
+      },
+      draw(m) {
+        cols.forEach(c => {
+          svgSet(c.ttl, { x: c.x + c.w / 2, y: c.y - m.title / 2, 'text-anchor': 'middle', 'font-size': m.text });
+          svgSet(c.rect, { x: c.x, y: c.y, width: c.w, height: c.h });
+          c.lines.forEach((l, j) => { const yy = c.y + 4 + (j + 1) * m.row; svgSet(l, { x1: c.x + 6, x2: c.x + c.w - 6, y1: yy, y2: yy }); });
+        });
+      },
+    };
+    return register(part);
+  }
+
+  // Connector through points, with an arrowhead. dashed + label for a passed signal (for example a filter handed sideways).
+  function link(points, { dashed = false, tone = '', label: name = null, labelAt = null, arrow = true, hidden = false, opacity = null } = {}) {
+    if (!Array.isArray(points) || points.length < 2) throw new Error('[plz] d.link(points): a link needs at least two points');
+    const g = svgNode('g', { class: 'link' }, sc.layer.flows);
+    const path = svgNode('path', { class: 'flow' + (dashed ? ' dashed' : '') + toneClass(tone) }, g);
+    if (arrow) path.setAttribute('marker-end', `url(#plz-arr${tone === 'bound' ? '-b' : ''})`);
+    const lp = name ? pill(g, 'linklabel' + toneClass(tone)) : null;
+    if (lp) lp.text.textContent = name;
+    if (hidden) g.style.opacity = 0;
+    else if (opacity !== null) g.style.opacity = opacity;
+    const l = {
+      g, points,
+      draw(m) {
+        const pts = points.map(pointOf);
+        const end = pts.at(-1), prev = pts.at(-2), len = Math.hypot(end[0] - prev[0], end[1] - prev[1]) || 1;
+        const e = [end[0] - (end[0] - prev[0]) / len, end[1] - (end[1] - prev[1]) / len]; // stop 1px short so the arrowhead touches the edge
+        path.setAttribute('d', 'M' + [...pts.slice(0, -1), e].map(p => `${+p[0].toFixed(2)},${+p[1].toFixed(2)}`).join(' L'));
+        if (lp) {
+          const at = labelAt ? pointOf(labelAt) : [pts.at(-1)[0], pts.at(-1)[1] - (m.phone ? 12 : 16)];
+          svgSet(lp.text, { 'font-size': m.meta });
+          const w = Math.max(34, textWidth(lp.text, m.meta) + 12), h = m.phone ? 16 : 18;
+          svgSet(lp.rect, { x: at[0] - w / 2, y: at[1] - h / 2, width: w, height: h, rx: h / 2 });
+          svgSet(lp.text, { x: at[0], y: at[1] + 0.5, 'text-anchor': 'middle' });
+        }
+      },
+    };
+    sc.links.push(l);
+    return l;
+  }
+
+  // Token: a chip with a key that travels along points with a.along(). `at` is where it rests.
+  function token(text, at, { tone = '', w = null } = {}) {
+    const g = svgNode('g', { class: 'tok' + (tone ? ' ' + tone : '') }, sc.layer.toks);
+    const t = { g, at: typeof at === 'function' ? at : () => at, w, pos: null, halo: svgNode('rect', { class: 'halo' }, g), body: svgNode('rect', { class: 'b' }, g), text: label(g, 'mono', text) };
+    t.mark = (cls, on = true) => g.classList.toggle(cls, on);
+    sc.tokens.add(t);
+    drawToken(sc, t);
+    return t;
+  }
+
+  // Containers. grid: rows of cells (parts or null) with a gutter between columns for connectors and gates.
+  // panels: the same kind of diagram side by side (stacked on phones), each with a title. stack: a plain row or column.
+  function grid(rows, { gutter = null } = {}) {
+    const ncol = Math.max(...rows.map(r => r.length));
+    const colSizes = m => Array.from({ length: ncol }, (_, c) => {
+      const s = rows.map(r => r[c]).filter(Boolean).map(p => p.size(m));
+      return { w: Math.max(0, ...s.map(x => x.w)), min: Math.max(0, ...s.map(x => x.min)) };
+    });
+    const gut = m => gutter ?? m.gutter;
+    const node = {
+      size(m) {
+        const cs = colSizes(m), gw = gut(m) * (ncol - 1);
+        const h = rows.reduce((sum, r) => sum + Math.max(0, ...r.filter(Boolean).map(p => p.size(m).h)), 0) + m.gapY * (rows.length - 1);
+        return { w: cs.reduce((s, c) => s + c.w, 0) + gw, min: cs.reduce((s, c) => s + c.min, 0) + gw, h };
+      },
+      place(m, x, y, w) {
+        const cs = colSizes(m), gw = gut(m) * (ncol - 1), nat = cs.reduce((s, c) => s + c.w, 0);
+        const f = Math.min(1, (w - gw) / nat);
+        const widths = cs.map(c => Math.max(c.min, c.w * f));
+        let yy = y;
+        rows.forEach(r => {
+          let xx = x;
+          r.forEach((p, c) => {
+            if (p) { p.gridSlot = { gutter: gut(m), right: c < ncol - 1 }; p.place(m, xx, yy, widths[c]); }
+            xx += widths[c] + gut(m);
+          });
+          yy += Math.max(0, ...r.filter(Boolean).map(p => p.size(m).h)) + m.gapY;
+        });
+        return node.size(m).h;
+      },
+    };
+    return node;
+  }
+  function stack(items, { dir = 'row', gap = null } = {}) {
+    const gp = m => gap ?? (dir === 'row' ? m.panelGap : m.gapY);
+    const node = {
+      size(m) {
+        const s = items.map(p => p.size(m));
+        if (dir === 'row') return { w: s.reduce((a, b) => a + b.w, 0) + gp(m) * (s.length - 1), min: s.reduce((a, b) => a + b.min, 0) + gp(m) * (s.length - 1), h: Math.max(...s.map(x => x.h)) };
+        return { w: Math.max(...s.map(x => x.w)), min: Math.max(...s.map(x => x.min)), h: s.reduce((a, b) => a + b.h, 0) + gp(m) * (s.length - 1) };
+      },
+      place(m, x, y, w) {
+        const s = items.map(p => p.size(m));
+        if (dir === 'row') {
+          const nat = s.reduce((a, b) => a + b.w, 0), f = Math.min(1, (w - gp(m) * (s.length - 1)) / nat);
+          let xx = x;
+          items.forEach((p, i) => { const ww = Math.max(s[i].min, s[i].w * f); p.gridSlot = null; p.place(m, xx, y, ww); xx += ww + gp(m); });
+        } else {
+          let yy = y;
+          items.forEach((p, i) => { p.gridSlot = null; p.place(m, x, yy, Math.min(w, s[i].w)); yy += s[i].h + gp(m); });
+        }
+        return node.size(m).h;
+      },
+    };
+    return node;
+  }
+  function panels(list) {
+    const titled = list.map(({ title, body }) => {
+      const t = label(sc.layer.parts, 'g panel-title', title);
+      return {
+        size: m => { const s = body.size(m); return { w: s.w, min: s.min, h: s.h + m.title + 4 }; },
+        place(m, x, y, w) { svgSet(t, { x, y: y + m.title / 2, 'font-size': m.text + 1 }); body.place(m, x, y + m.title + 4, w); },
+      };
+    });
+    const row = stack(titled, { dir: 'row' }), col = stack(titled, { dir: 'col' });
+    const pick = (m, w) => (m.phone || w < row.size(m).min ? col : row);
+    return {
+      size: m => (m.phone ? col.size(m) : { ...row.size(m), min: col.size(m).min }),
+      place: (m, x, y, w) => pick(m, w).place(m, x, y, w),
+    };
+  }
+  return {
+    table, buckets, box, gate, tree, columns, link, token, grid, stack, panels,
+    corner: (a, b) => () => [pointOf(b)[0], pointOf(a)[1]],
+    phone: () => sc.m.phone,
+  };
+}
+// Place a token at its point (moving: sc-computed pos; resting: its `at` point), sized from the current metrics.
+function drawToken(sc, t) {
+  const m = sc.m, w = t.w ?? m.tokW, h = m.tokH, [x, y] = t.pos ?? t.at();
+  t.g.setAttribute('transform', `translate(${+(x - w / 2).toFixed(2)} ${+(y - h / 2).toFixed(2)})`);
+  svgSet(t.halo, { x: -4, y: -4, width: w + 8, height: h + 8, rx: 10 });
+  svgSet(t.body, { x: 0, y: 0, width: w, height: h, rx: 6 });
+  svgSet(t.text, { x: w / 2, y: h / 2, 'text-anchor': 'middle', 'font-size': m.key });
+}
+
+// Reset support: remember class, inline opacity and text of every element a scene built, and put them back.
+function svgSnapshot(root) {
+  return [...root.querySelectorAll('*')].map(n => ({ n, cls: n.getAttribute('class'), op: n.style.opacity, text: n.tagName === 'text' ? n.textContent : null }));
+}
+function svgRestore(snap) {
+  for (const s of snap) {
+    if (s.cls === null) s.n.removeAttribute('class'); else s.n.setAttribute('class', s.cls);
+    s.n.style.opacity = s.op;
+    if (s.text !== null) s.n.textContent = s.text;
+  }
+}
+// The animator `a` that svg scenes receive. Every duration goes through the director.
+function svgAnimator(dir, sc) {
+  const nodeOf = target => target?.g ?? target;
+  const fade = (target, to, ms = 250) => {
+    const n = nodeOf(target), from = n.style.opacity === '' ? 1 : parseFloat(n.style.opacity);
+    return dir.tween(ms, t => { n.style.opacity = String(+(from + (to - from) * t).toFixed(3)); }, { motion: false, ease: t => t });
+  };
+  return {
+    live: dir.live,
+    wait: ms => dir.wait(ms),
+    tween: (ms, fn, opts) => dir.tween(ms, fn, opts),
+    fade,
+    // Move a token along points (functions returning [x, y]); it rests at the last one. About 1 s per tracked move.
+    // Points are read every frame, so a relayout during the move continues on the new path.
+    // Reduced motion: the token cuts to the end and fades in there; the step keeps its time.
+    async along(tok, points, ms = 1000) {
+      const last = points.at(-1);
+      if (dir.reduced() && !dir.instant() && ms > 0) {
+        const keep = tok.g.style.opacity === '' ? 1 : parseFloat(tok.g.style.opacity); // a dimmed token stays dimmed
+        tok.pos = null; tok.at = typeof last === 'function' ? last : () => last; drawToken(sc, tok);
+        tok.g.style.opacity = 0;
+        await fade(tok, keep, Math.min(200, ms));
+        await dir.wait(Math.max(0, ms - 200));
+        return;
+      }
+      try {
+        await dir.tween(ms, t => { tok.pos = alongPolyline(points.map(pointOf), t); drawToken(sc, tok); });
+      } finally {
+        tok.pos = null; tok.at = typeof last === 'function' ? last : () => last;
+        if (tok.g.isConnected) drawToken(sc, tok);
+      }
+    },
+    // A brief emphasis: add a class (default 'on', an ink outline) for ms, then remove it.
+    async flash(target, cls = 'on', ms = 200) {
+      const n = nodeOf(target);
+      n.classList.add(cls);
+      try { await dir.wait(ms); } finally { n.classList.remove(cls); }
+    },
+    // A small pulse on a counter after its number changed. Not awaited; skipped under reduced motion and in instant mode.
+    tick(target) {
+      const n = nodeOf(target);
+      if (!n || dir.reduced() || dir.instant()) return;
+      const anim = n.animate([{ transform: 'scale(1.14)' }, { transform: 'scale(1)' }], { duration: 160, easing: 'ease-out' });
+      anim.playbackRate = dir.speed();
+    },
+    // Run fn(item, i) for items in groups (default 3, at most 4) that move together, with a pause between groups.
+    // People track 3–4 moving things at once, so this is the easy way to move many rows.
+    async groups(items, fn, { size = 3, pause = 400 } = {}) {
+      const n = Math.max(1, Math.min(4, size));
+      for (let i = 0; i < items.length; i += n) {
+        if (i) await dir.wait(pause);
+        await Promise.all(items.slice(i, i + n).map((item, j) => fn(item, i + j)));
+      }
+    },
+  };
+}
+
+defineKit('svg', {
+  rotatable: false,
+  scenes: new Set(),
+  current: null,
+  load(host) {
+    this.svg = svgNode('svg', { class: 'svg-stage', 'aria-hidden': 'true' }, host.layer);
+    const defs = svgNode('defs', {}, this.svg);
+    for (const [id, color, op] of [['plz-arr', 'var(--ink-soft)', 0.7], ['plz-arr-b', 'var(--bound)', 1]]) {
+      const mk = svgNode('marker', { id, viewBox: '0 0 8 8', refX: 7, refY: 4, markerUnits: 'userSpaceOnUse', markerWidth: 9, markerHeight: 9, orient: 'auto' }, defs);
+      svgNode('path', { d: 'M0,0 L8,4 L0,8 Z', style: `fill:${color}`, 'fill-opacity': op }, mk);
+    }
+  },
+  build(def) {
+    const root = svgNode('g', { class: 'svg-scene' }, this.svg);
+    root.style.display = 'none';
+    const layer = {};
+    for (const name of ['flows', 'parts', 'toks', 'badges']) layer[name] = svgNode('g', { class: name }, root);
+    const sc = { def, root, layer, parts: [], links: [], framed: [], tokens: new Set(), badges: new Set(), m: svgMetrics(false), k: 1, info: { scale: 1, arrangement: 'natural', row: 36 } };
+    const d = svgBuilder(sc);
+    const out = def.build(d) ?? {};
+    if (!out.diagram || typeof out.run !== 'function') throw new Error(`[plz] svg scene ${def.name}: build(d) must return { diagram, run }`);
+    sc.diagram = out.diagram;
+    this.layoutAt(sc, svgMetrics(false), Infinity);
+    sc.snap = svgSnapshot(root);
+    const built = { sc, run: out.run, reset: out.reset ?? (() => {}) };
+    this.scenes.add(built);
+    return built;
+  },
+  // Lay the diagram out with metrics m in at most availW (diagram units). Computes boxes only (no DOM work). Returns the size.
+  arrange(sc, m, availW) {
+    sc.m = m;
+    const nat = sc.diagram.size(m);
+    const w = Math.max(nat.min, Math.min(nat.w, availW));
+    const h = sc.diagram.place(m, 0, 0, w);
+    for (const p of sc.parts) if (p.layoutless) p.place(m);
+    return { w, h };
+  },
+  // Draw every part, link, token and badge from the arranged boxes.
+  paint(sc) {
+    for (const p of sc.parts) p.draw(sc.m);
+    for (const l of sc.links) l.draw(sc.m);
+    for (const t of sc.tokens) drawToken(sc, t);
+    this.drawBadges(sc);
+  },
+  layoutAt(sc, m, availW) { const size = this.arrange(sc, m, availW); this.paint(sc); return size; },
+  transform(sc, x, y, k) {
+    sc.k = k;
+    sc.root.setAttribute('transform', `translate(${+x.toFixed(2)} ${+y.toFixed(2)}) scale(${+k.toFixed(4)})`);
+  },
+  // Wide stages (rail as a column): the diagram and the rail form one block laid out at natural size, then scaled by k (1 to 1.6).
+  // Two arrangements compete, rail right and rail below; below wins only when its k is 1.3 times larger. Returns null when
+  // neither fits at k = 1 (the shell then uses its default rail and fit()).
+  place(g) {
+    const sc = this.current?.sc;
+    if (!sc) return null;
+    const m = svgMetrics(false), nat = sc.diagram.size(m);
+    const PAD = 16, GAP = 24, RAIL_MIN = 248, KMAX = 1.6, BELOW = 12;
+    const aw = g.W - 2 * PAD, ah = g.bottom - g.top - PAD;
+    const railBelow = 150; // room reserved for the captions under the diagram (they scroll inside it if longer)
+    const kr = Math.min(aw / (nat.w + GAP + RAIL_MIN), ah / nat.h);
+    const kb = Math.min(aw / nat.w, ah / (nat.h + BELOW + railBelow));
+    if (kr < 0.999 && kb < 0.999) return null;
+    const below = kb >= 0.999 && (kr < 0.999 || Math.min(KMAX, kb) > Math.min(KMAX, kr) * 1.3);
+    const k = Math.min(KMAX, below ? kb : kr);
+    const size = this.layoutAt(sc, m, Infinity);
+    const railN = below ? size.w : clamp(RAIL_MIN, aw / k - size.w - GAP, 420);
+    const bw = (below ? size.w : size.w + GAP + railN) * k, bh = (below ? size.h + BELOW + railBelow : size.h) * k;
+    const ox = (g.W - bw) / 2, oy = g.top + Math.max(0, (g.bottom - g.top - bh) * 0.4);
+    this.transform(sc, ox, oy, k);
+    sc.info = { scale: k, arrangement: below ? 'below' : 'right', row: m.row };
+    const rail = below
+      ? { x: ox, y: oy + (size.h + BELOW) * k, w: size.w * k, h: g.bottom - (oy + (size.h + BELOW) * k) - 8 }
+      : { x: ox + (size.w + GAP) * k, y: oy, w: railN * k, h: g.bottom - oy - 8 };
+    const model = below ? { x: 0, y: 0, w: g.W, h: rail.y - 4 } : { x: 0, y: 0, w: rail.x - 4, h: g.H };
+    return { rail, scale: k, model };
+  },
+  // Every other stage: fit the diagram into rect. Desktop metrics with compressed columns first (scaled up when there is room);
+  // if the height does not fit, phone metrics with the largest row height (20 → 15) that fits.
+  fit(model, W, H, chrome = { top: 0, bottom: H }) {
+    const sc = this.current?.sc;
+    if (!sc || !model.w || !model.h) return;
+    // Stay clear of the HUD and the legend where they lie over the stage.
+    const y0 = Math.max(model.y, chrome.top), rect = { x: model.x, y: y0, w: model.w, h: Math.min(model.y + model.h, chrome.bottom) - y0 };
+    const tries = [...(barredQ.matches ? [] : [svgMetrics(false)]), ...[20, 19, 18, 17, 16, 15].map(r => svgMetrics(true, r))];
+    let size = null, m = null;
+    for (const cand of tries) { // pick the sizes with the boxes only, then draw once
+      m = cand;
+      size = this.arrange(sc, m, rect.w - 2 * m.pad);
+      if (size.h + 2 * m.pad <= rect.h && size.w + 2 * m.pad <= rect.w + 0.5) break;
+    }
+    this.paint(sc);
+    const k = m.phone ? 1 : clamp(1, Math.min((rect.w - 2 * m.pad) / size.w, (rect.h - 2 * m.pad) / size.h), 1.6);
+    const ox = rect.x + Math.max(m.pad, (rect.w - size.w * k) / 2);
+    const oy = rect.y + (m.phone ? m.pad : Math.max(m.pad, (rect.h - size.h * k) * 0.4));
+    this.transform(sc, ox, oy, k);
+    sc.info = { scale: k, arrangement: m.phone ? 'phone' : 'fit', row: m.row };
+  },
+  // The smallest model height at which the active diagram still fits with the smallest rows (phones), for the stage-height handle.
+  minHeight() {
+    const sc = this.current?.sc;
+    if (!sc) return 150;
+    const m = svgMetrics(true, 15);
+    return Math.max(150, sc.diagram.size(m).h + 2 * m.pad);
+  },
+  reset(built) {
+    const { sc } = built;
+    for (const t of sc.tokens) t.g.remove();
+    sc.tokens.clear();
+    svgRestore(sc.snap);
+    for (const p of sc.parts) p.restore?.(); // state a part keeps in JS (lane text)
+    this.paint(sc);
+  },
+  show(built) {
+    for (const b of this.scenes) b.sc.root.style.display = b === built ? '' : 'none';
+    this.current = built;
+  },
+  hide(built) {
+    for (const t of built.sc.tokens) t.g.remove();
+    built.sc.tokens.clear();
+  },
+  clear(built) { this.hide(built); },
+  animator: (dir, built) => svgAnimator(dir, built.sc),
+  // A numbered badge on a part (its top-right corner, or its own badgeAt) or at a point function. It follows relayouts.
+  badge(anchor, n) {
+    const sc = this.current?.sc;
+    if (!sc) return () => {};
+    const g = svgNode('g', { class: 'sb' }, sc.layer.badges);
+    const node = anchor?.g ?? anchor;
+    const at = typeof anchor === 'function' ? anchor
+      : Array.isArray(anchor) ? () => anchor // a fixed [x, y] in diagram units
+      : anchor?.badgeAt ? () => anchor.badgeAt()
+      : () => { const r = node.getBBox(); return [r.x + r.width, r.y]; }; // any SVG node (or { g }): its top-right corner
+    const b = { g, at, c: svgNode('circle', {}, g), t: svgNode('text', { 'data-lbl': '1' }, g, n) };
+    sc.badges.add(b);
+    this.drawBadges(sc);
+    return () => { sc.badges.delete(b); g.remove(); };
+  },
+  drawBadges(sc) {
+    for (const b of sc.badges) {
+      const [x, y] = b.at(), r = sc.m.badge;
+      svgSet(b.c, { cx: x, cy: y, r });
+      svgSet(b.t, { x, y: y + 0.5, 'text-anchor': 'middle', 'font-size': sc.m.phone ? 11 : 12 });
+    }
+  },
+  // Visible labels: SVG text with content in the active scene, skipping anything hidden or faded out.
+  labels() {
+    const sc = this.current?.sc;
+    if (!sc) return [];
+    const shown = n => { for (let e = n; e && e !== this.svg; e = e.parentNode) { const cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.05) return false; } return true; };
+    return [...sc.root.querySelectorAll('text')].filter(n => n.textContent.trim() && shown(n));
+  },
+  // Text wider than its frame (pills, chips, lane text, tree nodes, bucket labels) in the active scene; clipped() reports it.
+  overflowing() {
+    const sc = this.current?.sc;
+    if (!sc) return [];
+    const shown = new Set(this.labels());
+    return sc.framed.filter(({ text }) => shown.has(text)).filter(({ text, frame }) => {
+      const a = text.getBoundingClientRect(), b = frame.getBoundingClientRect();
+      return a.width > 0 && (a.left < b.left - 0.5 || a.right > b.right + 0.5 || a.top < b.top - 0.5 || a.bottom > b.bottom + 0.5);
+    }).map(({ text }) => text.textContent);
+  },
+  info() { return this.current ? { ...this.current.sc.info } : null; },
 });
 
 // Load the kits this page declares (data-kits on the stage, default axo) before SCENES runs. Kits defined in SCENES load when the page starts.
@@ -2285,6 +3092,7 @@ function activate(name, force = false) {
   hudNow.textContent = s.title ?? '';
   document.querySelectorAll('.chapter').forEach(c => c.classList.toggle('is-active', c.dataset.scene === name));
   layoutStage();
+  if (stackedQ.matches) Split.apply(); // the stage-height minimum follows the chapter's drawing
 }
 let liveRun = 0; // token of the run in flight, 0 when none
 const runInFlight = () => liveRun !== 0 && liveRun === runToken;
@@ -2295,6 +3103,7 @@ async function runScene(name) {
   const kit = kits[s.kit];
   const mine = bumpRun(); // a run or chapter change after this point cancels this run
   liveRun = mine;
+  Object.assign(timeline, { token: mine, base: 0, scaled: 0 });
   clearCaptions();
   restoreScene(s);
   const dir = director(mine);
@@ -2474,15 +3283,23 @@ window.__explainer = {
   instant: on => (on === undefined ? INSTANT : setInstant(on)), // Verification mode: every duration and wait is 0. Separate from reduced motion
   rail: v => (v === undefined || Boolean(v) === railOpen ? railOpen : setRailOpen(v)), // The caption sheet on narrow stages (open: true)
   azimuth: () => activeKit()?.info?.().azimuth ?? null, // for checking whether the model rotated
+  kitInfo: () => activeKit()?.info?.() ?? null,
+  timing: () => ({ base: Math.round(timeline.base), scaled: Math.round(timeline.scaled) }), // the latest run's own timeline (ms; see account())  // the active kit's own state (svg: { scale, arrangement, row })
   async run(name) {
     // In the stacked layout, scroll so the chapter's top sits just below the stage (CSS scroll-margin-top); in the side-by-side layout, scroll it to the center.
     const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
-    document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center', behavior: INSTANT ? 'instant' : 'smooth' });
-    await sleep(INSTANT ? 250 : 900);
+    // An instant scroll: with a smooth one, other chapters cross the reading line on the way (and, on a slow machine, after the
+    // run has started, which cancels it). Then wait until the reading line has picked this chapter, and let the chapter change
+    // (fade, camera) finish as a reader would see it.
+    document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center', behavior: 'instant' });
+    for (let i = 0; i < 120 && current !== name; i++) await frames(1);
+    if (!INSTANT) await sleep(600);
     await frames();
     await runScene(name);
     await sleep(200);
-    await frames(); // the end state has been drawn (and labels decluttered) before the caller measures it
+    await frames(); // the end state has been drawn before the caller measures it
+    // Labels may still be easing apart (or the camera still gliding): wait until the kit says it has settled, at most 120 frames.
+    for (let i = 0; i < 120 && activeKit()?.settled && !activeKit().settled(); i++) await frames(1);
     return current === name ? lastCaption : '';
   },
   overlaps(minArea = 24) {
@@ -2498,11 +3315,13 @@ window.__explainer = {
     }
     return out;
   },
-  // Labels outside the model area (the canvas cell minus the caption rail), and '[legend]' when the legend is not fully inside the stage and the window.
+  // Labels outside the model area (the canvas cell minus the caption rail), text wider than its frame (kits that report it),
+  // and '[legend]' when the legend is not fully inside the stage and the window.
   clipped() {
     const w = wrap.getBoundingClientRect();
     const m = { left: w.left + modelRect.x - 0.5, top: w.top + modelRect.y - 0.5, right: w.left + modelRect.x + modelRect.w + 0.5, bottom: w.top + modelRect.y + modelRect.h + 0.5 };
     const out = visibleLabels().filter(b => b.r.left < m.left || b.r.right > m.right || b.r.top < m.top || b.r.bottom > m.bottom).map(b => b.text);
+    out.push(...(activeKit()?.overflowing?.() ?? [])); // text wider than its own frame (a pill, a chip, a box)
     const g = stageEl.getBoundingClientRect(), lg = legendEl.getBoundingClientRect();
     if (lg.top < g.top - 0.5 || lg.bottom > g.bottom + 0.5 || lg.left < g.left - 0.5 || lg.right > g.right + 0.5 || lg.bottom > innerHeight + 0.5 || lg.right > innerWidth + 0.5) out.push('[legend]');
     return out;
@@ -2525,6 +3344,8 @@ observe();
 loop();
 setStageState('ready');
 layoutStage();
+Split.apply(); // again now that the caption bar is shown: the stage-height minimum includes it
+document.fonts?.ready.then(() => layoutStage()); // text widths (pills, chips) are measured with the web fonts once they are in
 } catch (error) {
   delete window.__explainer;
   setStageState('failed', error?.uiKey ?? 'loadError');

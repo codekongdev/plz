@@ -57,3 +57,44 @@ export async function routeNetwork(context, origin, { cdn = () => 'serve', onThr
     return route.abort('blockedbyclient');
   });
 }
+
+// ---- plz-explain pages ----
+export const sleep = ms => new Promise(r => setTimeout(r, ms));
+// The kits the plz-explain template declares on its stage. Variants replace this one string.
+export const TEMPLATE_KITS = 'axo svg';
+
+// The template with its SCENES code replaced by `code` (banner comments kept) and the stage's data-kits set to `kits`.
+export function variantWithScenes(templateSource, code, kits = TEMPLATE_KITS) {
+  const lines = templateSource.split('\n');
+  const scenes = lines.findIndex(l => /^SCENES\b/.test(l.trim()));
+  const cont = lines.findIndex(l => /^ENGINE \(/.test(l.trim()));
+  assert.ok(scenes > 0 && cont > scenes, 'template banners');
+  const start = lines.findIndex((l, i) => i > scenes && l.includes('*/')) + 1;
+  const out = [...lines.slice(0, start), code, ...lines.slice(cont - 1)].join('\n'); // cont - 1: the "/* ====" line of the continued banner
+  const attr = `data-kits="${TEMPLATE_KITS}"`;
+  assert.ok(out.includes(attr), `the template declares ${attr} on the stage`);
+  return out.replace(attr, `data-kits="${kits}"`);
+}
+
+// Open a plz-explain page in a fresh context. Phones get a mobile, touch, 3× context. Console errors and page errors are collected.
+// waitReady: false returns while the stage may still be loading; cdn(url) may hold or abort three.js; storage is set before load.
+export async function openExplainPage(browser, origin, t, file, { viewport = { width: 1440, height: 900 }, reducedMotion = 'no-preference', storage = {}, waitReady = true, cdn } = {}) {
+  const phone = viewport.width <= 860 || viewport.height <= 520;
+  const context = await browser.newContext({ viewport, reducedMotion, ...(phone ? { deviceScaleFactor: 3, isMobile: true, hasTouch: true } : {}) });
+  t.after(() => context.close());
+  if (Object.keys(storage).length) await context.addInitScript(s => { for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v); }, storage);
+  const threeRequests = [];
+  await routeNetwork(context, origin, { cdn, onThree: url => threeRequests.push(url) });
+  const page = await context.newPage();
+  page.setDefaultTimeout(60_000);
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  await page.goto(`${origin}/${file}`, { waitUntil: waitReady ? 'load' : 'commit' });
+  if (waitReady) await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'ready');
+  return { page, errors, threeRequests };
+}
+
+export const railTexts = page => page.$$eval('.rail-list .cap', caps => caps.map(c => c.textContent));
+// Resolves after the page has drawn `n` more frames.
+export const nextFrames = (page, n = 2) => page.evaluate(n => new Promise(r => { const step = k => (k ? requestAnimationFrame(() => step(k - 1)) : r()); step(n); }), n);

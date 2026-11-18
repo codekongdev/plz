@@ -1,7 +1,7 @@
 # Scene patterns
 
 Each kind of concept has a model that fits it. When designing a chapter, first decide "which pattern is this chapter?".
-All patterns here use the axo kit (the default). Assume all code is written inside `build()` of `defineScene` (for `g`, `temp`, `a`, and `say`, see
+Patterns 1–9 use the axo kit (the default); patterns 10–14 use the svg kit (2D step diagrams). Assume all code is written inside `build()` of `defineScene` (for `g`, `temp`, `a`, and `say`, see
 engine-api.md). Put one-shot objects in `temporaryGroup()` and use `disposeObject()` or
 `clearGroup(temp)` to release them; an ordinary `remove()` or `clear()` does not free their resources.
 
@@ -27,6 +27,11 @@ The example chapters are the chapter numbers of `assets/example-agent-sandbox.ht
 | Handled by passing through several components | 7. Request path | No such chapter (the template's `s2`) |
 | Created, kept, stopped, and revived | 8. Lifetime | Chapter 9 |
 | Two approaches compared under the same conditions | 9. Side-by-side comparison | Chapter 3 (same question, different answer), chapter 10 (four stages) |
+| Which rows or keys go where, and in what order (svg) | 10. Row-level step diagram | The template's `s3` |
+| Something is filtered out early (svg) | 11. Filter | The template's `s3` |
+| The same input with an option off and on (svg) | 12. Side-by-side panels | — |
+| A plan of operators with counts per step (svg) | 13. Operator tree | — |
+| Rows spread over several nodes or servers (svg) | 14. Node columns | — |
 
 ## 1. Layers
 
@@ -181,3 +186,97 @@ from both sides and show how far down that request goes and who answers. On one 
 that slab flashes; on the other each stops at its own slab. Make the answer (a small matter slab) go back to the side that asked, and write the content in the
 label, such as "A's files only". The `split` scene in example chapter 3 has this structure. Put status marks (for example "End of support" and "Experimental feature") in
 `'warn'` labels floating at the top of the stage, at a different height from the title labels.
+
+## 2D patterns (svg kit)
+
+Choose svg when the lesson is about values and order, and axo when it is about depth and containment (see SKILL.md).
+All code below is inside `build(d)` of a scene with `kit: 'svg'`; `run(a, say)` is in the object it returns (see "svg kit" in engine-api.md).
+Rules that apply to every 2D pattern:
+
+- One kind of change per step, about 1 s per tracked move (`a.along` default).
+- Move rows in groups of at most 3 with `a.groups`, and create each token inside the group function, so a group appears when it starts.
+- A dropped row leaves in its own step: fade the token, mark the row `'gone'`, and count it on a tally (`box.tally(n)` + `a.tick`). The struck-through row stays as the trace.
+- Marks stay at the end: matched rows `'hit'` (red), dropped rows `'gone'`, dimmed connectors. The kit restores all of them on reset.
+- The active element gets the ink outline or halo (`mark('active')`, `a.flash(part)`), never an extra color.
+
+## 10. Row-level step diagram
+
+Tables of rows with keys on the left, the operator on the right, one connector per row. Tokens carry the keys.
+
+```js
+const outer = d.table({ title: 'Target table', keys: KEYS, header: ['key', 'rest'] });
+const hash = d.buckets({ title: 'Hash table (key mod 4)', count: 4, label: b => `bucket ${b}`, short: b => `#${b}` });
+const join = d.box({ title: 'Join', lanes: KEYS.length, header: ['received', 'lookup'], counter: 'Join input {n}' });
+KEYS.forEach((k, i) => d.link([outer.out(i), join.in(i)]));
+// diagram: d.grid([[inner, hash], [outer, join]])  — a table and a box in one grid row line up lane by lane
+// run:
+const rows = [];
+await a.groups([[0, 1, 2], [3, 4, 5]], async grp => {
+  grp.forEach(i => { rows[i] = d.token(KEYS[i], outer.src(i)); });
+  await Promise.all(grp.map(i => a.along(rows[i], [outer.src(i), join.chip(i)])));
+  join.count(n += grp.length); a.tick(join.counterNode);
+}, { size: 1, pause: 400 });
+```
+
+To show a lookup, mark the token and the bucket active for a moment, then write the result in the lane:
+`rows[i].mark('active'); hash.cell(b).mark('active'); await a.wait(280); …; join.laneText(i, 'bucket 1 ✓ match', { short: 'bucket 1 ✓', tone: 'actor' }); await a.fade(join.lane(i), 1, 150);`
+
+## 11. Filter
+
+A gate in the gutter right of a table drops rows before they reach the operator. The contact causes the drop, so start the drop within about 100 ms of arrival. The drop itself is a separate step from the passing rows.
+
+```js
+const gate = d.gate(outer, { label: 'Filter', pass: 'Pass: 17 · 42', hidden: true });
+KEYS.forEach((k, i) => d.link([outer.out(i), gate.in(i)]));
+const after = KEYS.map((k, i) => d.link([gate.out(i), join.in(i)]));
+const passed = d.link([hash.left(0.15), d.corner(hash.left(0.15), gate.top()), gate.top()], { dashed: true, tone: 'bound', label: 'SIP', opacity: 0.45 });
+// run: the filter appears where the signal arrives
+await Promise.all([a.fade(gate, 1), a.fade(passed, 1)]);
+// a group reaches the gate; misses leave in their own step
+await Promise.all(grp.map(i => a.along(rows[i], [outer.src(i), gate.before(i)])));
+await a.wait(60);
+await Promise.all([a.flash(gate, 'hot', 280), ...misses.map(async i => {
+  outer.row(i).mark('gone'); join.tally(++dropped); a.tick(join.tallyNode);
+  await Promise.all([a.fade(rows[i], 0), a.fade(after[i], 0.12)]);
+})]);
+```
+
+## 12. Side-by-side panels
+
+The same diagram twice, one trigger feeding both: the clearest way to show an option off and on. Build the diagram with a function, call it twice, and play both in one `Promise.all`.
+
+```js
+const side = filter => { const t = d.table({ … }), b = d.box({ … }), g = filter ? d.gate(t, { … }) : null; /* links */ return { t, b, g, grid: d.grid([[t, b]]) }; };
+const off = side(false), on = side(true);
+// diagram: d.panels([{ title: 'Filter off', body: off.grid }, { title: 'Filter on', body: on.grid }])
+// run: await Promise.all([play(a, off), play(a, on)]);
+```
+
+Panels sit side by side when they fit and stack on phones and narrow stages. End the chapter with a table in the body that sums up the difference.
+
+## 13. Operator tree
+
+A query plan or any pipeline of operators, with a metric per node (rows, time). Data flows up the edges.
+
+```js
+const plan = d.tree({ id: 'del', label: 'DELETE', metric: '2 rows', children: [
+  { id: 'join', label: 'Hash join', metric: '2 rows', children: [
+    { id: 'scan', label: 'Scan target', metric: '6 rows' }, { id: 'temp', label: 'Scan temp', metric: '2 rows' }] }] });
+// run: walk the plan one node at a time
+plan.node('scan').mark('active'); say('1. The scan read 6 rows.', { anchor: plan.node('scan') });
+await a.wait(800); plan.node('scan').mark('active', false); plan.node('join').mark('active');
+```
+
+Keep node labels short (about 14 characters); nodes narrow to fit on phones.
+
+## 14. Node columns
+
+Several nodes or servers side by side; rows move to the node that owns them. Put a plan or a table next to it with `d.stack([…], { dir: 'row' })`.
+
+```js
+const nodes = d.columns(['Node 1', 'Node 2', 'Node 3'], { slots: 3 });
+// run:
+await a.groups(rows, (t, i) => a.along(t, [nodes.col(0).slot(i), nodes.col(owner[i]).slot(i)]));
+```
+
+Move a few representative rows (3–4) one by one and show the rest as a count.

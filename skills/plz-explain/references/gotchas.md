@@ -32,6 +32,7 @@ Things we ran into while building real pages. Read this before verifying.
 
 - **A screenshot taken mid-run is misleading.** If you shoot while `flash` is at its peak, a slab looks deep blue or
   red, like a color bug. Do not wait a fixed time; use `await __explainer.run(name)`.
+- **Check speed on the director's timeline, not the wall clock.** `__explainer.timing()` gives the time a run asked for and the time it was scheduled for; under machine load the wall clock stretches both runs and the 1×/2× ratio drifts.
 - **Use instant mode, not reduced motion, to make checks fast.** `__explainer.instant(true)` makes every duration 0 and gives the same end state.
   Reduced motion keeps every step's time on purpose (movement becomes a cut, the dwell stays), so a check run under `prefers-reduced-motion`
   takes as long as a normal run.
@@ -54,6 +55,19 @@ Things we ran into while building real pages. Read this before verifying.
   so a run left pending during the block is released by the `scroll` listener (`tryAutorun`) the moment scroll passes 40px.
 - **Use `svh` instead of `dvh` for the stage height.** When the address bar collapses and expands, `dvh` changes and the stage keeps refitting.
   `svh` also keeps the legend at the bottom of the stage inside the visible window; `clipped()` reports `[legend]` otherwise.
+
+## svg kit
+
+- **Do not place parts in pixels.** Arrange them with `d.grid`, `d.panels`, and `d.stack`, and connect them through their points (`out(i)`, `in(i)`, `slot(b)`, …).
+  Fixed coordinates break when the kit compresses columns on narrow stages or switches to phone sizes.
+- **Create tokens inside the group that moves them.** Tokens created up front sit in their rows from the start, so the next group is visible before its turn.
+- **A badge anchored to a part sits at its top-right corner.** On a gate the badge is beside the top post. If two numbered steps anchor parts that share a corner,
+  anchor one of them to a point instead (for example `join.right(0.65)`), and check `overlaps()`, which counts badges as labels.
+- **Long lane text overflows on phones.** Give `laneText` a `short` form; phones show it.
+- **A gate needs a gutter.** Put its table in a `d.grid` cell with another column to its right; the page fails to start otherwise, with an error naming `d.gate`.
+- **Long labels on a link can hit a title.** The link label sits above the link's last point; with long text, set `labelAt` or shorten it, and check `overlaps()`.
+- **Panels need width.** Two panels side by side need about 1100px of stage at natural size; below that they stack, which makes the stage tall. Keep each panel's diagram small (one table and one operator).
+- **The svg kit hides table headers on small phone rows.** At row heights of 17px and below there is no header row; do not put information only in the header.
 
 ## Body
 
