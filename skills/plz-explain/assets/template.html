@@ -1,0 +1,1761 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- TEXT: page title -->
+<title>__page title__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Headline (h1) font: Pretendard Variable. One typeface covers both Hangul and Latin text and reads well. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  /* 3 semantic colors: actor (the protagonist that moves and causes things) · bound (boundary, rule, intermediary) · matter (data, resource, material).
+     Give each color exactly one meaning. If you change a value, change COLOR in the <script> below too. */
+  :root {
+    --paper: #ECEEEA;
+    --table: #E1E4DF;
+    --ink: #1E2A33;
+    --ink-soft: #55616B;
+    --rule: #C8CDC6;
+    --actor: #D2364A;
+    --actor-ink: #B4233A;
+    --bound: #2F6FB2;
+    --matter: #C4921F;
+    --matter-ink: #835A0E;
+    --serif: "Hahmlet", "Noto Serif KR", serif;
+    --title: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  /* Japanese and Chinese pages: Hahmlet, IBM Plex Sans KR, and Pretendard lack kana and Simplified Chinese glyphs, or cover them poorly.
+     Put system CJK fonts first so Han characters do not render in Korean letterforms (no new web fonts are downloaded). */
+  :lang(ja) {
+    --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Noto Serif CJK JP", "Source Han Serif JP", serif;
+    --title: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", "Source Han Sans JP", system-ui, sans-serif;
+    --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", "Source Han Sans JP", system-ui, sans-serif;
+  }
+  :lang(zh) {
+    --serif: "Songti SC", "STSong", "Noto Serif SC", "Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif;
+    --title: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 17px/1.8 var(--sans);
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    -webkit-font-smoothing: antialiased;
+  }
+  body:lang(ja), body:lang(zh) { word-break: normal; line-break: strict; }
+  a { color: var(--bound); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--bound); outline-offset: 3px; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 38rem) minmax(0, 1fr); }
+  .text { padding: 4.5rem clamp(1.5rem, 4vw, 3.5rem) 40vh; border-right: 1px solid var(--rule); }
+  /* svh, not dvh: the legend must stay inside the visible window, and dvh refits the stage whenever the address bar moves. */
+  .stage { position: sticky; top: 0; align-self: start; height: 100vh; height: 100svh; background: var(--table); overflow: hidden; }
+
+  .intro h1 { font: 700 2.2rem/1.3 var(--title); letter-spacing: -0.015em; margin: 0 0 1.5rem; }
+  .intro .lead { font-size: 1.1rem; margin: 0 0 1rem; }
+  .intro .note { color: var(--ink-soft); font-size: 0.95rem; margin: 0; }
+
+  .chapter { padding: 6rem 0 1rem; min-height: 72vh; }
+  .chapter h2 {
+    display: grid; grid-template-columns: 2.4rem 1fr; align-items: baseline;
+    margin: 0 0 1.25rem; font: 700 1.7rem/1.32 var(--serif); letter-spacing: -0.015em;
+  }
+  .chapter h2 .n { font-weight: 500; color: var(--rule); transition: color .3s; }
+  .chapter.is-active h2 .n { color: var(--ink); }
+  .chapter p { margin: 0 0 1rem; }
+  .chapter .gist { margin: 1.5rem 0 0; padding-left: 1rem; border-left: 3px solid var(--ink); font: 500 1.06rem/1.7 var(--serif); }
+  .chapter h3 { font: 700 1.15rem/1.45 var(--serif); margin: 2.25rem 0 0.75rem; }
+  /* Example code. Korean comments get wide in a monospace font, so lines wrap. */
+  pre.code {
+    margin: 0 0 1.25rem; padding: 0.95rem 1.05rem;
+    background: #E2E5E0; border-radius: 6px; overflow-x: auto; white-space: pre-wrap;
+    font: 500 0.8rem/1.7 "IBM Plex Mono", "IBM Plex Sans KR", monospace;
+  }
+  :lang(ja) pre.code, :lang(zh) pre.code { font-family: "IBM Plex Mono", var(--sans), monospace; }
+  pre.code code { background: none; padding: 0; font: inherit; }
+  pre.code .c { color: var(--ink-soft); }
+  /* For quoting "input that came from outside", such as an instruction hidden in a document */
+  blockquote.planted {
+    margin: 0 0 1rem; padding: 0.75rem 1rem;
+    border: 1px dashed var(--ink-soft); border-radius: 6px;
+    background: rgba(255, 255, 255, 0.4); font-size: 0.95rem;
+  }
+  code { font: 500 0.86em/1 var(--mono); background: rgba(30, 42, 51, 0.07); padding: 0.14em 0.36em; border-radius: 3px; }
+
+  /* Chapter action row: the run button becomes a split button [run][1× ▾] (the speed segment is added by the engine). */
+  .act { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.75rem 1.1rem; margin-top: 1.75rem; padding-top: 1.1rem; border-top: 1px solid var(--rule); }
+  .act button { font: 600 0.97rem/1 var(--sans); color: #fff; background: var(--ink); border: 0; border-radius: 6px; padding: 0.85rem 1.15rem; cursor: pointer; }
+  .act button:hover { background: #33444F; }
+  .splitbtn { display: inline-flex; align-items: stretch; }
+  .act .splitbtn > button:first-child { border-radius: 6px 0 0 6px; }
+  .act .speed-seg { display: inline-flex; align-items: center; gap: 0.45rem; border-radius: 0 6px 6px 0; border-left: 1px solid rgba(255, 255, 255, 0.3); padding: 0.85rem 0.8rem; font: 600 0.9rem/1 var(--sans); font-variant-numeric: tabular-nums; }
+  .speed-seg .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
+  .act .speed-seg[aria-expanded="true"] { background: #33444F; }
+  .speed-menu { position: fixed; z-index: 30; min-width: 108px; padding: 4px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 6px 16px rgba(30, 42, 51, 0.14); }
+  .speed-menu[hidden] { display: none; }
+  .speed-item { display: flex; align-items: center; gap: 0.5rem; width: 100%; min-height: 36px; padding: 0.4rem 0.7rem; font: 500 0.92rem/1 var(--sans); color: var(--ink); background: none; border: 0; border-radius: 5px; cursor: pointer; text-align: left; font-variant-numeric: tabular-nums; }
+  .speed-item .ck { width: 1em; visibility: hidden; }
+  .speed-item[aria-checked="true"] .ck { visibility: visible; }
+  .speed-item:hover, .speed-item:focus-visible { background: rgba(30, 42, 51, 0.08); }
+
+  /* Step list: making li a grid splits the text and <code> into separate cells. Attach the number with absolute positioning. */
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 1.25rem 0 0; }
+  ol.steps li { counter-increment: s; position: relative; padding-left: 2rem; margin-bottom: 0.55rem; font-size: 0.97rem; line-height: 1.65; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; font: 500 1rem/1.65 var(--serif); color: var(--ink-soft); }
+
+  table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.89rem; line-height: 1.55; }
+  th, td { text-align: left; vertical-align: top; padding: 0.65rem 0.55rem 0.65rem 0; border-bottom: 1px solid var(--rule); }
+  thead th { font-weight: 600; border-bottom: 1.5px solid var(--ink); }
+  tbody th { font-weight: 600; color: var(--ink-soft); width: 5.6rem; }
+
+  .terms h2 { display: block; }
+  dl.terms-list { display: grid; grid-template-columns: 8rem 1fr; gap: 0.7rem 1rem; margin: 0; font-size: 0.95rem; line-height: 1.65; }
+  dl.terms-list dt { font-weight: 600; }
+  dl.terms-list dd { margin: 0; color: var(--ink-soft); }
+  .sources { margin-top: 3.5rem; font-size: 0.85rem; color: var(--ink-soft); line-height: 1.7; }
+  .sources h3 { font: 600 0.95rem/1.4 var(--sans); color: var(--ink); margin: 0 0 0.5rem; }
+  .sources ul { margin: 0; padding-left: 1.1rem; }
+
+  /* Stage: the shell owns the HUD, legend, caption rail and split handles. Each kit draws inside its own .kit-layer. */
+  .canvas-wrap { position: absolute; inset: 0; }
+  /* isolation: kits may set z-index on their own elements (CSS2DRenderer does on every label); keep that inside the layer, under the caption rail. */
+  .kit-layer { position: absolute; inset: 0; isolation: isolate; z-index: 0; }
+  .kit-layer[hidden] { display: none; }
+  .kit-layer canvas { display: block; }
+  .labels { position: absolute; inset: 0; }
+  .tag { font: 500 12.5px/1.3 var(--sans); color: var(--ink); background: rgba(236, 238, 234, 0.9); padding: 3px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
+  .tag.actor { color: var(--actor-ink); }
+  .tag.bound { color: var(--bound); }
+  .tag.matter { color: var(--matter-ink); }
+  .tag.warn { background: var(--ink); color: #fff; }
+  .tag.big { font: 700 14px/1.3 var(--serif); padding: 4px 9px; }
+  /* Step badge next to an object: the same number as the caption on the rail. */
+  .tag.badge { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--ink); color: #fff; font: 600 12px/1 var(--sans); font-variant-numeric: tabular-nums; }
+  .hud { position: absolute; top: 1.1rem; left: 1.3rem; right: 1.3rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; pointer-events: none; z-index: 4; }
+  .hud .now { font: 700 1.05rem/1.35 var(--serif); }
+  .hud .tools { display: flex; align-items: flex-start; gap: 0.5rem; flex: none; }
+  .hud button { pointer-events: auto; font: 500 0.85rem/1 var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 0.55rem 0.75rem; cursor: pointer; }
+  /* Auto-play switch: when on, replays the current chapter's action in a loop. Draw it in ink color only so it does not collide with the 3 semantic colors. */
+  .hud .autorun { display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  /* Switch text has a long form (.long) and a short form (.short) per language. At 430px wide and below, the short form is used. */
+  .hud .autorun .short { display: none; }
+  .autorun .track { position: relative; flex: none; width: 1.9rem; height: 0.95rem; border: 1.5px solid var(--ink-soft); border-radius: 999px; transition: background .2s, border-color .2s; }
+  .autorun .track::after { content: ""; position: absolute; top: 50%; left: 2px; width: 0.6rem; height: 0.6rem; margin-top: -0.3rem; border-radius: 50%; background: var(--ink-soft); transition: transform .2s, background .2s; }
+  .autorun[aria-checked="true"] .track { background: var(--ink); border-color: var(--ink); }
+  .autorun[aria-checked="true"] .track::after { background: var(--paper); transform: translateX(0.86rem); }
+  .legend { position: absolute; left: 1.3rem; bottom: 1.1rem; z-index: 4; display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
+  .legend i { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 2px; margin-right: 0.4rem; vertical-align: -1px; }
+  .hint { position: absolute; right: 1.3rem; bottom: 1.1rem; z-index: 4; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
+  /* Rotation exists only in rotatable kits: hide the hint and the reset-view button otherwise. */
+  .stage:not([data-rotatable]) :is(.hint, .reset-view) { display: none; }
+
+  /* Caption rail: say() appends here. Wide stages: a column beside the model. Narrow stages: one bar (newest caption, k / n, toggle). */
+  .rail { position: absolute; z-index: 3; display: none; margin: 0; color: var(--ink-soft); }
+  .stage[data-state="ready"] .rail { display: flex; }
+  .rail.side { flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: 2px; }
+  .rail-list { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 0; list-style: none; }
+  .cap { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 9px; align-items: start; font: 500 14px/1.5 var(--sans); color: var(--ink-soft); }
+  .cap .n { width: 22px; height: 22px; margin-top: 0.05em; border-radius: 50%; border: 1px solid var(--ink-soft); font: 600 12px/20px var(--sans); text-align: center; font-variant-numeric: tabular-nums; }
+  .cap .n:empty { visibility: hidden; }
+  .cap.new { color: var(--ink); font-weight: 600; }
+  .cap.new .n { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .rail-bar { display: none; }
+  :root { --bar-h: 4.5rem; }
+  .rail.compact { flex-direction: row; align-items: center; gap: 8px; height: var(--bar-h); padding: 6px 8px 6px 12px; background: var(--table); border-top: 1px solid var(--rule); }
+  .rail.compact .rail-list { flex: 1 1 auto; min-width: 0; gap: 6px; }
+  .rail.compact .cap { grid-template-columns: 18px minmax(0, 1fr); column-gap: 6px; font-size: 12.5px; line-height: 1.4; }
+  .rail.compact .cap .n { width: 18px; height: 18px; font: 600 11px/16px var(--sans); }
+  .rail.compact:not(.open) .cap:not(.new) { display: none; }
+  .rail.compact:not(.open) .cap .t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+  .rail.compact .rail-bar { display: flex; flex: none; flex-direction: column; align-items: center; gap: 2px; }
+  .rail.compact.open { flex-direction: column; align-items: stretch; height: auto; border-top: 0; padding: 10px 12px 6px; }
+  .rail.compact.open .rail-list { overflow-y: auto; overscroll-behavior: contain; }
+  .rail.compact.open .rail-bar { flex-direction: row; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+  .rail-count { font: 600 11.5px/1.2 var(--sans); color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .rail-toggle { position: relative; display: grid; place-items: center; width: 40px; height: 34px; padding: 0; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; cursor: pointer; }
+  .rail-toggle .chev { width: 8px; height: 8px; margin-top: 3px; border-left: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); }
+  .rail-toggle[aria-expanded="true"] .chev { margin-top: -3px; transform: rotate(225deg); }
+  .rail-toggle::after { content: ""; position: absolute; inset: -6px; }
+
+  /* Loading and failure notices do not depend on the CDN or a working renderer. */
+  .fallback { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 1rem; padding: 2rem; text-align: center; color: var(--ink-soft); }
+  .fallback p { margin: 0; max-width: 32rem; }
+  .retry-load { min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 500 0.95rem/1.4 var(--sans); cursor: pointer; }
+  .stage[data-state="ready"] .fallback { display: none; }
+  .stage:not([data-state="ready"]) :is(.canvas-wrap, .hud, .legend, .hint) { visibility: hidden; }
+  button:disabled { cursor: default; opacity: 0.5; }
+
+  /* Center split: a draggable divider between text and stage (side by side), or a stage-height handle (stacked phones). Added by the engine. */
+  .split-v, .split-h { display: none; position: absolute; z-index: 6; }
+  .split-v::after, .split-h::after { content: ""; position: absolute; background: var(--ink-soft); border-radius: 3px; opacity: .55; transition: opacity .15s, background .15s; }
+  .split-v:hover::after, .split-v:focus-visible::after, .split-v.drag::after, .split-h:hover::after, .split-h:focus-visible::after, .split-h.drag::after { opacity: 1; background: var(--bound); }
+  .split-v:focus-visible, .split-h:focus-visible { outline: 3px solid var(--bound); outline-offset: 0; }
+  @media (min-width: 861px), (orientation: landscape) and (max-height: 520px) {
+    .layout { grid-template-columns: var(--text-w, minmax(0, 38rem)) minmax(0, 1fr); }
+    .split-v { display: block; position: fixed; top: 0; bottom: 0; width: 16px; margin-left: -8px; left: var(--split-x, 608px); cursor: col-resize; touch-action: none; }
+    .split-v::after { left: 6px; top: calc(50% - 24px); width: 4px; height: 48px; }
+  }
+
+  /* Shared by phones and narrow screens (both the stacked layout and landscape mode).
+     Split the stage into rows, "title bar / model / legend bar", so the title, buttons, and legend never sit on top of the model. */
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+    body { font-size: 16px; line-height: 1.75; }
+    .stage { display: flex; flex-direction: column; }
+    .hud { order: -1; position: static; flex: none; min-height: 3rem; padding: 0.3rem 0.9rem 0.3rem 1.1rem; align-items: center; }
+    .hud .now { flex: 1 1 auto; min-width: 0; font-size: 0.98rem; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+    .hud .tools { align-items: center; gap: 0.4rem; }
+    .canvas-wrap { position: relative; inset: auto; flex: 1 1 0; min-height: 0; overflow: hidden; }
+    .legend { position: static; flex: none; padding: 0.25rem 1.1rem 0.55rem; gap: 0.1rem 0.9rem; font-size: 0.76rem; line-height: 1.5; }
+    .hint { display: none; }
+    .tag { font-size: 11px; padding: 2px 5px; }
+    .tag.big { font-size: 12px; padding: 3px 6px; }
+    .tag.badge { width: 19px; height: 19px; font-size: 11px; padding: 0; }
+    .chapter .gist { font-size: 1rem; }
+    /* On phones, code blocks do not wrap; they scroll horizontally inside the block only (wrapping breaks URLs mid-word and makes indentation look like blank lines). */
+    pre.code { white-space: pre; font-size: 0.74rem; line-height: 1.65; overscroll-behavior-x: contain; tab-size: 4; }
+    .intro .lead { font-size: 1.02rem; }
+    .intro .note .wide { display: none; }
+    .intro .note .narrow { display: inline; }
+  }
+  /* Portrait phone: pin the stage to the top (sticky) and scroll the text below it. Stage 44svh plus the caption bar by default; the stage-height handle changes it. */
+  @media (max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px) {
+    /* The caption bar sits under the model, so the default stage is 44svh plus the bar: the model keeps its size. */
+    :root { --stage-h: calc(44vh + var(--bar-h)); }
+    @supports (height: 1svh) { :root { --stage-h: calc(44svh + var(--bar-h)); } }
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .stage { grid-row: 1; height: var(--stage-h); z-index: 7; border-bottom: 1px solid var(--rule); }
+    .text { grid-row: 2; border-right: 0; padding: 1.75rem 1.25rem 60vh; }
+    .intro h1 { font-size: 1.7rem; margin-bottom: 1.1rem; }
+    .chapter { min-height: auto; padding-top: 2.75rem; scroll-margin-top: var(--stage-h); }
+    .chapter h2 { font-size: 1.45rem; }
+    [data-scene] { scroll-margin-top: var(--stage-h); }
+    .split-h { display: block; left: 0; right: 0; bottom: 0; height: 18px; cursor: row-resize; touch-action: none; }
+    .split-h::after { left: calc(50% - 24px); top: 7px; width: 48px; height: 4px; }
+    .stage .legend { padding-bottom: 1.15rem; }
+  }
+  /* Landscape phone: text on the left, stage on the right, as on desktop. The stage takes the full screen height. */
+  @media (orientation: landscape) and (max-height: 520px) {
+    .layout { grid-template-columns: var(--text-w, minmax(0, 5fr)) minmax(0, 6fr); }
+    .stage { height: 100vh; height: 100svh; }
+    .text { padding: 1.5rem 1.25rem 55vh; }
+    .intro h1 { font-size: 1.6rem; margin-bottom: 1rem; }
+    .chapter { min-height: auto; padding-top: 2.5rem; }
+    .chapter h2 { font-size: 1.4rem; }
+  }
+  /* At 430px wide and below: switch the switch text to the short form (autorunShort) to give the chapter title more width (the accessible name stays the long form via aria-label). */
+  @media (max-width: 430px) {
+    .hud .autorun .long { display: none; }
+    .hud .autorun .short { display: inline; }
+    .hud .tools { gap: 0.3rem; }
+    .hud button { padding-left: 0.55rem; padding-right: 0.55rem; }
+    .hud .autorun { gap: 0.35rem; }
+  }
+  /* Touch devices: tap targets are at least 44px. */
+  @media (pointer: coarse), (max-width: 860px), (max-height: 520px) {
+    .act button, .hud button { min-height: 44px; min-width: 44px; }
+    .hud button { padding: 0.5rem 0.7rem; font-size: 0.85rem; }
+    .hud .autorun { gap: 0.4rem; }
+    .speed-item { min-height: 44px; }
+    .rail-toggle { width: 44px; height: 44px; }
+  }
+  /* An unavailable model must not stay pinned over the reading area on small screens. */
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+    .layout:has(.stage[data-state="failed"]) { grid-template-columns: minmax(0, 1fr); }
+    .stage[data-state="failed"] { position: static; grid-row: 1; height: auto; border-bottom: 1px solid var(--rule); }
+    .stage[data-state="failed"] :is(.canvas-wrap, .hud, .legend, .hint, .split-h) { display: none; }
+    .stage[data-state="failed"] .fallback { position: static; padding: 1.25rem; }
+    .layout:has(.stage[data-state="failed"]) .text { grid-row: 2; border-right: 0; }
+    .layout:has(.stage[data-state="failed"]) [data-scene] { scroll-margin-top: 0; }
+    .layout:has(.stage[data-state="failed"]) .split-v { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .chapter h2 .n { transition: none; }
+    .autorun .track, .autorun .track::after { transition: none; }
+  }
+  /* Labels follow the stage's own width: a stage 600px or narrower (phones, or a narrow window or divider beside the text) gets the small labels. */
+  .stage { container-type: inline-size; }
+  @container (max-width: 600px) {
+    .tag { font-size: 11px; padding: 2px 5px; }
+    .tag.big { font-size: 12px; padding: 3px 6px; }
+    .tag.badge { width: 19px; height: 19px; font-size: 11px; padding: 0; }
+  }
+  /* Verification instant mode: no CSS transitions either. */
+  body.instant *, body.instant *::before, body.instant *::after { transition: none !important; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<main class="layout">
+  <article class="text">
+
+    <!-- TEXT: intro. Keep data-scene the same as the first scene name. -->
+    <header class="intro" data-scene="s1">
+      <h1>__title line 1__<br>__title line 2__</h1>
+      <p class="lead">__what this page explains and why it matters, 2-4 sentences__</p>
+      <p class="note"><span class="wide" data-ui="noteWide">Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model.</span><span class="narrow" data-ui="noteNarrow" hidden>Swipe the model left or right to rotate it. The button in each chapter makes that event actually happen in the model.</span></p>
+    </header>
+
+    <!-- TEXT: one chapter = one section. data-scene and the button's data-run must equal the defineScene name.
+         The step captions appear on the stage, so the action row holds only the button (the engine adds the speed segment). -->
+    <section class="chapter" data-scene="s1">
+      <h2><span class="n">1</span><span>__chapter title__</span></h2>
+      <p>__Body, 2-3 paragraphs. Explain each term in one line when it first appears.__</p>
+      <p class="gist">__one-sentence gist of this chapter__</p>
+      <div class="act"><button type="button" disabled data-run="s1">__action name__</button></div>
+    </section>
+
+    <section class="chapter" data-scene="s2">
+      <h2><span class="n">2</span><span>__chapter title__</span></h2>
+      <p>__body__</p>
+      <ol class="steps">
+        <li>__step description. Match the numbers in say().__</li>
+        <li>__step description__</li>
+        <li>__step description__</li>
+      </ol>
+      <p class="gist">__gist in one sentence__</p>
+      <div class="act"><button type="button" disabled data-run="s2">__action name__</button></div>
+    </section>
+
+    <!-- TEXT: glossary and sources. Put the date you checked in the h3's data-date (the "Sources" and "Glossary" heading text is filled in by the engine in the page language). Delete the sources block if there are no sources. -->
+    <section class="chapter terms">
+      <h2 data-ui="terms">Glossary</h2>
+      <dl class="terms-list">
+        <dt>__term__</dt><dd>__one- or two-sentence definition__</dd>
+      </dl>
+      <div class="sources">
+        <h3 data-ui="sources" data-date="__YYYY-MM-DD__">Sources (checked __YYYY-MM-DD__)</h3>
+        <ul>
+          <li><a href="__URL__">__source name__</a></li>
+        </ul>
+      </div>
+    </section>
+
+  </article>
+
+  <!-- data-kits: the stage kits this page uses (default axo). They load before SCENES runs, so SCENES can use their parts at the top level. -->
+  <aside class="stage" data-state="loading" data-kits="axo" aria-busy="true" aria-label="Model" data-ui-aria="stageAria">
+    <div class="canvas-wrap"></div>
+    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" disabled class="autorun" role="switch" aria-checked="false" aria-label="Auto-play" data-ui-aria="autorun"><span class="track" aria-hidden="true"></span><span aria-hidden="true"><span class="long" data-ui="autorun">Auto-play</span><span class="short" data-ui="autorunShort">Auto</span></span></button><button type="button" disabled class="reset-view" data-ui="resetView">Reset view</button></div></div>
+    <!-- TEXT: legend. Write what the 3 semantic colors mean on this page. -->
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--actor)"></i>__meaning of actor__</span>
+      <span><i style="background:var(--bound)"></i>__meaning of bound__</span>
+      <span><i style="background:var(--matter)"></i>__meaning of matter__</span>
+    </div>
+    <div class="hint" aria-hidden="true" data-ui="hint">Drag to rotate</div>
+    <div class="fallback" role="status" aria-live="polite">
+      <p data-ui="loading">Loading the model… You can read the text while you wait.</p>
+      <button type="button" class="retry-load" data-ui="retry" hidden>Retry</button>
+    </div>
+  </aside>
+</main>
+
+<!-- TEXT: screen text overrides (optional). When the page is in a language outside the built-in ones (en, ko, ja, zh-CN), fill in that language's strings. Key list: references/engine-api.md.
+     If <html lang> is es, the es entry below is used, and any key you leave out falls back to English. Leave this empty for built-in languages. -->
+<script>
+window.UI_OVERRIDES = {
+  // es: { resetView: 'Restablecer vista', autorun: 'Reproducción automática', autorunShort: 'Auto', hint: 'Arrastra para girar' },
+};
+</script>
+
+<script type="module">
+/* =====================================================================
+   ENGINE — page shell and stage kits. Everything you need to write scenes is here. Do not edit.
+   The shell owns layout, chapters, HUD, captions, timing and hooks; kits own drawing.
+   API reference: references/engine-api.md
+   ===================================================================== */
+/* ---- Screen text dictionary ----
+   English (en) is the canonical text and the final fallback. <html lang> picks the language: ko* → ko, ja* → ja, zh* → zh-CN, anything else → en.
+   Page-side overrides: in a <script> below the body, override keys or add a new language with window.UI_OVERRIDES = { es: { hint: '...' } }.
+   Lookup order: UI_OVERRIDES[language] → built-in dictionary[language] → en. {date} is replaced with the data-date attribute value. */
+const UI_TEXT = {
+  en: {
+    noteWide: 'Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model.',
+    noteNarrow: 'Swipe the model left or right to rotate it. The button in each chapter makes that event actually happen in the model.',
+    resetView: 'Reset view',
+    autorun: 'Auto-play',
+    autorunShort: 'Auto',
+    hint: 'Drag to rotate',
+    fallback: "This browser can't draw the 3D model. You can still follow the content from the text alone.",
+    loading: 'Loading the model… You can read the text while you wait.',
+    loadError: "Couldn't load the model. Check your connection and try again, or keep reading the text.",
+    retry: 'Retry',
+    stageAria: 'Model',
+    terms: 'Glossary',
+    sources: 'Sources (checked {date})',
+    runError: "Couldn't play the animation. Reload the page and try again.",
+    speed: 'Playback speed',
+    speedSeg: 'Playback speed {v}',
+    railAria: 'Step captions',
+    railShow: 'Show all',
+    railHide: 'Hide',
+    splitX: 'Resize text and model',
+    splitH: 'Resize model height',
+  },
+  ko: {
+    noteWide: '오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
+    noteNarrow: '모형은 좌우로 밀면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
+    resetView: '시점 되돌리기',
+    autorun: '자동 실행',
+    autorunShort: '자동',
+    hint: '드래그해서 돌려 보기',
+    fallback: '이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.',
+    loading: '모형을 불러오는 중입니다. 기다리는 동안 본문을 읽을 수 있습니다.',
+    loadError: '모형을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도하거나 본문을 계속 읽어 주세요.',
+    retry: '다시 시도',
+    stageAria: '모형',
+    terms: '용어 정리',
+    sources: '출처 ({date} 확인)',
+    runError: '애니메이션을 재생하지 못했습니다. 새로고침한 뒤 다시 눌러 보세요.',
+    speed: '재생 속도',
+    speedSeg: '재생 속도 {v}',
+    railAria: '단계 설명',
+    railShow: '모두 보기',
+    railHide: '접기',
+    splitX: '본문과 모형 너비 조절',
+    splitH: '모형 높이 조절',
+  },
+  ja: {
+    noteWide: '右のモデルはドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
+    noteNarrow: 'モデルは左右にスワイプすると回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
+    resetView: '視点をリセット',
+    autorun: '自動再生',
+    autorunShort: '自動',
+    hint: 'ドラッグで回転',
+    fallback: 'このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。',
+    loading: 'モデルを読み込んでいます。待っている間も本文を読めます。',
+    loadError: 'モデルを読み込めませんでした。接続を確認して再試行するか、本文を読み進めてください。',
+    retry: '再試行',
+    stageAria: 'モデル',
+    terms: '用語集',
+    sources: '出典（{date} 確認）',
+    runError: 'アニメーションを再生できませんでした。ページを再読み込みして、もう一度お試しください。',
+    speed: '再生速度',
+    speedSeg: '再生速度 {v}',
+    railAria: '手順の説明',
+    railShow: 'すべて表示',
+    railHide: '閉じる',
+    splitX: '本文とモデルの幅を調整',
+    splitH: 'モデルの高さを調整',
+  },
+  'zh-CN': {
+    noteWide: '拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
+    noteNarrow: '左右滑动模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
+    resetView: '重置视角',
+    autorun: '自动播放',
+    autorunShort: '自动',
+    hint: '拖动旋转',
+    fallback: '此浏览器无法显示 3D 模型。只看正文也能理解内容。',
+    loading: '正在加载模型…等待时可以先阅读正文。',
+    loadError: '无法加载模型。请检查网络连接后重试，或继续阅读正文。',
+    retry: '重试',
+    stageAria: '模型',
+    terms: '术语表',
+    sources: '来源（{date} 核对）',
+    runError: '无法播放动画。请刷新页面后重试。',
+    speed: '播放速度',
+    speedSeg: '播放速度 {v}',
+    railAria: '步骤说明',
+    railShow: '全部',
+    railHide: '收起',
+    splitX: '调整正文与模型的宽度',
+    splitH: '调整模型高度',
+  },
+};
+// Pick the built-in language and the override key from <html lang>. The override key is matched in this order: the full lang (es-MX), its prefix (es), the built-in language name (zh-CN).
+function pickUiLang(tag, overrideKeys) {
+  const t = String(tag || '').trim().toLowerCase();
+  const primary = t.split('-')[0];
+  const builtin = primary === 'ko' ? 'ko' : primary === 'ja' ? 'ja' : primary === 'zh' ? 'zh-CN' : 'en';
+  const find = name => overrideKeys.find(k => k.toLowerCase() === name.toLowerCase());
+  const key = (t && find(t)) || (primary && find(primary)) || find(builtin);
+  return { builtin, key };
+}
+const UI_OVER = (typeof window.UI_OVERRIDES === 'object' && window.UI_OVERRIDES) || {};
+const UI_PICK = pickUiLang(document.documentElement.lang, Object.keys(UI_OVER));
+const UI_LANG = UI_PICK.key || UI_PICK.builtin;
+const UI_STR = { ...UI_TEXT.en, ...UI_TEXT[UI_PICK.builtin], ...(UI_PICK.key ? UI_OVER[UI_PICK.key] : {}) };
+// If an override gives only the long text, use the same text for the short one (so English "Auto" does not get mixed in).
+if (UI_PICK.key && UI_OVER[UI_PICK.key].autorun && !UI_OVER[UI_PICK.key].autorunShort) UI_STR.autorunShort = UI_OVER[UI_PICK.key].autorun;
+const uiStr = key => UI_STR[key] ?? '';
+function applyUiText() {
+  document.querySelectorAll('[data-ui]').forEach(el => {
+    const key = el.dataset.ui;
+    if (!(key in UI_STR)) { console.warn('[plz] unknown data-ui key:', key); return; }
+    el.textContent = uiStr(key).replace('{date}', el.dataset.date ?? '');
+  });
+  document.querySelectorAll('[data-ui-aria]').forEach(el => {
+    const key = el.dataset.uiAria;
+    if (!(key in UI_STR)) { console.warn('[plz] unknown data-ui-aria key:', key); return; }
+    el.setAttribute('aria-label', uiStr(key));
+  });
+}
+applyUiText(); // This module has no static CDN imports, so notices are translated before any kit loads its libraries.
+
+const $ = selector => document.querySelector(selector);
+const clamp = (lo, v, hi) => Math.max(lo, Math.min(hi, v));
+// localStorage can be blocked (private windows, blocked site data). Then settings last for this visit only.
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* a failed save does not affect the feature */ } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { /* same */ } },
+};
+const el = (tag, props = {}, parent = null) => {
+  const node = Object.assign(document.createElement(tag), props);
+  if (parent) parent.append(node);
+  return node;
+};
+
+const stageEl = $('.stage');
+const wrap = $('.canvas-wrap');
+const hudEl = $('.hud');
+const hudNow = $('.hud .now');
+const legendEl = $('.legend');
+const hintEl = $('.hint');
+const layoutEl = $('.layout');
+const stageControls = document.querySelectorAll('[data-run], .autorun, .reset-view');
+const retryBtn = $('.retry-load');
+function setStageState(state, message = 'loading') {
+  stageEl.dataset.state = state;
+  stageEl.setAttribute('aria-busy', String(state === 'loading'));
+  stageControls.forEach(button => { button.disabled = state !== 'ready'; });
+  const notice = stageEl.querySelector('.fallback p');
+  notice.dataset.ui = message;
+  notice.textContent = uiStr(message);
+  retryBtn.hidden = state !== 'failed';
+}
+retryBtn.addEventListener('click', () => location.reload());
+setStageState('loading');
+
+// Layout queries shared by the CSS: stacked = stage pinned above the text (portrait phone); sideBySide = text beside the stage.
+const stackedQ = matchMedia('(max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px)');
+const sideQ = matchMedia('(min-width: 861px), (orientation: landscape) and (max-height: 520px)');
+const landQ = matchMedia('(orientation: landscape) and (max-height: 520px)');
+const barredQ = matchMedia('(max-width: 860px), (orientation: landscape) and (max-height: 520px)'); // stage split into title bar / model / legend bar
+
+/* ---- Director: one timing contract for every kit ----
+   Speed (0.5, 1, 1.5, 2) scales every duration and wait, and a change applies live to animations and waits in flight.
+   Instant mode (verification) makes every duration 0. Reduced motion is separate: it keeps the step order and the dwell,
+   and replaces movement with a cut (the step still takes its time, so captions arrive one by one). Color and opacity still animate. */
+const CANCEL = Symbol('cancel');
+const SPEEDS = [0.5, 1, 1.5, 2];
+const SPEED_KEY = 'plz-explain:speed';
+let speed = SPEEDS.includes(parseFloat(store.get(SPEED_KEY))) ? parseFloat(store.get(SPEED_KEY)) : 1;
+let INSTANT = false;
+const reduceQ = matchMedia('(prefers-reduced-motion: reduce)');
+let REDUCE = reduceQ.matches;
+reduceQ.addEventListener?.('change', e => { REDUCE = e.matches; });
+const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+let runToken = 0;
+const pendingJobs = new Set(); // waits and tweens in flight: { token, cancel(), rescale() }
+// A new run or a chapter change invalidates the running action: everything it awaits rejects with CANCEL right away.
+function bumpRun() {
+  runToken += 1;
+  for (const job of [...pendingJobs]) if (job.token !== runToken) job.cancel();
+  return runToken;
+}
+function rescaleJobs() { for (const job of [...pendingJobs]) job.rescale(); }
+function director(token) {
+  const live = () => token === runToken;
+  function wait(ms) {
+    if (!live()) return Promise.reject(CANCEL);
+    if (INSTANT || !(ms > 0)) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const job = { token, left: ms, since: performance.now(), rate: speed, timer: 0 };
+      const arm = () => {
+        job.timer = setTimeout(() => { pendingJobs.delete(job); if (live()) resolve(); else reject(CANCEL); }, Math.max(0, job.left) / job.rate);
+      };
+      job.rescale = () => { // re-arm the rest of the wait at the current speed
+        const now = performance.now();
+        job.left -= (now - job.since) * job.rate;
+        job.since = now; job.rate = speed;
+        if (INSTANT) job.left = 0;
+        clearTimeout(job.timer); arm();
+      };
+      job.cancel = () => { clearTimeout(job.timer); pendingJobs.delete(job); reject(CANCEL); };
+      pendingJobs.add(job);
+      arm();
+    });
+  }
+  // fn receives eased progress 0→1. motion: true for movement (cut under reduced motion), false for color or opacity.
+  function tween(ms, fn, { motion = true, ease = easeInOutCubic } = {}) {
+    if (!live()) return Promise.reject(CANCEL);
+    if (INSTANT || !(ms > 0)) { fn(1); return Promise.resolve(); }
+    if (motion && REDUCE) { fn(1); return wait(ms); }
+    return new Promise((resolve, reject) => {
+      let p = 0, last = performance.now();
+      const job = { token, rescale() { /* progress is integrated per frame at the current speed */ } };
+      job.cancel = () => { pendingJobs.delete(job); reject(CANCEL); };
+      pendingJobs.add(job);
+      const frame = now => {
+        if (!pendingJobs.has(job)) return;
+        if (!live()) { job.cancel(); return; }
+        p = INSTANT ? 1 : Math.min(1, p + Math.max(0, now - last) * speed / ms);
+        last = Math.max(last, now);
+        fn(ease(p));
+        if (p < 1) requestAnimationFrame(frame);
+        else { pendingJobs.delete(job); resolve(); }
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+  return { live, wait, tween, speed: () => speed, reduced: () => REDUCE, instant: () => INSTANT };
+}
+const speedSubs = new Set();
+function setSpeed(v) {
+  if (!SPEEDS.includes(v)) return speed;
+  speed = v;
+  store.set(SPEED_KEY, String(v));
+  rescaleJobs();
+  speedSubs.forEach(fn => fn(v));
+  return speed;
+}
+function setInstant(on) {
+  INSTANT = Boolean(on);
+  document.body.classList.toggle('instant', INSTANT);
+  rescaleJobs();
+  return INSTANT;
+}
+
+/* ---- Speed control: each chapter's run button becomes a split button [run][1× ▾]; the segment opens a menu (0.5×–2×). One shared, persisted value. ---- */
+(function speedControl() {
+  const segs = [];
+  let openSeg = null;
+  const menu = el('div', { className: 'speed-menu', hidden: true }, document.body);
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', uiStr('speed'));
+  const items = SPEEDS.map(v => {
+    const item = el('button', { type: 'button', className: 'speed-item' }, menu);
+    item.setAttribute('role', 'menuitemradio');
+    item.dataset.v = String(v);
+    el('span', { className: 'ck', textContent: '✓' }, item).setAttribute('aria-hidden', 'true');
+    el('span', { textContent: `${v}×` }, item);
+    return item;
+  });
+  const refresh = () => {
+    segs.forEach(seg => { seg.querySelector('.val').textContent = `${speed}×`; seg.setAttribute('aria-label', uiStr('speedSeg').replace('{v}', `${speed}×`)); });
+    items.forEach(item => item.setAttribute('aria-checked', String(parseFloat(item.dataset.v) === speed)));
+  };
+  function place(seg) { // under the segment; above it when there is no room below; always inside the viewport
+    menu.hidden = false; menu.style.visibility = 'hidden';
+    const r = seg.getBoundingClientRect(), w = menu.offsetWidth, h = menu.offsetHeight;
+    let top = r.bottom + 4;
+    if (top + h > innerHeight - 8 && r.top - 4 - h >= 8) top = r.top - 4 - h;
+    menu.style.top = `${clamp(8, top, innerHeight - 8 - h)}px`;
+    menu.style.left = `${clamp(8, r.right - w, innerWidth - 8 - w)}px`;
+    menu.style.visibility = '';
+  }
+  function open(seg) {
+    if (openSeg) close(false);
+    openSeg = seg; seg.setAttribute('aria-expanded', 'true');
+    refresh(); place(seg);
+    items[Math.max(0, SPEEDS.indexOf(speed))].focus();
+  }
+  function close(refocus) {
+    if (!openSeg) return;
+    const seg = openSeg; openSeg = null;
+    menu.hidden = true; seg.setAttribute('aria-expanded', 'false');
+    if (refocus) seg.focus();
+  }
+  items.forEach((item, i) => {
+    item.addEventListener('click', () => { setSpeed(parseFloat(item.dataset.v)); close(true); });
+    item.addEventListener('keydown', e => {
+      const move = d => { e.preventDefault(); items[(i + d + items.length) % items.length].focus(); };
+      if (e.key === 'ArrowDown') move(1);
+      else if (e.key === 'ArrowUp') move(-1);
+      else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+      else if (e.key === 'End') { e.preventDefault(); items.at(-1).focus(); }
+      else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+      else if (e.key === 'Tab') close(true);
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.click(); }
+    });
+  });
+  document.addEventListener('pointerdown', e => { if (openSeg && !menu.contains(e.target) && !openSeg.contains(e.target)) close(false); }, true);
+  addEventListener('resize', () => close(false));
+  addEventListener('scroll', () => close(false), { passive: true });
+  document.querySelectorAll('.act [data-run]').forEach(run => {
+    const box = el('div', { className: 'splitbtn' });
+    run.replaceWith(box); box.append(run);
+    const seg = el('button', { type: 'button', className: 'speed-seg' }, box);
+    seg.setAttribute('aria-haspopup', 'menu'); seg.setAttribute('aria-expanded', 'false');
+    el('span', { className: 'val' }, seg);
+    el('span', { className: 'caret' }, seg).setAttribute('aria-hidden', 'true');
+    seg.addEventListener('click', () => (openSeg === seg ? close(true) : open(seg)));
+    seg.addEventListener('keydown', e => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); open(seg); } });
+    segs.push(seg);
+  });
+  speedSubs.add(refresh);
+  refresh();
+})();
+
+/* ---- Caption rail: say() appends here, on the stage. "N. text" is step N: steps accumulate (newest emphasized, earlier dimmed),
+   and a caption with the same number as the newest one updates that step in place. Text without a number is its own entry. ---- */
+const railEl = el('div', { className: 'rail' }, wrap);
+railEl.setAttribute('aria-live', 'polite');
+railEl.setAttribute('aria-label', uiStr('railAria'));
+const railList = el('ol', { className: 'rail-list' }, railEl);
+const railBar = el('div', { className: 'rail-bar' }, railEl);
+const railCount = el('span', { className: 'rail-count' }, railBar);
+const railBtn = el('button', { type: 'button', className: 'rail-toggle' }, railBar);
+el('span', { className: 'chev' }, railBtn).setAttribute('aria-hidden', 'true');
+railCount.setAttribute('aria-hidden', 'true');
+railBtn.setAttribute('aria-expanded', 'false');
+let captions = [];       // { n, text, li }
+let lastCaption = '';
+let railOpen = false;
+const sceneTotals = {};  // captions in the last completed run of each scene: the "n" of "k / n"
+let badgeRemovers = new Map(); // step number → removes the badge a kit placed for it
+function clearCaptions() {
+  captions = [];
+  lastCaption = '';
+  railList.replaceChildren();
+  badgeRemovers.forEach(remove => remove());
+  badgeRemovers = new Map();
+  renderRailMeta();
+}
+function addCaption(text, { anchor = null } = {}, kit = null) {
+  const str = String(text);
+  const m = /^(\d+)\.\s+([\s\S]*)$/.exec(str); // "2. text" is step 2; "2.5 GB" and "10.0.0.5" are plain text
+  const n = m ? m[1] : '', body = m ? m[2] : str;
+  const top = captions.at(-1);
+  let entry;
+  if (n && top && top.n === n) {
+    entry = top;
+    entry.li.querySelector('.t').textContent = body;
+    entry.text = str;
+  } else {
+    top?.li.classList.remove('new');
+    const li = el('li', { className: 'cap' }, railList);
+    el('span', { className: 'n', textContent: n }, li);
+    el('span', { className: 't', textContent: body }, li);
+    entry = { n, text: str, li };
+    captions = [...captions, entry];
+  }
+  entry.li.classList.add('new');
+  lastCaption = str;
+  if (anchor && n && kit?.badge) {
+    badgeRemovers.get(n)?.();
+    badgeRemovers.set(n, kit.badge(anchor, n));
+  }
+  renderRailMeta();
+  if (railEl.classList.contains('side')) railEl.scrollTop = railEl.scrollHeight;
+  else if (railOpen) railList.scrollTop = railList.scrollHeight;
+}
+function renderRailMeta() {
+  const k = captions.length, total = Math.max(k, sceneTotals[current] ?? 0);
+  railCount.textContent = `${k} / ${total}`;
+  railBtn.setAttribute('aria-label', uiStr(railOpen ? 'railHide' : 'railShow'));
+  railBtn.setAttribute('aria-expanded', String(railOpen));
+}
+function setRailOpen(on) {
+  railOpen = Boolean(on);
+  renderRailMeta();
+  layoutStage();
+  if (railOpen) railList.scrollTop = railList.scrollHeight; // open on the newest caption
+  return railOpen;
+}
+railBtn.addEventListener('click', () => setRailOpen(!railOpen));
+
+/* ---- Stage layout: where the rail goes and the rectangle the model must fit in (the kit fits its camera to it) ---- */
+const RAIL_SIDE_MIN = 720; // stage width (px) from which the rail sits beside the model
+let modelRect = { x: 0, y: 0, w: 1, h: 1 };
+function layoutStage() {
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (!W || !H) return;
+  const wr = wrap.getBoundingClientRect();
+  const barred = barredQ.matches;
+  // Desktop: the HUD, legend and hint lie over the stage. Keep the rail clear of them.
+  const topInset = barred ? 0 : Math.max(0, hudEl.getBoundingClientRect().bottom - wr.top) + 14;
+  const bands = barred ? [] : [legendEl, hintEl].filter(n => n.offsetParent).map(n => n.getBoundingClientRect().top - wr.top);
+  const bottomEdge = Math.min(H, ...bands);
+  const side = !barred && W >= RAIL_SIDE_MIN;
+  railEl.classList.toggle('side', side);
+  railEl.classList.toggle('compact', !side);
+  railEl.classList.toggle('open', !side && railOpen);
+  const pad = 16;
+  Object.assign(railEl.style, { left: '', right: '', top: '', bottom: '', width: '', height: '', maxHeight: '' });
+  if (side) {
+    const railW = Math.round(clamp(240, W * 0.3, 340));
+    Object.assign(railEl.style, { right: `${pad}px`, top: `${topInset}px`, width: `${railW}px`, maxHeight: `${Math.max(80, bottomEdge - 12 - topInset)}px` });
+    modelRect = { x: 0, y: 0, w: W - railW - pad - 8, h: H };
+  } else {
+    const inset = barred ? 0 : 20;
+    const barBottom = barred ? 0 : H - bottomEdge + 8;
+    Object.assign(railEl.style, { left: `${inset}px`, right: `${inset}px`, bottom: `${barBottom}px` });
+    if (railOpen) railEl.style.top = `${barred ? 0 : topInset}px`;
+    const barH = railOpen ? railBarHeight() : railEl.offsetHeight; // the model keeps the closed-bar fit while the sheet is open
+    modelRect = { x: 0, y: 0, w: W, h: Math.max(40, H - barBottom - barH - 6) };
+  }
+  // The HUD chapter title grows gently with the stage (up to 1.25×) where the HUD lies over a large stage.
+  hudNow.style.fontSize = barred ? '' : `${(1.05 * clamp(1, Math.min(W / 760, H / 820), 1.25)).toFixed(3)}rem`;
+  const kit = activeKit();
+  if (kit?.fit) kit.fit(modelRect, W, H);
+}
+// Height of the closed bar (the fixed --bar-h), so the model does not jump when the sheet opens. Measured once; re-measured after a resize.
+let barHeight = 0;
+function railBarHeight() {
+  if (!barHeight) {
+    const probe = el('div', { className: 'rail compact' }, wrap);
+    probe.style.visibility = 'hidden';
+    barHeight = probe.offsetHeight; // 0 while the stage is not ready yet: measured again next time
+    probe.remove();
+  }
+  return barHeight;
+}
+addEventListener('resize', () => { barHeight = 0; });
+
+/* ---- Center split: a divider between text and stage (side by side), or a stage-height handle (stacked phones) ---- */
+let current = null;
+let readingEl = null; // the [data-scene] element on the reading line
+const SPLIT_X_KEY = 'plz-explain:split-x', SPLIT_H_KEY = 'plz-explain:split-h';
+const TEXT_MIN_W = 360, STAGE_MIN_W = 560; // narrowest text column and stage (px) where the window allows both
+let splitDragging = false;
+const Split = (() => {
+  const root = document.documentElement;
+  const mkHandle = (cls, orient, label, parent) => {
+    const h = el('div', { className: cls, tabIndex: 0 }, parent);
+    h.setAttribute('role', 'separator'); h.setAttribute('aria-orientation', orient); h.setAttribute('aria-label', label);
+    return h;
+  };
+  const hv = mkHandle('split-v', 'vertical', uiStr('splitX'), layoutEl);
+  const hh = mkHandle('split-h', 'horizontal', uiStr('splitH'), stageEl);
+  const load = k => { const n = parseFloat(store.get(k)); return Number.isFinite(n) ? n : null; };
+  let px = load(SPLIT_X_KEY), ph = load(SPLIT_H_KEY);
+  const api = { minStage: () => 0 };
+  // Text column as % of the viewport: 32–68, text ≥ TEXT_MIN_W and stage ≥ STAGE_MIN_W. In windows too narrow for both plus room to move
+  // (below about 1083px), both minimums shrink in proportion so they take 85% of the window: the divider always keeps about 15% to move in.
+  // Stage height on phones: 30–75svh, never below the stage's minimum.
+  const limX = () => {
+    const w = innerWidth, f = Math.min(1, 0.85 * w / (TEXT_MIN_W + STAGE_MIN_W));
+    return { min: Math.max(32, TEXT_MIN_W * f / w * 100), max: Math.min(68, (w - STAGE_MIN_W * f) / w * 100) };
+  };
+  const defX = () => (landQ.matches ? 100 * 5 / 11 : 38 * parseFloat(getComputedStyle(root).fontSize) / innerWidth * 100);
+  const limH = () => { const m = api.minStage() / innerHeight * 100; return { min: Math.max(30, m), max: Math.max(75, m) }; };
+  function apply() {
+    // Keep the chapter being read where it is while the text column reflows, so the reading line stays on it.
+    const anchor = readingEl && sideQ.matches ? readingEl.getBoundingClientRect().top : null;
+    if (sideQ.matches) {
+      const { min, max } = limX(), pct = clamp(min, px ?? defX(), max), w = pct / 100 * innerWidth;
+      root.style.setProperty('--text-w', `${w}px`); root.style.setProperty('--split-x', `${w}px`);
+      root.style.removeProperty('--stage-h');
+      hv.setAttribute('aria-valuemin', String(Math.round(min))); hv.setAttribute('aria-valuemax', String(Math.round(max))); hv.setAttribute('aria-valuenow', String(Math.round(pct)));
+    } else {
+      root.style.removeProperty('--text-w');
+      if (stackedQ.matches) {
+        // No saved height: the CSS default (44svh + caption bar). The handle still reports where it is.
+        const { min, max } = limH();
+        if (ph === null) root.style.removeProperty('--stage-h');
+        else root.style.setProperty('--stage-h', `${clamp(min, ph, max)}${CSS.supports('height', '1svh') ? 'svh' : 'vh'}`);
+        const pct = ph === null ? stageEl.getBoundingClientRect().height / innerHeight * 100 : clamp(min, ph, max);
+        hh.setAttribute('aria-valuemin', String(Math.floor(min))); hh.setAttribute('aria-valuemax', String(Math.ceil(max))); hh.setAttribute('aria-valuenow', String(Math.round(pct)));
+      }
+    }
+    if (anchor !== null && readingEl) {
+      const shift = readingEl.getBoundingClientRect().top - anchor;
+      if (Math.abs(shift) > 1) scrollTo({ top: scrollY + shift, behavior: 'instant' });
+    }
+  }
+  const saveX = () => { if (px !== null) store.set(SPLIT_X_KEY, String(px)); };
+  const saveH = () => { if (ph !== null) store.set(SPLIT_H_KEY, String(ph)); };
+  const setX = v => { px = v; saveX(); apply(); };
+  const setH = v => { ph = v; saveH(); apply(); };
+  // Pointer capture; dragging never cancels a run. One layout per frame while moving; saved once on release.
+  function drag(h, fromEvent, onMove, save) {
+    h.addEventListener('pointerdown', e => {
+      h.setPointerCapture(e.pointerId); h.classList.add('drag'); e.preventDefault();
+      splitDragging = true;
+      let frame = 0, pending = null;
+      const flush = () => { frame = 0; if (pending !== null) { onMove(pending); pending = null; apply(); } };
+      const move = ev => { pending = fromEvent(ev); if (!frame) frame = requestAnimationFrame(flush); };
+      const up = () => {
+        cancelAnimationFrame(frame); flush();
+        h.classList.remove('drag'); splitDragging = false;
+        h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up);
+        save();
+        api.onDragEnd?.();
+      };
+      h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+    });
+  }
+  drag(hv, e => { const { min, max } = limX(); return clamp(min, e.clientX / innerWidth * 100, max); }, v => { px = v; }, saveX);
+  drag(hh, e => { const { min, max } = limH(); return clamp(min, e.clientY / innerHeight * 100, max); }, v => { ph = v; }, saveH);
+  const keys = (h, set, lim, dec, inc) => h.addEventListener('keydown', e => {
+    const { min, max } = lim(), cur = parseFloat(h.getAttribute('aria-valuenow'));
+    const next = e.key === dec ? cur - 2 : e.key === inc ? cur + 2 : e.key === 'Home' ? min : e.key === 'End' ? max : null;
+    if (next === null) return;
+    e.preventDefault(); set(clamp(min, next, max));
+  });
+  keys(hv, setX, limX, 'ArrowLeft', 'ArrowRight');
+  keys(hh, setH, limH, 'ArrowUp', 'ArrowDown');
+  hv.addEventListener('dblclick', () => { px = null; store.del(SPLIT_X_KEY); apply(); });
+  hh.addEventListener('dblclick', () => { ph = null; store.del(SPLIT_H_KEY); apply(); });
+  addEventListener('resize', apply);
+  sideQ.addEventListener('change', apply);
+  return Object.assign(api, { apply });
+})();
+Split.minStage = () => (stackedQ.matches ? hudEl.offsetHeight + legendEl.offsetHeight + railBarHeight() + 150 : 0);
+Split.apply(); // the saved split holds while kits load, and after a load failure
+
+/* ---- Kits and scenes ----
+   defineKit(name, kit) registers a stage kit. Methods (all but load/build optional):
+     rotatable            true shows the drag hint and Reset view
+     load(host)           once, before the kit's first scene is built. host = { layer, wrap, relayout }. Throw an error with .uiKey to pick the failure notice
+     build(def)           turns a defineScene definition into the kit's scene object; it must have reset() and run(a, say)
+     show(scene, prev)    the scene became the active one (prev may be null or belong to another kit)
+     hide(scene)          the scene stopped being active; drop its temporary objects
+     reset(scene)         restore what the engine owns (colors) before the scene's own reset()
+     clear(scene)         drop temporary objects after a failed run
+     animator(dir, scene) the `a` passed to run(); defaults to the director { wait, tween, live }
+     fit(rect, W, H)      fit the drawing to rect (px inside the layer W × H); the rest is under the caption rail
+     frame(dt)            every animation frame
+     labels()             label elements currently visible, for overlaps() and clipped()
+     badge(anchor, n)     put step number n next to anchor; returns a function that removes it
+     resetView(), info()  optional: Reset view button; { resources, azimuth } for the hooks */
+const kits = {};
+function defineKit(name, kit) {
+  if (kits[name]) throw new Error(`[plz] kit already defined: ${name}`);
+  kits[name] = kit;
+  return kit;
+}
+const scenes = {};
+// defineScene(name, { kit = 'axo', title, build, ...kit options }). The kit builds it when the page starts.
+function defineScene(name, def) {
+  if (scenes[name]) throw new Error(`[plz] scene already defined: ${name}`);
+  scenes[name] = { name, kit: 'axo', ...def, def, built: null };
+}
+function loadKit(name) {
+  const kit = kits[name];
+  if (!kit) return Promise.reject(new Error(`[plz] unknown kit: ${name}`));
+  if (!kit.loading) {
+    kit.layer = el('div', { className: 'kit-layer', hidden: true }, wrap);
+    kit.layer.dataset.kit = name;
+    wrap.append(railEl); // the rail stays above every kit layer
+    kit.loading = Promise.resolve(kit.load({ layer: kit.layer, wrap, relayout: layoutStage }));
+  }
+  return kit.loading;
+}
+const activeKit = () => (current ? kits[scenes[current].kit] : null);
+
+/* ---- Kit "axo": three.js axonometric block model (white massing model, ink outlines). three.js is imported only in its load(). ---- */
+const COLOR = {
+  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
+  actor: 0xD2364A, actorEdge: 0x7A1422,
+  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
+  matter: 0xC4921F, matterEdge: 0x6B4B0E,
+};
+// Filled by the axo kit's load(). Scenes use them as globals, as before.
+let THREE = null, OrbitControls = null, CSS2DRenderer = null, CSS2DObject = null;
+let renderer = null, labelRenderer = null, scene = null, camera = null, controls = null;
+let HOME_DIR = null, SCREEN_RIGHT = null, base = null;
+const DIST = 60;
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+function mat(color, opacity = 1) {
+  const m = new THREE.MeshLambertMaterial({ color, transparent: true, opacity, depthWrite: opacity >= 0.99 });
+  m.userData.base = opacity;
+  m.userData.color = new THREE.Color(color);
+  return m;
+}
+function lineMat(color = COLOR.ink, opacity = 0.85, dashed = false) {
+  const m = dashed
+    ? new THREE.LineDashedMaterial({ color, transparent: true, opacity, dashSize: 0.2, gapSize: 0.14 })
+    : new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+  m.userData.base = opacity;
+  return m;
+}
+// Cuboid. The y of pos is the "floor height" (after creation, group.position is the center).
+function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.ink, edgeOpacity = 0.85, dashed = false, cast = true } = {}) {
+  const g = new THREE.Group();
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, mat(color, opacity));
+  mesh.castShadow = cast && opacity > 0.6;
+  mesh.receiveShadow = opacity > 0.6;
+  g.add(mesh);
+  if (edge !== null) {
+    const lines = new THREE.LineSegments(new THREE.EdgesGeometry(geo), lineMat(edge, edgeOpacity, dashed));
+    if (dashed) lines.computeLineDistances();
+    g.add(lines);
+  }
+  g.position.set(pos[0], pos[1] + h / 2, pos[2]);
+  g.userData.mesh = mesh;
+  g.userData.h = h;
+  return g;
+}
+const allTags = new Set();
+// On-screen label. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
+function tag(text, pos, kind = '') {
+  const el = document.createElement('div');
+  el.className = 'tag' + (kind ? ' ' + kind : '');
+  el.textContent = text;
+  const o = new CSS2DObject(el);
+  o.position.set(pos[0], pos[1], pos[2]);
+  allTags.add(o);
+  return o;
+}
+// Temporary groups contain one-shot objects created during playback. Shared resources stay externally owned.
+const temporaryGroups = new WeakMap();
+function temporaryGroup(sharedResources = []) {
+  const group = new THREE.Group();
+  temporaryGroups.set(group, new Set(sharedResources));
+  return group;
+}
+// Release an owned subtree. Keep externally owned geometry/materials in sharedResources or its temporary group's list.
+function disposeObject(root, sharedResources = []) {
+  disposeObjects([root], sharedResources);
+}
+function disposeObjects(roots, sharedResources = []) {
+  const shared = new Set(sharedResources), resources = new Set();
+  for (const root of roots) {
+    for (let node = root; node; node = node.parent) {
+      for (const resource of temporaryGroups.get(node) || []) shared.add(resource);
+    }
+    root.traverse(o => {
+      for (const resource of temporaryGroups.get(o) || []) shared.add(resource);
+      if (o.isCSS2DObject) {
+        allTags.delete(o);
+        labelState.delete(o);
+        o.element.remove();
+      }
+      if (o.geometry) resources.add(o.geometry);
+      for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (material) resources.add(material);
+      }
+    });
+    root.removeFromParent();
+  }
+  for (const resource of resources) if (!shared.has(resource)) resource.dispose();
+}
+function clearGroup(group) {
+  disposeObjects([...group.children]);
+}
+function clearTemporary(root) {
+  if (temporaryGroups.has(root)) { clearGroup(root); return; }
+  for (const child of root.children) clearTemporary(child);
+}
+// Actor cube (0.6). Pass label as null for no label.
+function actorCube(pos, label = '__actor__') {
+  const c = block(0.6, 0.6, 0.6, pos, { color: COLOR.actor, edge: COLOR.actorEdge });
+  if (label) c.add(tag(label, [0, 0.72, 0], 'actor'));
+  return c;
+}
+function matterBlock(pos, h = 0.9, w = 0.75) {
+  return block(w, h, w, pos, { color: COLOR.matter, edge: COLOR.matterEdge });
+}
+// Glass room (boundary). Opacity between 0.08 and 0.13 stays clear even when layers overlap.
+function glass(w, h, d, pos, opts = {}) {
+  return block(w, h, d, pos, { color: COLOR.bound, opacity: 0.08, edge: COLOR.bound, edgeOpacity: 0.95, cast: false, ...opts });
+}
+function line(points, color = COLOR.ink, opacity = 0.6, dashed = false) {
+  const geo = new THREE.BufferGeometry().setFromPoints(points.map(p => V(...p)));
+  const l = new THREE.Line(geo, lineMat(color, opacity, dashed));
+  if (dashed) l.computeLineDistances();
+  return l;
+}
+function tube(from, to, r = 0.1, color = COLOR.ink) {
+  const a = V(...from), b = V(...to);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 14), mat(color));
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(V(0, 1, 0), b.clone().sub(a).normalize());
+  m.castShadow = true;
+  return m;
+}
+function arrow(from, to, color = COLOR.ink) {
+  const g = new THREE.Group();
+  g.add(line([from, to], color, 0.85));
+  const dir = V(...to).sub(V(...from)).normalize();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.45, 18), mat(color));
+  cone.position.set(...to);
+  cone.quaternion.setFromUnitVectors(V(0, 1, 0), dir);
+  g.add(cone);
+  return g;
+}
+// Moving ball (request, signal). Put it in a temporaryGroup() and disposeObject() when done.
+function packet(color, pos, r = 0.2) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
+  m.position.set(...pos);
+  m.castShadow = true;
+  m.userData.mesh = m;
+  return m;
+}
+function setFade(root, k) {
+  root.visible = k > 0.001;
+  root.traverse(o => {
+    const m = o.material;
+    if (m && m.userData.base !== undefined) m.opacity = m.userData.base * k;
+    if (o.isCSS2DObject) o.element.style.opacity = k;
+  });
+}
+function resetLook(root) {
+  root.traverse(o => {
+    const m = o.material;
+    if (m && m.userData.color) { m.color.copy(m.userData.color); m.opacity = m.userData.base; }
+  });
+}
+// CSS2DRenderer draws labels even when the parent is hidden. Every frame, check ancestor visibility and scale, and hide the label.
+// Even after a parent is detached from the scene, the child label's DOM stays at its last position. Hide it when it is not attached to the scene.
+function syncTags() {
+  for (const o of allTags) {
+    let vis = true, node = o;
+    while (node.parent) {
+      node = node.parent;
+      if (!node.visible || node.scale.x < 0.3 || node.scale.y < 0.3) vis = false;
+    }
+    if (node !== scene) { o.element.style.display = 'none'; continue; }
+    o.visible = vis;
+  }
+}
+
+// On a narrow model area (phone, or beside the caption rail) the model shrinks but label text does not, so labels overlap each other and get clipped at the edges.
+// In screen coordinates, pull labels toward the inside of the model area, and when they overlap, shift them to the nearest free spot (CSS translate, capped at DECLUTTER_MAX).
+// On a wide model area this does nothing.
+const DECLUTTER_BELOW = 700, DECLUTTER_MAX = 56, DECLUTTER_EDGE = 3, DECLUTTER_GAP = 2;
+const labelState = new Map();
+let labelVec = null;
+const labelShown = o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5;
+const boxHit = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+function clampBox(b, R) {
+  const dx = Math.max(R.x + DECLUTTER_EDGE - b.l, 0) + Math.min(R.x + R.w - DECLUTTER_EDGE - b.r, 0);
+  const dy = Math.max(R.y + DECLUTTER_EDGE - b.t, 0) + Math.min(R.y + R.h - DECLUTTER_EDGE - b.b, 0);
+  return { l: b.l + dx, r: b.r + dx, t: b.t + dy, b: b.b + dy, dx, dy };
+}
+function placeLabel(box, placed, R) {
+  let cur = clampBox(box, R);
+  for (let i = 0; i < 6; i++) {
+    const hit = placed.find(p => boxHit(cur, p));
+    if (!hit) break;
+    const g = DECLUTTER_GAP;
+    const pushes = [
+      { dx: 0, dy: hit.t - cur.b - g }, { dx: 0, dy: hit.b - cur.t + g },
+      { dx: hit.l - cur.r - g, dy: 0 }, { dx: hit.r - cur.l + g, dy: 0 },
+    ].map(d => {
+      const moved = clampBox({ l: cur.l + d.dx, r: cur.r + d.dx, t: cur.t + d.dy, b: cur.b + d.dy }, R);
+      return { moved, clear: !placed.some(p => boxHit(moved, p)), cost: Math.hypot(d.dx, d.dy) };
+    }).sort((a, b) => (b.clear - a.clear) || (a.cost - b.cost));
+    cur = pushes[0].moved;
+  }
+  const total = Math.hypot(cur.l - box.l, cur.t - box.t);
+  return total <= DECLUTTER_MAX ? cur : clampBox(box, R);
+}
+function declutter() {
+  const W = wrap.clientWidth, H = wrap.clientHeight, R = modelRect;
+  const on = R.w > 0 && R.w < DECLUTTER_BELOW;
+  const placed = [];
+  for (const o of allTags) {
+    const el = o.element;
+    const st = labelState.get(o) || { x: 0, y: 0 };
+    labelState.set(o, st);
+    let tx = 0, ty = 0;
+    if (on && labelShown(o)) {
+      labelVec.setFromMatrixPosition(o.matrixWorld).project(camera);
+      const w = el.offsetWidth, h = el.offsetHeight;
+      const cx = (labelVec.x + 1) / 2 * W, cy = (1 - labelVec.y) / 2 * H;
+      if (w && h) {
+        const box = { l: cx - w / 2, r: cx + w / 2, t: cy - h / 2, b: cy + h / 2 };
+        const fin = placeLabel(box, placed, R);
+        tx = fin.l - box.l; ty = fin.t - box.t;
+        placed.push(fin);
+      }
+    }
+    st.x += (tx - st.x) * 0.5; st.y += (ty - st.y) * 0.5;
+    if (Math.abs(tx - st.x) < 0.3) st.x = tx;
+    if (Math.abs(ty - st.y) < 0.3) st.y = ty;
+    const css = st.x || st.y ? `${st.x.toFixed(1)}px ${st.y.toFixed(1)}px` : '';
+    if (el.style.translate !== css) el.style.translate = css;
+  }
+}
+
+// The animator `a` that axo scenes receive. Every duration and wait goes through the director (speed, instant, reduced motion, CANCEL).
+function axoAnimator(dir) {
+  return {
+    live: dir.live,
+    tween: (ms, fn, opts) => dir.tween(ms, fn, opts), // opts: { motion = true, ease }
+    wait: ms => dir.wait(ms),
+    // Move the center of obj to `to`. With lift, it goes over in an arc. About 1 s per tracked move.
+    move(obj, to, ms = 1000, lift = 0) {
+      const from = obj.position.clone();
+      const target = Array.isArray(to) ? V(...to) : to.clone();
+      return dir.tween(ms, t => {
+        obj.position.lerpVectors(from, target, t);
+        if (lift) obj.position.y += Math.sin(Math.PI * t) * lift;
+      });
+    },
+    // The color changes briefly and comes back. With hold=true it stays changed (resetLook restores it in reset). Color is not movement, so it plays under reduced motion too.
+    async flash(obj, color, ms = 700, hold = false) {
+      const m = (obj.userData.mesh || obj).material;
+      const c0 = m.userData.color, c1 = new THREE.Color(color);
+      const o0 = m.userData.base, peak = Math.min(1, o0 + 0.45);
+      await dir.tween(ms * 0.35, t => { m.color.lerpColors(c0, c1, t); m.opacity = o0 + (peak - o0) * t; }, { motion: false });
+      if (hold) return;
+      await dir.tween(ms * 0.65, t => { m.color.lerpColors(c1, c0, t); m.opacity = peak + (o0 - peak) * t; }, { motion: false });
+    },
+    // Change the size. To create: scale 0.001 → 1. To remove: 1 → 0.001, then visible=false.
+    scaleTo(obj, to, ms = 500) {
+      obj.visible = true;
+      const from = obj.scale.clone();
+      const target = typeof to === 'number' ? V(to, to, to) : V(...to);
+      return dir.tween(ms, t => obj.scale.lerpVectors(from, target, t));
+    },
+  };
+}
+
+defineKit('axo', {
+  rotatable: true,
+  fitSize: { w: 17, h: 11.5 },
+  camGoal: null,
+  baseState: null,
+  scenes: new Set(),
+  badges: new Map(), // badge label → { holder, anchor, local }
+  async load(host) {
+    const [three, orbit, css2d] = await Promise.all([
+      import('three'),
+      import('three/addons/controls/OrbitControls.js'),
+      import('three/addons/renderers/CSS2DRenderer.js'),
+    ]);
+    THREE = three; OrbitControls = orbit.OrbitControls;
+    CSS2DRenderer = css2d.CSS2DRenderer; CSS2DObject = css2d.CSS2DObject;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      throw Object.assign(new Error('WebGL is not available', { cause: e }), { uiKey: 'fallback' });
+    }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    host.layer.appendChild(renderer.domElement);
+    labelRenderer = new CSS2DRenderer();
+    labelRenderer.domElement.className = 'labels';
+    host.layer.appendChild(labelRenderer.domElement);
+    labelVec = V(0, 0, 0);
+    scene = new THREE.Scene();
+    camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 300);
+    // Camera direction (axonometric view). The screen-right vector is SCREEN_RIGHT — use it to place two things side by side.
+    HOME_DIR = V(1, 1.15, 1.22).normalize();
+    SCREEN_RIGHT = V(HOME_DIR.z, 0, -HOME_DIR.x).normalize();
+    controls = new OrbitControls(camera, labelRenderer.domElement);
+    controls.enablePan = false;
+    controls.enableZoom = false; // Enabling wheel zoom would block page scrolling over the stage.
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minPolarAngle = 0.2;
+    controls.maxPolarAngle = 1.38;
+    // Touch: a vertical swipe lets the browser scroll the page (pan-y); only a horizontal drag rotates the model.
+    // OrbitControls sets touch-action:none by default, so a swipe on the stage would swallow page scrolling. Override it after construction.
+    labelRenderer.domElement.style.touchAction = 'pan-y';
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: undefined };
+    controls.addEventListener('start', () => { this.camGoal = null; });
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xc9d0ca, 2.1));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.7);
+    sun.position.set(-7, 20, 11);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 70 });
+    sun.shadow.bias = -0.0006;
+    scene.add(sun);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.ShadowMaterial({ opacity: 0.1 }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    // The floor shared by all axo scenes (shown when the scene option is base:true). Fill it in SCENES.
+    base = new THREE.Group();
+    scene.add(base);
+    this.badgeRoot = new THREE.Group(); // step badges live here, not under their anchors (see badge())
+    scene.add(this.badgeRoot);
+    this.baseState = { group: base, k: 1, target: 1 };
+    this.relayout = host.relayout;
+    this.clock = new THREE.Clock();
+  },
+  build(def) {
+    const built = { base: true, zoom: 1, target: [0.3, 1.1, 0], fitW: 17, fitH: 11.5, ...def, ...def.build(), k: 0, targetK: 0 };
+    scene.add(built.group);
+    setFade(built.group, 0);
+    this.scenes.add(built);
+    return built;
+  },
+  reset(built) { resetLook(base); resetLook(built.group); },
+  show(built) {
+    for (const other of this.scenes) other.targetK = other === built ? 1 : 0;
+    this.baseState.target = built.base ? 1 : 0;
+    setFade(base, this.baseState.k);
+    setFade(built.group, built.k);
+    this.fitSize = { w: built.fitW, h: built.fitH }; // applied by the shell's layout right after show()
+    this.camGoal = { zoom: built.zoom, target: V(...built.target) };
+    this.current = built;
+    if (REDUCE || INSTANT) this.settleCamera();
+  },
+  hide(built) {
+    clearTemporary(built.group);
+    built.targetK = 0;
+    this.baseState.target = 0; // show() turns the floor back on when the next scene is an axo scene with base:true
+  },
+  clear(built) { clearTemporary(built.group); },
+  animator: dir => axoAnimator(dir),
+  settleCamera() {
+    if (!this.camGoal) return;
+    camera.zoom = this.camGoal.zoom;
+    controls.target.copy(this.camGoal.target);
+    camera.updateProjectionMatrix();
+    this.camGoal = null;
+  },
+  home(built) {
+    controls.target.set(...built.target);
+    camera.position.copy(HOME_DIR).multiplyScalar(DIST).add(controls.target);
+    camera.lookAt(controls.target);
+  },
+  // Fit the orthographic camera so the scene's fitW × fitH (world units) fills rect, with the look-at point at the rect's center.
+  fit(rect, W, H) {
+    if (!renderer) return;
+    renderer.setSize(W, H);
+    labelRenderer.setSize(W, H);
+    const v = Math.max(this.fitSize.h, this.fitSize.w / (rect.w / rect.h));
+    const upp = v / rect.h, cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+    camera.left = -cx * upp; camera.right = (W - cx) * upp;
+    camera.top = cy * upp; camera.bottom = -(H - cy) * upp;
+    camera.updateProjectionMatrix();
+  },
+  stepFade(st, target, dt) {
+    if (st.k === target) return;
+    const step = REDUCE || INSTANT ? 1 : dt / 0.45;
+    st.k = st.k < target ? Math.min(target, st.k + step) : Math.max(target, st.k - step);
+    setFade(st.group, st.k);
+  },
+  frame() {
+    const dt = Math.min(this.clock.getDelta(), 0.05);
+    for (const s of this.scenes) this.stepFade(s, s.targetK, dt);
+    this.stepFade(this.baseState, this.baseState.target, dt);
+    if (this.camGoal) {
+      if (INSTANT || REDUCE) this.settleCamera();
+      else {
+        const k = Math.min(1, dt * 5);
+        camera.zoom += (this.camGoal.zoom - camera.zoom) * k;
+        controls.target.lerp(this.camGoal.target, k);
+        camera.updateProjectionMatrix();
+        if (Math.abs(camera.zoom - this.camGoal.zoom) < 0.002 && controls.target.distanceTo(this.camGoal.target) < 0.01) this.camGoal = null;
+      }
+    }
+    controls.update();
+    this.followBadges();
+    syncTags();
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
+    declutter();
+  },
+  labels() { return [...allTags].filter(labelShown).map(o => o.element); },
+  // A step badge (CSS2D label) at the top corner of the object that faces screen-right. It follows the object and hides with it.
+  // If the object is disposed during the run, the badge stays at its last position until the scene resets.
+  badge(anchor, n) {
+    anchor.updateWorldMatrix(true, true);
+    const box = new THREE.Box3().setFromObject(anchor);
+    const world = box.isEmpty() ? anchor.getWorldPosition(V(0, 0, 0)) : V(box.max.x, box.max.y + 0.3, box.min.z);
+    const local = anchor.worldToLocal(world.clone());
+    const holder = new THREE.Group();
+    holder.position.copy(world);
+    const b = tag(String(n), [0, 0, 0], 'badge');
+    holder.add(b);
+    this.badgeRoot.add(holder);
+    this.badges.set(b, { holder, anchor, local });
+    return () => { this.badges.delete(b); disposeObject(holder); };
+  },
+  followBadges() {
+    for (const { holder, anchor, local } of this.badges.values()) {
+      let node = anchor, shown = true;
+      for (; node.parent; node = node.parent) if (!node.visible || node.scale.x < 0.3 || node.scale.y < 0.3) shown = false;
+      if (node !== scene) continue; // the anchor left the scene: keep the last position
+      holder.position.copy(anchor.localToWorld(local.clone()));
+      holder.visible = shown;
+    }
+  },
+  resetView() {
+    const s = this.current;
+    if (!s) return;
+    this.home(s);
+    camera.zoom = s.zoom;
+    camera.updateProjectionMatrix();
+  },
+  // Badges are excluded from the counts: they are removed on every reset, and leak checks compare scene labels.
+  info() {
+    return {
+      resources: { labels: allTags.size - this.badges.size, labelStates: [...labelState.keys()].filter(o => !this.badges.has(o)).length, geometries: renderer.info.memory.geometries },
+      azimuth: controls.getAzimuthalAngle(),
+    };
+  },
+});
+
+// Load the kits this page declares (data-kits on the stage, default axo) before SCENES runs. Kits defined in SCENES load when the page starts.
+const DECLARED_KITS = (stageEl.dataset.kits ?? 'axo').split(/[\s,]+/).filter(Boolean);
+try {
+for (const name of DECLARED_KITS) if (kits[name]) await loadKit(name);
+
+/* =====================================================================
+   SCENES — the part you change for your topic. The two scenes below are pattern examples.
+   Pattern catalog: references/scene-patterns.md, finished example: assets/example-agent-sandbox.html
+   ===================================================================== */
+const FLOOR = 0.6; // top surface height of the shared floor
+base.add(block(13, FLOOR, 8, [0, 0, 0], { color: COLOR.boundSoft }));
+base.add(tag('__shared floor__', [-5.6, FLOOR / 2, 4.05], 'bound'));
+base.add(matterBlock([-4.2, FLOOR, -2.6], 1.0));
+base.add(tag('__resource outside the room__', [-4.2, FLOOR + 1.5, -2.6], 'matter'));
+
+// Pattern: attempt to cross a boundary — the actor goes to the wall, the wall flashes, and the actor comes back.
+defineScene('s1', {
+  title: '1  __chapter title__',
+  build() {
+    const g = new THREE.Group();
+    const temp = temporaryGroup(); g.add(temp);
+    const room = glass(3.2, 2.4, 3.0, [1.0, FLOOR, 1.0]);
+    g.add(room);
+    g.add(tag('__isolated room__', [1.0, FLOOR + 2.75, 1.0], 'bound'));
+    const actor = actorCube([1.0, FLOOR, 1.0]);
+    g.add(actor);
+    const home = actor.position.clone();
+    return {
+      group: g,
+      reset() { actor.position.copy(home); clearGroup(temp); },
+      async run(a, say) {
+        say('__The actor tries to leave the room.__');
+        await a.move(actor, [-0.25, FLOOR + 0.9, 1.0], 700, 0.5);
+        await a.flash(room, COLOR.bound);
+        await a.move(actor, home, 500);
+        say('__The wall blocked it. The resource outside the room was not reached.__');
+      },
+    };
+  },
+});
+
+// Pattern: request path — a ball travels between blocks, the intermediary checks it, and a result appears.
+// Numbered captions ("2. …") accumulate on the stage; { anchor } puts the same number next to the object the step is about.
+defineScene('s2', {
+  title: '2  __chapter title__',
+  base: false,
+  target: [0.6, 0.8, 0],
+  fitW: 17,
+  fitH: 11,
+  build() {
+    const g = new THREE.Group();
+    const temp = temporaryGroup(); g.add(temp);
+    const Y = 0.4;
+    g.add(block(12.5, Y, 6.5, [0.6, 0, -0.2]));
+    const A = block(2.2, 1.3, 1.8, [-3.6, Y, 0.8]);
+    const B = block(2.2, 1.3, 1.8, [0.6, Y, 0.8]);
+    const C = block(2.2, 1.3, 1.8, [4.8, Y, 0.8]);
+    g.add(A, B, C);
+    g.add(tag('__sender__', [-3.6, Y + 1.65, 0.8]), tag('__broker__', [0.6, Y + 1.65, 0.8]), tag('__receiver__', [4.8, Y + 1.65, 0.8]));
+    const result = block(1.4, 0.14, 1.0, [4.8, Y, -2.1], { color: COLOR.matter, edge: COLOR.matterEdge });
+    result.add(tag('__result__', [0, 0.5, 0], 'matter'));
+    g.add(result);
+    const top = o => [o.position.x, o.position.y + o.userData.h / 2 + 0.5, o.position.z];
+    return {
+      group: g,
+      reset() { clearGroup(temp); result.visible = false; result.scale.setScalar(1); },
+      async run(a, say) {
+        const send = async (color, from, to, ms = 800, r = 0.2) => {
+          const p = packet(color, from, r);
+          temp.add(p);
+          await a.move(p, to, ms, 1.0);
+          disposeObject(p);
+        };
+        say('1. __The sender sends a request.__');
+        await send(COLOR.actor, top(A), top(B));
+        say('2. __The broker checks the request.__', { anchor: B });
+        await a.flash(B, COLOR.bound, 800);
+        say('3. __Only the checked request passes to the receiver.__');
+        await send(COLOR.matter, top(B), top(C));
+        result.scale.setScalar(0.001);
+        await a.scaleTo(result, 1, 500);
+        say('__The receiver produced a result.__');
+      },
+    };
+  },
+});
+
+/* =====================================================================
+   ENGINE (continued) — chapter switching, running, auto-play, render loop, verification hooks. Do not edit.
+   ===================================================================== */
+// Show only the active kit's layer; mark the stage rotatable when that kit is.
+function showKitLayer(name) {
+  for (const [kitName, kit] of Object.entries(kits)) if (kit.layer) kit.layer.hidden = kitName !== name;
+  stageEl.toggleAttribute('data-rotatable', Boolean(kits[name]?.rotatable));
+}
+// Bring the scene back to its initial state: engine-owned looks first, then the scene's own reset().
+function restoreScene(s) {
+  kits[s.kit].reset?.(s.built);
+  s.built.reset();
+}
+function activate(name, force = false) {
+  const s = scenes[name];
+  if (!s || (!force && current === name)) return;
+  bumpRun();
+  const prev = current ? scenes[current] : null;
+  if (prev && prev !== s) kits[prev.kit].hide?.(prev.built);
+  current = name;
+  if (!prev || prev.kit !== s.kit) railOpen = false;
+  showKitLayer(s.kit);
+  clearCaptions();
+  restoreScene(s);
+  kits[s.kit].show?.(s.built, prev?.built ?? null);
+  hudNow.textContent = s.title ?? '';
+  document.querySelectorAll('.chapter').forEach(c => c.classList.toggle('is-active', c.dataset.scene === name));
+  layoutStage();
+}
+let liveRun = 0; // token of the run in flight, 0 when none
+const runInFlight = () => liveRun !== 0 && liveRun === runToken;
+async function runScene(name) {
+  activate(name);
+  const s = scenes[name];
+  if (!s) return;
+  const kit = kits[s.kit];
+  const mine = bumpRun(); // a run or chapter change after this point cancels this run
+  liveRun = mine;
+  clearCaptions();
+  restoreScene(s);
+  const dir = director(mine);
+  const a = kit.animator ? kit.animator(dir, s.built) : dir;
+  const say = (text, opts) => { if (dir.live()) addCaption(text, opts, kit); };
+  try {
+    await s.built.run(a, say);
+  } catch (e) {
+    if (mine === runToken) kit.clear?.(s.built);
+    if (e !== CANCEL) { console.error(e); say(uiStr('runError')); }
+    return;
+  } finally {
+    if (liveRun === mine) liveRun = 0;
+  }
+  if (mine !== runToken) return;
+  sceneTotals[name] = captions.length;
+  renderRailMeta();
+  onSceneDone(name, mine); // If auto-play is on, continue the loop.
+}
+// Return the scene to its initial state and clear its captions (used by the auto-play loop).
+function resetScene(name) {
+  const s = scenes[name];
+  if (!s) return;
+  clearCaptions();
+  restoreScene(s);
+}
+document.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => runScene(b.dataset.run)));
+$('.reset-view').addEventListener('click', () => activeKit()?.resetView?.());
+
+// ---- Auto-play. Off by default; when on, it replays the action of the chapter being read in a loop. ----
+//   after entering a chapter, wait AUTORUN_DELAY → run → show the end state and the captions for AUTORUN_HOLD → reset (captions cleared)
+//   → show the initial state for AUTORUN_DELAY → run again → ... When the reader moves to another chapter, the old loop is cut off by CANCEL and a new loop starts from the beginning in the new chapter.
+// Delay and hold scale with the speed, but never below half of their 1× values. It does not run on elements without a button (the intro) or at the very top of the page.
+// It pauses when the tab is hidden and resumes when it is visible again.
+const AUTORUN_KEY = 'plz-explain:autorun';
+const AUTORUN_DELAY = 600; // Time (ms, at 1×) to see the initial state after a scene switch, and again after reset
+const AUTORUN_HOLD = 2800; // Time (ms, at 1×) to read the end state and the captions after the action ends
+const autorunBtn = $('.autorun');
+let autorunOn = store.get(AUTORUN_KEY) === '1';
+let autoEl = null;    // the element that most recently entered the reading line (so the same element does not restart)
+let autoPending = false; // whether the first run of autoEl is not yet scheduled
+const TOP_HOLD = 40;  // Top of the page (px). In the side-by-side layout, chapter 1 just below the intro sits on the reading line, but nothing runs here.
+let autoTimer = 0;    // The auto-play timer is set only through armAuto, so there is always at most one.
+let autoWait = null;  // name of the scene the timer is waiting for
+let autoPaused = null; // name of the scene paused because the tab was hidden
+const runnerOf = node => (node ? node.querySelector('[data-run]') : null);
+const autoMs = base => Math.max(base / 2, base / speed);
+function renderAutorun() { autorunBtn.setAttribute('aria-checked', String(autorunOn)); }
+function armAuto(name, ms, fn) {
+  clearTimeout(autoTimer);
+  autoWait = name;
+  autoTimer = setTimeout(() => {
+    autoTimer = 0; autoWait = null;
+    if (document.hidden) { autoPaused = name; return; }
+    fn();
+  }, ms);
+}
+function stopAuto() { clearTimeout(autoTimer); autoTimer = 0; autoWait = null; autoPaused = null; }
+// Whether this scene should still be looped. If a token is given, no other run (button included) or chapter switch may have happened in between.
+const loopOk = (name, token) => autorunOn && current === name && scrollY > TOP_HOLD && (token === undefined || token === runToken);
+function startCycle(name) { // reset → initial state → run
+  resetScene(name);
+  const t = runToken;
+  armAuto(name, autoMs(AUTORUN_DELAY), () => { if (loopOk(name, t)) runScene(name); });
+}
+function onSceneDone(name, token) { // Called by runScene when the action ran to the end. A run started by the button continues into the loop too.
+  if (!loopOk(name, token)) return;
+  if (document.hidden) { autoPaused = name; return; }
+  armAuto(name, autoMs(AUTORUN_HOLD), () => { if (loopOk(name, token)) startCycle(name); });
+}
+function tryAutorun() { // schedule the first run of the chapter being read
+  const node = autoEl, btn = runnerOf(node);
+  if (!autoPending || !autorunOn || !btn || scrollY <= TOP_HOLD) return;
+  autoPending = false;
+  const name = btn.dataset.run, t = runToken;
+  armAuto(name, autoMs(AUTORUN_DELAY), () => {
+    if (autoEl !== node) return;
+    if (scrollY <= TOP_HOLD) { autoPending = true; return; } // the reader went back to the top in the meantime
+    if (loopOk(name, t)) runScene(name);
+  });
+}
+function scheduleAutorun(node) {
+  if (node === autoEl) return; // When the observer is recreated by a size change, do not start the same chapter again.
+  stopAuto();
+  autoEl = node;
+  autoPending = true;
+  tryAutorun();
+}
+function setAutorun(on) {
+  autorunOn = Boolean(on);
+  store.set(AUTORUN_KEY, autorunOn ? '1' : '0');
+  renderAutorun();
+  stopAuto(); // Turning it off removes the pending loop. An action already running goes to the end and does not continue after it ends.
+  autoPending = false;
+  const btn = runnerOf(readingEl);
+  if (!autorunOn || !btn) return;
+  autoEl = readingEl;
+  if (scrollY > TOP_HOLD) runScene(btn.dataset.run); // run the chapter being read right when it is turned on
+  else autoPending = true;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (autoTimer) { autoPaused = autoWait; clearTimeout(autoTimer); autoTimer = 0; autoWait = null; }
+    return;
+  }
+  const name = autoPaused;
+  autoPaused = null;
+  // When visible again, the loop resumes from the initial state. A run still playing (for example one started with the button)
+  // is left alone: when it ends, onSceneDone continues the loop.
+  if (name && loopOk(name) && !runInFlight()) startCycle(name);
+});
+addEventListener('scroll', tryAutorun, { passive: true });
+autorunBtn.addEventListener('click', () => setAutorun(!autorunOn));
+renderAutorun();
+
+// The "reading line" that decides which chapter is being read. In the stacked layout (stage pinned on top) it is the point 30% down the text area just below the stage;
+// in the side-by-side layout (desktop, landscape) it is a band at 45-50% of the screen height. While the split is dragged, chapter switching waits.
+let io = null;
+function readingMargin() {
+  const vh = innerHeight, st = stageEl.getBoundingClientRect();
+  const stacked = st.width >= innerWidth - 1 && st.height < vh - 1;
+  if (!stacked) return '-45% 0px -50% 0px';
+  const stageBottom = Math.min(st.height, vh);
+  const readLine = Math.round(stageBottom + (vh - stageBottom) * 0.3);
+  return `-${readLine}px 0px -${Math.max(0, vh - readLine - 2)}px 0px`;
+}
+function observe() {
+  if (io) io.disconnect();
+  io = new IntersectionObserver(entries => {
+    if (splitDragging) return;
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      readingEl = e.target;
+      activate(e.target.dataset.scene);
+      scheduleAutorun(e.target);
+    });
+  }, { rootMargin: readingMargin() });
+  document.querySelectorAll('[data-scene]').forEach(node => io.observe(node));
+}
+let observeTimer = 0;
+const reobserve = () => { clearTimeout(observeTimer); observeTimer = setTimeout(observe, 150); };
+Split.onDragEnd = observe;
+let lastSize = '';
+new ResizeObserver(() => {
+  layoutStage(); // live re-fit: the run, its objects and captions keep going
+  const size = `${wrap.clientWidth}x${wrap.clientHeight}`;
+  if (size !== lastSize) { lastSize = size; reobserve(); }
+}).observe(wrap);
+new ResizeObserver(layoutStage).observe(legendEl);
+
+function loop() {
+  for (const kit of Object.values(kits)) if (kit.layer && !kit.layer.hidden) kit.frame?.();
+  requestAnimationFrame(loop);
+}
+
+// Verification hooks: for use from Playwright's browser_evaluate.
+//   await window.__explainer.run('s1')   → waits until that scene's action finishes and returns the final caption
+//   window.__explainer.overlaps()         → pairs of currently visible labels that overlap each other
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const frames = (n = 2) => new Promise(r => { const step = k => (k ? requestAnimationFrame(() => step(k - 1)) : r()); step(n); });
+// Labels that are visible to the reader: the active kit's labels, minus those fully under the open caption sheet.
+function visibleLabels() {
+  const kit = activeKit();
+  const sheet = railEl.classList.contains('open') ? railEl.getBoundingClientRect() : null;
+  const covered = r => sheet && r.left >= sheet.left - 0.5 && r.right <= sheet.right + 0.5 && r.top >= sheet.top - 0.5 && r.bottom <= sheet.bottom + 0.5;
+  return (kit?.labels?.() ?? [])
+    .map(node => ({ text: node.textContent, r: node.getBoundingClientRect() }))
+    .filter(b => b.r.width > 0 && !covered(b.r));
+}
+window.__explainer = {
+  scenes: () => Object.keys(scenes),
+  resources: () => activeKit()?.info?.().resources ?? null,
+  lang: () => UI_LANG,                          // language used for screen text (en | ko | ja | zh-CN | override key)
+  current: () => current,                       // name of the scene the stage is showing now
+  autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // Reads the auto-play state. If a value is given, changes it (and saves it) and returns the new state
+  speed: v => (v === undefined ? speed : setSpeed(Number(v))), // Reads the speed. If a value (0.5, 1, 1.5, 2) is given, sets it (and saves it)
+  instant: on => (on === undefined ? INSTANT : setInstant(on)), // Verification mode: every duration and wait is 0. Separate from reduced motion
+  rail: v => (v === undefined || Boolean(v) === railOpen ? railOpen : setRailOpen(v)), // The caption sheet on narrow stages (open: true)
+  azimuth: () => activeKit()?.info?.().azimuth ?? null, // for checking whether the model rotated
+  async run(name) {
+    // In the stacked layout, scroll so the chapter's top sits just below the stage (CSS scroll-margin-top); in the side-by-side layout, scroll it to the center.
+    const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
+    document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center', behavior: INSTANT ? 'instant' : 'smooth' });
+    await sleep(INSTANT ? 250 : 900);
+    await frames();
+    await runScene(name);
+    await sleep(200);
+    await frames(); // the end state has been drawn (and labels decluttered) before the caller measures it
+    return current === name ? lastCaption : '';
+  },
+  overlaps(minArea = 24) {
+    const boxes = visibleLabels();
+    const out = [];
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i].r, b = boxes[j].r;
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (w > 0 && h > 0 && w * h >= minArea) out.push([boxes[i].text, boxes[j].text, Math.round(w * h)]);
+      }
+    }
+    return out;
+  },
+  // Labels outside the model area (the canvas cell minus the caption rail), and '[legend]' when the legend is not fully inside the stage and the window.
+  clipped() {
+    const w = wrap.getBoundingClientRect();
+    const m = { left: w.left + modelRect.x - 0.5, top: w.top + modelRect.y - 0.5, right: w.left + modelRect.x + modelRect.w + 0.5, bottom: w.top + modelRect.y + modelRect.h + 0.5 };
+    const out = visibleLabels().filter(b => b.r.left < m.left || b.r.right > m.right || b.r.top < m.top || b.r.bottom > m.bottom).map(b => b.text);
+    const g = stageEl.getBoundingClientRect(), lg = legendEl.getBoundingClientRect();
+    if (lg.top < g.top - 0.5 || lg.bottom > g.bottom + 0.5 || lg.left < g.left - 0.5 || lg.right > g.right + 0.5 || lg.bottom > innerHeight + 0.5 || lg.right > innerWidth + 0.5) out.push('[legend]');
+    return out;
+  },
+};
+
+// Start: load the kits the scenes use, build every scene, show the first one, render once, then enable the controls.
+const usedKits = [...new Set(Object.values(scenes).map(s => s.kit))];
+for (const name of usedKits) await loadKit(name);
+for (const s of Object.values(scenes)) {
+  const built = kits[s.kit].build(s);
+  if (typeof built?.reset !== 'function' || typeof built?.run !== 'function') throw new Error(`[plz] scene ${s.name}: build must return reset() and run()`);
+  s.built = built;
+}
+const first = Object.keys(scenes)[0];
+Split.apply();
+kits[scenes[first].kit].home?.(scenes[first].built);
+activate(first);
+observe();
+loop();
+setStageState('ready');
+layoutStage();
+} catch (error) {
+  delete window.__explainer;
+  setStageState('failed', error?.uiKey ?? 'loadError');
+  console.error('[plz] stage initialization failed:', error);
+}
+</script>
+</body>
+</html>

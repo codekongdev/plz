@@ -24,6 +24,8 @@ scripts/check-readme-translations.mjs                     translation consistenc
 scripts/check-templates.mjs                               template ENGINE and UI_TEXT consistency check
 scripts/check-templates.test.mjs                          tests for the template check
 scripts/check-3d-loading.test.mjs                         browser regression tests for 3D initialization
+scripts/check-explain-shell.test.mjs                      browser tests for the plz-explain page shell
+scripts/browser-harness.mjs                               shared page server, browser launch, and CDN route for the browser tests
 skills/<skill-name>/
   SKILL.md          instructions the agent follows (frontmatter: name, description)
   README*.md        English README plus ko, ja, and zh-CN translations

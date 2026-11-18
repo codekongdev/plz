@@ -1,55 +1,40 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { createServer } from 'node:http';
-import { createRequire } from 'node:module';
-import { dirname, join, resolve, sep } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { launchBrowser, routeNetwork, startPageServer } from './browser-harness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const threeRoot = dirname(dirname(createRequire(import.meta.url).resolve('three')));
-const cdnPrefix = 'https://cdn.jsdelivr.net/npm/three@0.170.0/';
 const controls = '[data-run], .autorun, .reset-view';
-const pages = [
-  { file: 'template.html', lang: 'en' },
-  { file: 'example-agent-sandbox.html', lang: 'ko' },
-  { file: 'example-agent-sandbox.en.html', lang: 'en' },
+// Both skills share the stage state, failure, retry and cleanup contract. plz-explain loads three.js inside its axo kit.
+// `noticePattern` is what a load-failure notice must mention: plz-3d-explain names the 3D model; the plz-explain shell is kit-agnostic.
+const skills = [
+  { skill: 'plz-3d-explain', noticePattern: /3D/ },
+  { skill: 'plz-explain', noticePattern: /\S{2,}/ },
 ];
+const pages = skills.flatMap(({ skill, noticePattern }) => [
+  { skill, noticePattern, file: 'template.html', lang: 'en' },
+  { skill, noticePattern, file: 'example-agent-sandbox.html', lang: 'ko' },
+  { skill, noticePattern, file: 'example-agent-sandbox.en.html', lang: 'en' },
+]).map(page => ({ ...page, path: `${page.skill}/${page.file}` }));
 let browser, server, origin;
 
 before(async () => {
-  server = createServer(async (req, res) => {
-    const file = new URL(req.url, 'http://localhost').pathname.slice(1);
-    if (!pages.some(page => page.file === file)) {
-      res.writeHead(404).end();
-      return;
-    }
-    try {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(await readFile(join(root, 'skills/plz-3d-explain/assets', file)));
-    } catch (error) {
-      res.destroy(error);
-    }
+  server = await startPageServer(path => {
+    const page = pages.find(entry => entry.path === path);
+    return page ? readFile(join(root, 'skills', page.skill, 'assets', page.file)) : null;
   });
-  await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
-  });
-  origin = `http://127.0.0.1:${server.address().port}`;
-  browser = await chromium.launch({
-    chromiumSandbox: true,
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
-  });
+  origin = server.origin;
+  browser = await launchBrowser();
 }, { timeout: 30_000 });
 
 after(async () => {
   await browser?.close();
-  if (server) await new Promise(resolve => server.close(resolve));
+  await server?.close();
 }, { timeout: 15_000 });
 
-// Serve the pinned npm copy at the real CDN URLs. Browser tests never need the
-// live CDN or web fonts, and every unexpected external request is rejected.
+// three.js comes from the pinned npm copy at the real CDN URLs (see browser-harness.mjs).
 async function openPage(t, file, { viewport = { width: 390, height: 844 }, cdn = () => 'serve', noWebGL = false, reducedMotion = 'reduce' } = {}) {
   const context = await browser.newContext({
     viewport, reducedMotion,
@@ -62,22 +47,7 @@ async function openPage(t, file, { viewport = { width: 390, height: 844 }, cdn =
       return /^webgl/.test(type) ? null : original.call(this, type, ...args);
     };
   });
-  await context.route('**/*', async route => {
-    const url = route.request().url();
-    if (url.startsWith(`${origin}/`)) return route.continue();
-    if (url.startsWith(cdnPrefix)) {
-      if (await cdn(url) === 'abort') return route.abort('failed');
-      const path = resolve(threeRoot, url.slice(cdnPrefix.length));
-      assert.ok(path.startsWith(`${threeRoot}${sep}`), 'CDN route must stay inside the pinned three package');
-      return route.fulfill({
-        contentType: 'application/javascript',
-        headers: { 'Access-Control-Allow-Origin': '*' },
-        body: await readFile(path),
-      });
-    }
-    if (route.request().resourceType() === 'stylesheet') return route.fulfill({ contentType: 'text/css', body: '' });
-    return route.abort('blockedbyclient');
-  });
+  await routeNetwork(context, origin, { cdn });
   const page = await context.newPage();
   page.setDefaultTimeout(15_000);
   const errors = [];
@@ -97,14 +67,14 @@ async function assertControls(page, disabled) {
   assert.ok(actual.every(value => value === disabled), `all 3D controls should be ${disabled ? 'disabled' : 'enabled'}`);
 }
 
-async function assertFailure(page, lang, { webgl = false } = {}) {
+async function assertFailure(page, lang, { webgl = false, noticePattern = /3D/ } = {}) {
   await state(page, 'failed');
   await assertControls(page, true);
   assert.equal(await page.evaluate(() => typeof window.__explainer), 'undefined');
   assert.ok(await page.locator('.fallback').isVisible());
   const message = page.locator(`.fallback [data-ui="${webgl ? 'fallback' : 'loadError'}"]`);
   assert.ok(await message.isVisible());
-  assert.match(await message.innerText(), /3D/);
+  assert.match(await message.innerText(), webgl ? /3D/ : noticePattern);
   const retry = page.locator('.retry-load');
   assert.ok(await retry.isVisible());
   assert.ok(await retry.isEnabled());
@@ -117,7 +87,7 @@ async function assertFailure(page, lang, { webgl = false } = {}) {
   }
 }
 
-for (const { file, lang } of pages) {
+for (const { path: file, lang, noticePattern } of pages) {
   test(`${file}: loading remains readable with disabled controls until CDN modules arrive`, async t => {
     let release;
     const pending = new Promise(resolve => { release = resolve; });
@@ -160,7 +130,7 @@ for (const { file, lang } of pages) {
   test(`${file}: CDN failure offers localized retry and recovers after reload`, async t => {
     let blocked = true;
     const { page, errors } = await openPage(t, file, { cdn: () => blocked ? 'abort' : 'serve' });
-    await assertFailure(page, lang);
+    await assertFailure(page, lang, { noticePattern });
     assert.equal(await page.locator('canvas').count(), 0);
     blocked = false;
     await page.locator('.retry-load').click();
@@ -175,7 +145,7 @@ for (const { file, lang } of pages) {
     for (const addon of ['controls/OrbitControls.js', 'renderers/CSS2DRenderer.js']) {
       await t.test(addon, async t => {
         const { page, errors } = await openPage(t, file, { cdn: url => url.endsWith(addon) ? 'abort' : 'serve' });
-        await assertFailure(page, lang);
+        await assertFailure(page, lang, { noticePattern });
         assert.equal(await page.locator('canvas').count(), 0);
         assert.deepEqual(errors, []);
       });
@@ -186,7 +156,7 @@ for (const { file, lang } of pages) {
     for (const viewport of [{ width: 390, height: 844 }, { width: 360, height: 800 }, { width: 844, height: 390 }]) {
       await t.test(`${viewport.width}×${viewport.height}`, async t => {
         const { page } = await openPage(t, file, { viewport, cdn: () => 'abort' });
-        await assertFailure(page, lang);
+        await assertFailure(page, lang, { noticePattern });
         const layout = await page.evaluate(() => {
           const stage = document.querySelector('.stage');
           const notice = document.querySelector('.fallback').getBoundingClientRect();
@@ -217,6 +187,8 @@ for (const { file, lang } of pages) {
     await state(page, 'ready');
     const result = await page.evaluate(async () => {
       const api = window.__explainer;
+      // plz-explain keeps step timing under reduced motion; its verification instant mode is the fast equivalent.
+      api.instant?.(true);
       const name = api.scenes().includes('kernel') ? 'kernel' : 's2';
       await api.run(name); // Warm renderer allocations and persistent label state first.
       const baseline = api.resources();
@@ -245,12 +217,13 @@ for (const { file, lang } of pages) {
       await api.run(name);
       return { name, next: api.scenes()[0], baseline: api.resources() };
     });
-    await page.locator(`[data-run="${setup.name}"]`).click();
+    // dispatchEvent clicks without scrolling, so no other chapter crosses the reading line and uploads its geometry.
+    await page.locator(`[data-run="${setup.name}"]`).dispatchEvent('click');
     await page.waitForFunction(baseline => {
       const resources = window.__explainer.resources();
       return resources.labels > baseline.labels || resources.geometries > baseline.geometries;
     }, setup.baseline);
-    await page.locator(`[data-run="${setup.next}"]`).click();
+    await page.locator(`[data-run="${setup.next}"]`).dispatchEvent('click');
     await page.waitForFunction(name => window.__explainer.current() === name, setup.next);
     const resources = await page.evaluate(async () => {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -264,7 +237,7 @@ for (const { file, lang } of pages) {
 
   test(`${file}: WebGL initialization failure keeps text and recovery available`, async t => {
     const { page, errors } = await openPage(t, file, { noWebGL: true });
-    await assertFailure(page, lang, { webgl: true });
+    await assertFailure(page, lang, { webgl: true, noticePattern });
     assert.deepEqual(errors, []);
   });
 }
