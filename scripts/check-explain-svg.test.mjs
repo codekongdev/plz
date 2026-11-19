@@ -12,11 +12,14 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const assets = join(root, 'skills/plz-explain/assets');
 const DESKTOP = { width: 1440, height: 900 };
 // Shipped example pages drawn only by the svg kit.
-const SVG_EXAMPLES = ['example-hash-join-sip.html', 'example-hash-join-sip.en.html'];
+const SVG_EXAMPLES = ['example-hash-join-sip.html', 'example-hash-join-sip.en.html', 'example-lost-update.html', 'example-lost-update.en.html'];
+// The chapters of each svg example, in order.
+const EXAMPLE_SCENES = { 'hash-join-sip': ['plan', 'build', 'sip', 'compare', 'nodes'], 'lost-update': ['serial', 'lost', 'lock', 'version', 'compare'] };
 let browser, server, origin;
 
 // Scenes that use every svg part: a row-level step diagram with a filter (s1), side-by-side panels fed by one trigger (s2),
 // and an operator tree next to node columns (s3).
+const LANE_CHAPTERS = { extra: ['s4', 's5'] }; // SVG_SCENES has two lanes chapters after the template's three
 const SVG_SCENES = `
 const KEYS = [8, 17, 23, 31, 42, 56], IN = [17, 42], HIT = KEYS.map(k => IN.includes(k));
 defineScene('s1', {
@@ -132,6 +135,68 @@ defineScene('s3', {
     };
   },
 });
+// Lanes: two sessions and the row they share, time running down. A locks the row; B waits until A commits.
+defineScene('s4', {
+  kit: 'svg',
+  title: '4  Two sessions, one row',
+  build(d) {
+    const L = d.lanes([{ id: 'a', name: 'Session A', tone: 'bound' }, { id: 'row', name: 'accounts id 1', resource: true }, { id: 'b', name: 'Session B', tone: 'matter' }], { steps: 6 });
+    L.event('row', 0, '100');
+    const lockA = L.event('a', 1, 'SELECT … FOR UPDATE', { short: 'lock, read' });
+    L.message('row', 'a', 1);
+    L.span('a', 1, 4, 'lock');
+    const askB = L.event('b', 2, 'SELECT … FOR UPDATE', { short: 'lock?' });
+    const band = L.span('b', 2, 4, 'wait');
+    L.event('a', 3, 'UPDATE … SET balance = 120', { short: 'write 120' });
+    L.message('a', 'row', 3);
+    L.event('row', 3, '120');
+    L.event('a', 4, 'COMMIT', { state: 'commit' });
+    const readB = L.event('b', 5, 'reads 120', { mono: false });
+    L.message('row', 'b', 5);
+    L.event('b', 6, 'UPDATE … SET balance = 150', { short: 'write 150' });
+    L.message('b', 'row', 6);
+    const last = L.event('row', 6, '150', { tone: 'actor' });
+    window.__lanes = { L, band, askB, readB, last };
+    return {
+      diagram: L,
+      async run(a, say) {
+        await a.play(L, 2);
+        window.__lanes.mid = { now: L.now, wait: +band.g.querySelector('rect').getAttribute('height'), row: L.rowH() };
+        say('1. A locked the row; B asked for the lock and waits.', { anchor: askB });
+        await a.play(L, 4);
+        window.__lanes.atCommit = { wait: +band.g.querySelector('rect').getAttribute('height') };
+        say('2. A wrote 120 and committed; the lock is released.');
+        await a.play(L, 6);
+        say('3. B read 120 and wrote 150.', { anchor: last });
+      },
+    };
+  },
+});
+// Lanes inside panels: the same schedule under two rules.
+defineScene('s5', {
+  kit: 'svg',
+  title: '5  Same schedule, two rules',
+  build(d) {
+    const side = lock => {
+      const L = d.lanes([{ id: 'a', name: 'A', tone: 'bound' }, { id: 'row', name: 'row', resource: true }, { id: 'b', name: 'B', tone: 'matter' }], { steps: 4, axis: false });
+      L.event('row', 0, '100');
+      L.event('a', 1, 'read 100', { short: 'r 100' }); L.event('b', 2, lock ? 'wait' : 'read 100', { short: lock ? 'wait' : 'r 100' });
+      if (lock) L.span('b', 2, 3, 'wait');
+      L.event('a', 3, 'write 120', { short: 'w 120' }); L.message('a', 'row', 3); L.event('row', 3, '120');
+      L.event('b', 4, lock ? 'write 150' : 'write 130', { short: lock ? 'w 150' : 'w 130' }); L.message('b', 'row', 4); L.event('row', 4, lock ? '150' : '130', { tone: lock ? '' : 'actor' });
+      return L;
+    };
+    const plain = side(false), locked = side(true);
+    window.__lanesBuilder = d; // for the error checks (calls after build only throw; they draw nothing that is shown)
+    return {
+      diagram: d.panels([{ title: 'No lock', body: plain }, { title: 'FOR UPDATE', body: locked }]),
+      async run(a, say) {
+        await Promise.all([a.play(plain, 4), a.play(locked, 4)]);
+        say('Without a lock, 120 is lost; with it, B writes 150.');
+      },
+    };
+  },
+});
 `;
 
 // Long Korean text in every framed label: counters, tally, gate chip, link label, lane text.
@@ -239,6 +304,29 @@ function withOverrides(source, lang, strings) {
   assert.ok(out.includes(`<html lang="${lang}">`) && out.includes(`${lang}: {`), 'override fixture');
   return out;
 }
+// Lanes edge cases: two resource lanes (a lock bar faces the nearest one), a message that arrives two steps later,
+// and compact lanes (axis: false) whose playhead marker must stay inside the part.
+const LANES_EXTRA = `
+defineScene('s1', { kit: 'svg', title: '1  Lanes edge cases', build(d) {
+  const L = d.lanes([{ id: 'q', name: 'queue', resource: true }, { id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'row', name: 'row', resource: true }], { steps: 4 });
+  L.event('a', 1, 'take'); L.event('b', 1, 'hold');
+  L.span('a', 1, 3, 'lock'); L.span('b', 1, 3, 'lock');
+  L.event('a', 2, 'send'); L.event('b', 2, 'work');
+  const late = L.message('a', 'q', 2, { toStep: 4 });
+  L.event('a', 3, 'done'); L.event('b', 3, 'done'); L.event('q', 4, 'got');
+  const C = d.lanes([{ id: 'a', name: 'A' }, { id: 'r', name: 'r', resource: true }, { id: 'b', name: 'B' }], { steps: 2, axis: false });
+  C.event('a', 1, 'x'); C.event('b', 2, 'y');
+  const tip = () => { const m = /L([0-9.-]+),([0-9.-]+)$/.exec(late.path.getAttribute('d') ?? ''); return m ? +m[2] : null; };
+  window.__x = { L, C, late, tip };
+  return { diagram: d.stack([L, C], { dir: 'col' }), async run(a, say) {
+    await a.play(L, 2);
+    window.__x.mid = { tip: tip(), y2: L.yOf(2) };
+    await a.play(L, 4);
+    await a.play(C, 2);
+    say('Done.');
+  } };
+} });
+`;
 const BAD_GATE = `
 defineScene('s1', { kit: 'svg', title: '1', build(d) { const b = d.box({ title: 'Join', lanes: 2 }); const t = d.table({ title: 'T', keys: [1, 2] }); d.gate(t, { label: 'F' }); return { diagram: d.grid([[b, t]]), async run() {} }; } });
 `;
@@ -249,8 +337,8 @@ defineScene('s1', { kit: 'svg', title: '1', build(d) { const t = d.table({ title
 before(async () => {
   const tpl = await readFile(join(assets, 'template.html'), 'utf8');
   const variants = {
-    'variant-svg-only.html': variantWithScenes(tpl, SVG_SCENES, 'svg'),
-    ...Object.fromEntries(['ko', 'ja', 'zh-CN'].map(lang => [`variant-svg-only.${lang}.html`, variantWithScenes(tpl, SVG_SCENES, 'svg').replace('<html lang="en">', `<html lang="${lang}">`)])),
+    'variant-svg-only.html': variantWithScenes(tpl, SVG_SCENES, 'svg', LANE_CHAPTERS),
+    ...Object.fromEntries(['ko', 'ja', 'zh-CN'].map(lang => [`variant-svg-only.${lang}.html`, variantWithScenes(tpl, SVG_SCENES, 'svg', LANE_CHAPTERS).replace('<html lang="en">', `<html lang="${lang}">`)])),
     'variant-svg-ko.html': variantWithScenes(tpl, KO_SCENES, 'svg').replace('<html lang="en">', '<html lang="ko">'),
     'variant-svg-bad-gate.html': variantWithScenes(tpl, BAD_GATE, 'svg'),
     'variant-svg-narrow.html': variantWithScenes(tpl, NARROW_SCENES, 'svg'),
@@ -266,11 +354,12 @@ before(async () => {
     // Older-style SCENES that use axo globals at the top level, on a page without axo.
     'variant-axo-toplevel.html': withoutKit(variantWithScenes(tpl, AXO_TOPLEVEL, 'svg'), 'axo'),
     // A page in a language outside the built-in ones, with its own note strings.
-    'variant-es-svg.html': withOverrides(variantWithScenes(tpl, SVG_SCENES, 'svg'), 'es', ES_NOTES),
-    'variant-es-svg-steps.html': withOverrides(variantWithScenes(tpl, SVG_SCENES, 'svg'), 'es', { ...ES_NOTES, noteSteps: 'ES pasos' }),
+    'variant-es-svg.html': withOverrides(variantWithScenes(tpl, SVG_SCENES, 'svg', LANE_CHAPTERS), 'es', ES_NOTES),
+    'variant-es-svg-steps.html': withOverrides(variantWithScenes(tpl, SVG_SCENES, 'svg', LANE_CHAPTERS), 'es', { ...ES_NOTES, noteSteps: 'ES pasos' }),
     'variant-es-mixed.html': withOverrides(tpl, 'es', ES_NOTES),
     // data-kits lists a kit no scene uses.
-    'variant-unused-kit.html': variantWithScenes(tpl, SVG_SCENES, 'axo svg'),
+    'variant-unused-kit.html': variantWithScenes(tpl, SVG_SCENES, 'axo svg', LANE_CHAPTERS),
+    'variant-lanes-extra.html': variantWithScenes(tpl, LANES_EXTRA, 'svg'),
   };
   server = await startPageServer(path => variants[path] ?? (['template.html', 'example-agent-sandbox.en.html', ...SVG_EXAMPLES].includes(path) ? readFile(join(assets, path)) : null));
   origin = server.origin;
@@ -371,8 +460,15 @@ test('svg timing: speed scales the run, and reduced motion keeps captions arrivi
   assert.ok(Math.abs(x1.timing.scaled / x2.timing.scaled - 2) < 0.02, `2× halves the schedule (${x1.timing.scaled} / ${x2.timing.scaled})`);
   assert.ok(x1.firstToLast > x2.firstToLast * 1.1, `2× is also faster on the wall clock (${x1.firstToLast} / ${x2.firstToLast} ms)`);
   assert.equal(x2.text, x1.text);
+  await page.evaluate(() => window.__explainer.instant(true));
+  await page.evaluate(() => window.__explainer.run('s4'));
+  const lanesInstant = await laneState(page);
   await close();
   const reduced = await openPage(t, 'variant-svg-only.html', { reducedMotion: 'reduce' });
+  await reduced.page.evaluate(() => window.__explainer.speed(2));
+  await reduced.page.evaluate(() => window.__explainer.run('s4'));
+  assert.equal(await laneState(reduced.page), lanesInstant, 'lanes: reduced motion reaches the instant end state');
+  await reduced.page.evaluate(() => window.__explainer.speed(1));
   const r = await stampRun(reduced.page, 's1', 1);
   assert.equal(r.text, x1.text);
   assert.ok(r.timing.scaled >= r.timing.base * 0.99, `reduced motion keeps every step's time (${JSON.stringify(r.timing)})`);
@@ -668,7 +764,7 @@ for (const file of SVG_EXAMPLES) {
     const { page, errors, threeRequests } = await openPage(t, file);
     await page.evaluate(() => window.__explainer.instant(true));
     const scenes = await page.evaluate(() => window.__explainer.scenes());
-    assert.deepEqual(scenes, ['plan', 'build', 'sip', 'compare', 'nodes']);
+    assert.deepEqual(scenes, EXAMPLE_SCENES[/^example-(.+?)(\.en)?\.html$/.exec(file)[1]]);
     for (const n of scenes) assert.ok((await page.evaluate(n => window.__explainer.run(n), n)).length > 0, n);
     assert.deepEqual(threeRequests, []);
     assert.equal(await page.locator('.hint').isVisible(), false);
@@ -865,4 +961,146 @@ test('the intro note is decided once, from data-kits, before any kit loads (and 
   const before = await noteTexts(held.page);
   assert.ok(before.every(n => /3D/.test(n)), `the mixed note while three.js is still loading: ${JSON.stringify(before)}`);
   await held.close();
+});
+
+// ---- Lanes (time-axis swimlanes) ----
+// The visible state of the lanes scene: playhead, item classes and opacity, span heights, message paths.
+const LANE_STATE = () => {
+  const L = window.__lanes.L, root = L.g;
+  return JSON.stringify({
+    now: L.now,
+    playhead: root.querySelector('.playhead line')?.getAttribute('y1'),
+    items: [...root.querySelectorAll('[data-step]')].map(n => `${n.getAttribute('class')}|${n.style.opacity}`),
+    spans: [...root.querySelectorAll('.lspan rect')].map(r => r.getAttribute('height')),
+    msgs: [...root.querySelectorAll('.lmsg path')].map(p => p.getAttribute('d')),
+  });
+};
+const laneState = page => page.evaluate(LANE_STATE);
+
+test('lanes: the playhead advances and leaves a trace, the waiting band grows then stops, reset restores the start, and a mid-run drag keeps the layout', { timeout: 90_000 }, async t => {
+  const { page, errors } = await openPage(t, 'variant-svg-only.html');
+  await page.evaluate(() => window.__explainer.run('s3')); // leave s4 untouched until it is the active chapter
+  await page.evaluate(() => document.querySelector('[data-scene="s4"]').scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForFunction(() => window.__explainer.current() === 's4');
+  const fresh = await laneState(page);
+  const start = JSON.parse(fresh);
+  assert.equal(start.now, 0);
+  assert.ok(start.items.filter(i => i.endsWith('|0')).length >= 10, 'every item after the start row is hidden before the run');
+  assert.ok(start.spans.every(h => +h === 0), `no span drawn before the run: ${start.spans}`);
+  await page.evaluate(() => window.__explainer.instant(true));
+  const text = await page.evaluate(() => window.__explainer.run('s4'));
+  assert.equal(text, '3. B read 120 and wrote 150.');
+  const end = JSON.parse(await laneState(page));
+  const probe = await page.evaluate(() => ({ mid: window.__lanes.mid, atCommit: window.__lanes.atCommit, y6: window.__lanes.L.yOf(6) }));
+  assert.equal(probe.mid.now, 2);
+  assert.ok(Math.abs(probe.mid.wait - probe.mid.row) < 1, `the waiting band covers its first step: ${JSON.stringify(probe)}`);
+  assert.ok(Math.abs(probe.atCommit.wait - 3 * probe.mid.row) < 1, `the band reaches its end step: ${JSON.stringify(probe)}`);
+  assert.equal(end.now, 6);
+  assert.ok(Math.abs(+end.playhead - probe.y6) < 0.5, 'the playhead stands at the last step');
+  assert.ok(end.items.every(i => !i.endsWith('|0')), `every passed item stays visible (static trace): ${end.items.filter(i => i.endsWith('|0'))}`);
+  assert.equal(+end.spans[1], +probe.atCommit.wait, 'the waiting band stopped at its end step');
+  const resource = await page.evaluate(() => [...window.__lanes.L.g.querySelectorAll('.lane.res [data-step]')].map(n => n.getAttribute('class')));
+  assert.ok(resource.slice(0, -1).every(c => /\bold\b/.test(c)) && !/\bold\b/.test(resource.at(-1)), `older values of the row are dimmed: ${resource}`);
+  assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+  // A value that is both old and lost is red (lost wins over old).
+  const fills = await page.evaluate(() => {
+    const v = window.__lanes.L.g.querySelector('.lane.res [data-step="3"]');
+    v.classList.add('lost');
+    const ref = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    ref.style.fill = 'var(--actor-ink)'; v.appendChild(ref);
+    const out = { lost: getComputedStyle(v.querySelector('text')).fill, actor: getComputedStyle(ref).fill, old: v.classList.contains('old') };
+    ref.remove(); v.classList.remove('lost');
+    return out;
+  });
+  assert.ok(fills.old && fills.lost === fills.actor, `an old, lost value is drawn in the actor ink: ${JSON.stringify(fills)}`);
+  // Lane widths follow the measured text: each lane is as wide as its widest text needs (header or card), not wider.
+  const fitWidths = await page.evaluate(() => [...window.__lanes.L.g.querySelectorAll('.lane')].map(lane => {
+    const w = +lane.querySelector('.lanebg').getAttribute('width');
+    const head = lane.querySelector(':scope > text').getComputedTextLength() + 16;
+    const bar = lane.querySelector('.lspan.lock') ? 4 : 0; // room for the lock bar
+    const cards = [...lane.querySelectorAll('.lev')].map(e => e.querySelector('text').getComputedTextLength() + 16 + 12 + bar);
+    return { w, need: Math.max(64, head, ...cards) };
+  }));
+  assert.ok(fitWidths.every(l => Math.abs(l.w - l.need) < 2.5), `lane widths: ${JSON.stringify(fitWidths)}`);
+  // A stage too narrow for the full text: the lanes switch to the short texts, and the kit centres what is drawn.
+  await page.focus('.split-v'); await page.keyboard.press('End'); await nextFrames(page);
+  for (const name of ['s4', 's5']) {
+    await page.evaluate(n => window.__explainer.run(n), name);
+    const c = await centreX(page);
+    assert.ok(Math.abs(c.diagram - c.stage) < 3, `${name} on a narrow stage is centred: ${JSON.stringify(c)}`);
+  }
+  await page.dblclick('.split-v'); await nextFrames(page); // back to the default split
+  await page.evaluate(() => window.__explainer.run('s4')); // still instant: the rail has captions again
+  // A new run starts from the reset state, captured when reset clears the rail.
+  await page.evaluate(() => window.__explainer.instant(false));
+  const atReset = await page.evaluate(async src => {
+    const state = new Function(`return (${src})()`), list = document.querySelector('.rail-list');
+    let snap = null;
+    const mo = new MutationObserver(() => { if (snap === null && list.children.length === 0) snap = state(); });
+    mo.observe(list, { childList: true });
+    window.__explainer.speed(2);
+    window.__run = window.__explainer.run('s4');
+    for (let i = 0; i < 100 && snap === null; i++) await new Promise(r => setTimeout(r, 30));
+    mo.disconnect();
+    return snap;
+  }, LANE_STATE.toString());
+  assert.equal(atReset, fresh, 'reset puts the playhead back and hides every passed step');
+  // Drag the split while the run is going: the run completes and the lanes follow the new layout.
+  await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length >= 1);
+  const h = await page.$eval('.split-v', el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: innerHeight / 2 }; });
+  await page.mouse.move(h.x, h.y); await page.mouse.down();
+  for (let i = 1; i <= 6; i++) { await page.mouse.move(h.x - i * 15, h.y); await sleep(60); }
+  await page.mouse.up();
+  assert.equal(await page.evaluate(() => window.__run), text);
+  const after = await page.evaluate(() => ({ y: +window.__lanes.L.g.querySelector('.playhead line').getAttribute('y1'), y6: window.__lanes.L.yOf(6) }));
+  assert.ok(Math.abs(after.y - after.y6) < 0.5, `the playhead follows the relayout: ${JSON.stringify(after)}`);
+  assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+  await page.evaluate(() => window.__explainer.speed(1));
+  assert.deepEqual(errors, []);
+});
+
+test('lanes: a bad lane id, step or lane count fails with a clear error', async t => {
+  const { page, errors, close } = await openPage(t, 'variant-svg-only.html');
+  const msgs = await page.evaluate(() => {
+    const out = [];
+    const d = window.__lanesBuilder;
+    for (const f of [
+      () => d.lanes([{ id: 'a', name: 'A' }], { steps: 3 }),
+      () => d.lanes([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], { steps: 0 }),
+      () => { const L = d.lanes([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], { steps: 3 }); L.event('c', 1, 'x'); },
+      () => { const L = d.lanes([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], { steps: 3 }); L.event('a', 4, 'x'); },
+      () => { const L = d.lanes([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], { steps: 3 }); L.span('a', 3, 2, 'wait'); },
+      () => { const L = d.lanes([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], { steps: 3 }); L.span('a', 1, 2, 'sleep'); },
+    ]) { try { f(); out.push('no error'); } catch (e) { out.push(e.message); } }
+    return out;
+  });
+  assert.ok(msgs.every(m => /^\[plz\] lanes/.test(m)), JSON.stringify(msgs));
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('lanes on a phone: lock bars face the nearest resource lane and stay visible, a late message follows the playhead, and compact lanes keep the playhead marker inside', async t => {
+  const { page, errors, close } = await openPage(t, 'variant-lanes-extra.html', { viewport: { width: 390, height: 844 } });
+  await page.evaluate(() => window.__explainer.instant(true));
+  await page.evaluate(() => window.__explainer.run('s1'));
+  const r = await page.evaluate(() => {
+    const { L, C, mid, tip } = window.__x, box = n => n.getBBox();
+    const lanes = [...L.g.querySelectorAll('.lane')].map(lane => {
+      const bg = box(lane.querySelector('.lanebg')), bar = lane.querySelector('.lspan.lock rect');
+      if (!bar) return null;
+      const b = box(bar), cards = [...lane.querySelectorAll('.lev rect')].map(box);
+      const covered = cards.some(c => Math.min(c.x + c.width, b.x + b.width) - Math.max(c.x, b.x) > 0.5 && Math.min(c.y + c.height, b.y + b.height) - Math.max(c.y, b.y) > 0.5);
+      return { side: b.x + b.width / 2 < bg.x + bg.width / 2 ? 'left' : 'right', covered };
+    }).filter(Boolean);
+    const mark = box(C.g.querySelector('.playhead path'));
+    return { lanes, mid, endTip: tip(), y3: L.yOf(3), y4: L.yOf(4), mark: mark.x, cx: C.box.x };
+  });
+  assert.deepEqual(r.lanes.map(l => l.side), ['left', 'right'], `each lock bar faces its nearest resource lane: ${JSON.stringify(r.lanes)}`);
+  assert.ok(r.lanes.every(l => !l.covered), `no lock bar is under a card: ${JSON.stringify(r.lanes)}`);
+  assert.ok(r.mid.tip === null || r.mid.tip <= r.mid.y2 + 0.5, `a late message is not ahead of the playhead: ${JSON.stringify(r.mid)}`);
+  assert.ok(r.endTip > r.y3 && r.endTip < r.y4, `the late message arrives in its last step: ${JSON.stringify(r)}`);
+  assert.ok(r.mark >= r.cx - 0.5, `the playhead marker of compact lanes is inside the part: ${JSON.stringify(r)}`);
+  assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+  assert.deepEqual(errors, []);
+  await close();
 });

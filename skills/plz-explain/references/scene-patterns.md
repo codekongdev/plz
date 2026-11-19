@@ -14,7 +14,7 @@ engine-api.md). Put one-shot objects in `temporaryGroup()` and use `disposeObjec
 - When it is not obvious which object a step is about, add `{ anchor: obj }`: the same number appears in a badge next to that object. Check `overlaps()` afterwards, because the badge is a label too.
 - Leave the result visible at the end (a held `flash`, a changed label, an object that stays) rather than letting everything return to the start.
 
-The example chapters of patterns 1–9 are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters); patterns 10–14 point at `assets/example-hash-join-sip.html` (hash join and SIP, 5 chapters, svg kit only; English: `example-hash-join-sip.en.html`). The same example exists in English as `assets/example-agent-sandbox.en.html`; look at that one when building an English page.
+The example chapters of patterns 1–9 are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters); patterns 10–14 point at `assets/example-hash-join-sip.html` (hash join and SIP, 5 chapters, svg kit only), and pattern 15 at `assets/example-lost-update.html` (two sessions and one row, 5 chapters, svg kit only). Every example has an English counterpart beside it, with the same name ending in `.en.html` (for example `assets/example-lost-update.en.html`); look at that one when building an English page.
 
 | Shape of the concept | Pattern | Example chapter (example-agent-sandbox) |
 |---|---|---|
@@ -32,6 +32,7 @@ The example chapters of patterns 1–9 are the chapter numbers of `assets/exampl
 | The same input with an option off and on (svg) | 12. Side-by-side panels | `example-hash-join-sip.html` chapter 4 |
 | A plan of operators with counts per step (svg) | 13. Operator tree | `example-hash-join-sip.html` chapter 1 |
 | Rows spread over several nodes or servers (svg) | 14. Node columns | `example-hash-join-sip.html` chapter 5 |
+| A few actors whose relative timing decides the outcome (svg) | 15. Lanes | `example-lost-update.html` chapters 1–4; two rules side by side: chapter 5 |
 
 ## 1. Layers
 
@@ -280,3 +281,26 @@ await a.groups(rows, (t, i) => a.along(t, [nodes.col(0).slot(i), nodes.col(owner
 ```
 
 Move a few representative rows (3–4) one by one and show the rest as a count. When rows leave a column, leave a faint copy behind (`d.token(k, from).g.style.opacity = 0.3`) so the end state still shows where they started.
+
+## 15. Lanes
+
+Two to five actors side by side, time running down, the shared resource between them. Use it when the order of a few actors' actions decides the outcome: two sessions writing one row, a lock wait, a retry, a handshake.
+
+```js
+const LANES = () => [{ id: 'a', name: 'Session A' }, { id: 'row', name: 'accounts · id 1', short: 'id 1', resource: true }, { id: 'b', name: 'Session B' }];
+const L = d.lanes(LANES(), { steps: 6 });
+L.event('row', 0, '100');
+L.event('a', 1, 'SELECT balance → 100', { short: 'read 100' }); L.message('row', 'a', 1);
+L.event('b', 2, 'SELECT balance → 100', { short: 'read 100' }); L.message('row', 'b', 2);
+L.event('a', 3, 'UPDATE … SET balance = 120', { short: 'write 120' }); L.message('a', 'row', 3);
+const v120 = L.event('row', 3, '120');
+// run: a few steps per caption; mark what was lost in its own step
+await a.play(L, 2); say('1. A and B both read 100.');
+await a.play(L, 5); say('3. B wrote 130.'); await a.wait(600);
+v120.mark('lost'); say('4. A\'s 120 is gone.', { anchor: v120 });
+```
+
+- Give every event a short form of about 8 characters (phones show it, and narrow desktop stages too). Keep the full text to one statement; put the complete SQL in the body's `pre.code`.
+- A step is a moment both lanes share. Put two actors in the same step only when they really act at the same time.
+- Show a blocked actor with `L.span(id, from, to, 'wait')` and the holder with `'lock'` on the same steps, so the reader sees who waits for whom.
+- Same schedule under two rules: two lanes diagrams in `d.panels` with `axis: false`, played with `Promise.all([a.play(x, n), a.play(y, n)])`. Three panels of lanes do not fit a stage; compare the third rule in the body's summary table.

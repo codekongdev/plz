@@ -64,7 +64,8 @@ export const sleep = ms => new Promise(r => setTimeout(r, ms));
 export const TEMPLATE_KITS = 'axo svg';
 
 // The template with its SCENES code replaced by `code` (banner comments kept) and the stage's data-kits set to `kits`.
-export function variantWithScenes(templateSource, code, kits = TEMPLATE_KITS) {
+// extra: names of more chapters to add after the template's s3 chapter (copies of it), for scenes beyond s3.
+export function variantWithScenes(templateSource, code, kits = TEMPLATE_KITS, { extra = [] } = {}) {
   const lines = templateSource.split('\n');
   const scenes = lines.findIndex(l => /^SCENES\b/.test(l.trim()));
   const cont = lines.findIndex(l => /^ENGINE \(/.test(l.trim()));
@@ -73,7 +74,12 @@ export function variantWithScenes(templateSource, code, kits = TEMPLATE_KITS) {
   const out = [...lines.slice(0, start), code, ...lines.slice(cont - 1)].join('\n'); // cont - 1: the "/* ====" line of the continued banner
   const attr = `data-kits="${TEMPLATE_KITS}"`;
   assert.ok(out.includes(attr), `the template declares ${attr} on the stage`);
-  return out.replace(attr, `data-kits="${kits}"`);
+  const s3 = /\n    <section class="chapter" data-scene="s3">[\s\S]*?<\/section>\n/.exec(out);
+  assert.ok(!extra.length || s3, 'the template has an s3 chapter to copy');
+  const copies = extra.map((name, i) => s3[0]
+    .replace(/(data-(?:scene|run))="s3"/g, (_, a) => `${a}="${name}"`)
+    .replace('<span class="n">3</span>', () => `<span class="n">${4 + i}</span>`)).join('');
+  return (extra.length ? out.replace(s3[0], () => s3[0] + copies) : out).replace(attr, () => `data-kits="${kits}"`);
 }
 
 // Open a plz-explain page in a fresh context. Phones get a mobile, touch, 3× context. Console errors and page errors are collected.

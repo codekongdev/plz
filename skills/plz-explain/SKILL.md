@@ -34,7 +34,8 @@ of the explanation, not decoration. Motion carries only the change being learned
 - Finished examples:
   - `assets/example-agent-sandbox.html` (axo kit): how AI-agent code sandboxes isolate code, 10 chapters.
   - `assets/example-hash-join-sip.html` (svg kit): hash join and SIP, 5 chapters. It covers the operator tree, step diagrams with a filter, side-by-side panels and node columns.
-  - Both exist in English (`*.en.html`); look at that version when building an English page. When you need a similar scene, look in these files first.
+  - `assets/example-lost-update.html` (svg kit): two sessions writing one row (lost update, row lock, version check), 5 chapters of time lanes.
+  - Every example has an English counterpart beside it, with the same name ending in `.en.html` (`example-agent-sandbox.en.html`, `example-hash-join-sip.en.html`, `example-lost-update.en.html`); look at that one when building an English page. When you need a similar scene, look in these files first.
 
 ## Page structure: shell and kits
 
@@ -43,7 +44,7 @@ The page has two layers of engine code. Neither is edited when building a page.
 - **The shell** owns the layout, chapter switching, HUD, caption rail, speed menu, split, auto-play, timing (the director), and verification hooks. It does not draw anything.
 - **A kit** draws the stage. Each scene names its kit with `kit:` (default `'axo'`). There are two:
   - `axo`: a three.js axonometric model of white blocks with ink outlines.
-  - `svg`: a 2D step diagram (tables of rows with keys, hash buckets, operator boxes with lanes, filters, operator trees, node columns), with no library.
+  - `svg`: a 2D step diagram (tables of rows with keys, hash buckets, operator boxes with lanes, filters, operator trees, node columns, time-axis swimlanes), with no library.
 - The stage lists the kits the page uses in `data-kits` on `aside.stage`: the template has `axo svg`; use `svg` alone when there is no axo chapter, so three.js is never downloaded.
 - Each kit's code and styles sit in their own sections of the template, marked `KIT <kit> css` / `KIT <kit> js` … `END KIT <kit> …`. A page keeps only the sections of the kits it uses (see "Build from the template").
 
@@ -52,6 +53,7 @@ The page has two layers of engine code. Neither is edited when building a page.
 Decide by where the information lives.
 
 - **svg** when the lesson is about values and order: which row, key, or request goes where, in what order, and what is dropped or matched (joins, filters, hashing, queues, routing rows to nodes, a query plan with counts). Removing a third dimension loses nothing here, and 2D keeps every key readable without rotating.
+- **svg lanes** (`d.lanes`) when the relative timing of a few actors (2–5) decides the outcome: races, isolation anomalies, lock waits, retries, handshakes. One column per actor, time running down, a playhead marking "now". Not for one actor (a step diagram) or hundreds (a simulation).
 - **axo** when depth or containment is the concept: layers on layers, rooms inside a boundary, what sits under what (kernels, sandboxes, VMs, network zones).
 - A page may mix them; each chapter uses one kit. Keep the three semantic colors and the same labels for the same thing in both kits.
 

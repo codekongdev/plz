@@ -346,6 +346,26 @@
   .svg-stage .tok.hit text { fill: #fff; }
   .svg-stage .tok.active .halo { opacity: 1; }
   .svg-stage .tok.active .b { stroke: var(--ink); stroke-width: 2; }
+  /* Lanes: columns per actor, time down; a resource lane is brass-tinted. */
+  .svg-stage .lane .lanebg { fill: rgba(47, 111, 178, 0.035); stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .svg-stage .lane.res .lanebg { fill: rgba(196, 146, 31, 0.07); stroke: var(--matter); stroke-opacity: .55; }
+  .svg-stage .lane .lhead { fill: #fff; stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .svg-stage .lev rect { fill: #fff; stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; transition: stroke .15s, stroke-width .15s; }
+  .svg-stage .lev.val text { font-weight: 600; }
+  .svg-stage .lev.t-actor rect { stroke: var(--actor); }
+  .svg-stage .lev.t-bound rect { stroke: var(--bound); }
+  .svg-stage .lev.t-matter rect { stroke: var(--matter); }
+  .svg-stage .lev.commit text { font-weight: 700; }
+  .svg-stage .lev.old text { fill: var(--ink-soft); }
+  .svg-stage .lev.old rect { stroke-opacity: .5; }
+  /* After .old: a value that is both old and lost stays red. */
+  .svg-stage .lev.rollback text, .svg-stage .lev.lost text { text-decoration: line-through; fill: var(--actor-ink); }
+  .svg-stage :is(.lev.new, .lev.on, .lev.commit) rect { stroke: var(--ink); stroke-width: 2; }
+  .svg-stage .lmsg .flow { stroke-opacity: .85; stroke-width: 1.5; }
+  .svg-stage .lspan.wait rect { fill: url(#plz-hatch); stroke: var(--ink-soft); stroke-opacity: .4; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+  .svg-stage .lspan.lock rect { fill: var(--bound); }
+  .svg-stage .playhead line { stroke: var(--ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .svg-stage .playhead path { fill: var(--ink); }
   /* END KIT svg css */
   /* A kit may scale the caption column with its diagram (--cap-k). */
   .rail.side { --k: var(--cap-k, 1); }
@@ -1533,7 +1553,7 @@ defineKit('axo', {
 
 /* KIT svg js — the svg kit. A page without svg chapters deletes this section, up to END KIT svg js (and KIT svg css). */
 /* ---- Kit "svg": 2D step diagrams in native SVG. No library. ----
-   A scene's build(d) makes parts with the builder `d` (table, buckets, box, gate, tree, columns, link, token) and arranges them
+   A scene's build(d) makes parts with the builder `d` (table, buckets, box, gate, tree, columns, lanes, link, token) and arranges them
    with d.grid / d.panels / d.stack. The kit computes the layout for the stage: natural size on desktop scaled by k (1 to 1.6),
    compressed columns and adaptive row heights on narrow stages and phones. Parts expose points (functions returning [x, y]
    in diagram units); links, tokens and badges are drawn from those points, so they follow every relayout, also mid-run.
@@ -1561,10 +1581,21 @@ function svgMetrics(phone, row = phone ? 20 : 36) {
   return { phone, row, hdr: big ? 17 : 0, title: big ? 20 : 17, cell: big ? 42 : 34, tokW: 30, tokH: row - 3, key: row < 17 ? 11.5 : 12.5, text: 12, meta: 11, kw: 36, pad: 5,
     gapY: 6, gutter: 60, hp: 5, pill: 18, pillW: 88, chipH: 20, nodeW: 96, nodeH: 36, colW: 96, hgap: 8, vgap: 16, panelGap: 12, badge: 8 };
 }
-// Width of an SVG text in diagram units: measured when the text is rendered, estimated otherwise (wide for CJK).
-function measureText(node, fontSize) {
+// The width of a text that is not rendered yet, in em: wide glyphs (CJK, Hangul, fullwidth forms) 1, mono 0.6,
+// capitals 0.68, other proportional text 0.56; bold proportional text is 6% wider. A cautious estimate, used until the
+// text can be measured.
+const WIDE_GLYPH = /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]/u;
+function estimateText(text, fontSize, { mono = false, bold = false } = {}) {
+  let em = 0;
+  for (const ch of String(text)) em += WIDE_GLYPH.test(ch) ? 1 : mono ? 0.6 : /[A-Z]/.test(ch) ? 0.68 : 0.56;
+  return em * fontSize * (bold && !mono ? 1.06 : 1);
+}
+// Width of an SVG text in diagram units: measured when the text is rendered, estimated otherwise. The estimate reads
+// mono and bold from the node's classes (.mono, .g) unless opts says otherwise.
+function measureText(node, fontSize, opts = {}) {
   try { const w = node.getComputedTextLength(); if (w > 0) return { w, measured: true }; } catch (e) { /* not rendered yet: estimate */ }
-  return { w: [...node.textContent].reduce((sum, ch) => sum + fontSize * (ch.codePointAt(0) >= 0x2E80 ? 1 : 0.6), 0), measured: false };
+  const cls = node.classList;
+  return { w: estimateText(node.textContent, fontSize, { mono: opts.mono ?? cls?.contains('mono'), bold: opts.bold ?? cls?.contains('g') }), measured: false };
 }
 const textWidth = (node, fontSize) => measureText(node, fontSize).w;
 // Web fonts change text widths when they arrive: cached widths remember the epoch they were measured in.
@@ -1959,6 +1990,202 @@ function svgBuilder(sc) {
     return t;
   }
 
+  // Lanes: one column per actor (2–5) plus resource lanes (the shared row, a lock) between them; time runs down in steps
+  // the kit lays out (authors give the step, never pixels). Step 0 is the start state, shown before the run.
+  // a.play(L, step) moves the playhead "now" and reveals each step in causal order: the actors' events (and spans that
+  // start), then messages, then the values they cause on resource lanes (older values dim). Passed steps stay as a trace.
+  // span(id, from, to, kind): 'wait' (hatched band: blocked) or 'lock' (a bar on the lane's edge: holding a lock); a span
+  // grows with the playhead from its first step and stops at its last.
+  function lanes(list, { steps = 0, axis = true } = {}) {
+    const fail = msg => { throw new Error(`[plz] lanes: ${msg}`); };
+    if (!Array.isArray(list)) fail('d.lanes(list): list must be an array of { id, name }');
+    const nActors = list.filter(l => !l?.resource).length;
+    if (nActors < 2 || nActors > 5) fail(`${nActors} actor lane(s); lanes are for 2–5 actors (one actor: a step diagram; many: a simulation)`);
+    if (!Number.isInteger(steps) || steps < 1 || steps > 24) fail(`steps must be a whole number from 1 to 24 (got ${steps})`);
+    const g = svgNode('g', { class: 'part lanes' }, sc.layer.parts);
+    const back = P(g), wires = P(g), ph = svgNode('g', { class: 'playhead' }, g);
+    const phLine = svgNode('line', {}, ph), phMark = svgNode('path', {}, ph);
+    const nums = axis ? Array.from({ length: steps }, (_, i) => label(g, 'meta lstep', i + 1)) : [];
+    // Lane widths come from the measured text (a hidden meter text, cached per text and font; measured again when the
+    // fonts change or while the scene is not rendered yet, when the estimate stands in).
+    const meter = label(g, 'lmeter', '');
+    meter.style.visibility = 'hidden';
+    const widths = new Map();
+    const textW = (text, fs, { mono = false, bold = false } = {}) => {
+      const key = `${mono ? 'm' : 's'}${bold ? 'b' : ''}|${fs}|${text}`, hit = widths.get(key);
+      if (hit?.measured && hit.epoch === svgFontEpoch) return hit.w;
+      meter.setAttribute('class', mono ? 'mono' : '');
+      meter.style.fontWeight = bold ? '600' : '';
+      svgSet(meter, { 'font-size': fs });
+      meter.textContent = text;
+      const r = measureText(meter, fs, { mono, bold });
+      meter.textContent = '';
+      widths.set(key, { ...r, epoch: svgFontEpoch });
+      return r.w;
+    };
+    const ids = new Set();
+    const cols = list.map(spec => {
+      if (!spec?.id || ids.has(spec.id)) fail(`lane id "${spec?.id}" is missing or used twice`);
+      ids.add(spec.id);
+      const cg = svgNode('g', { class: 'lane' + (spec.resource ? ' res' : '') }, back);
+      const c = { spec, g: cg, bg: svgNode('rect', { class: 'lanebg', rx: 6 }, cg), head: svgNode('rect', { class: 'lhead', rx: 6 }, cg), items: [] };
+      c.name = label(cg, 'g' + toneClass(spec.tone), spec.name ?? spec.id);
+      c.bandG = P(cg); c.cardG = P(cg);
+      framed(c.name, c.head);
+      return c;
+    });
+    const items = [];
+    const laneOf = (id, what) => cols.find(c => c.spec.id === id) ?? fail(`${what}: no lane "${id}" (lanes: ${[...ids].join(', ')})`);
+    const stepIn = (st, what, min = 0) => { if (!Number.isInteger(st) || st < min || st > steps) fail(`${what}: step ${st} is outside ${min}–${steps}`); };
+    let now = 0;
+    // Sizes: header, row height, step-number gutter, gap between lanes (room for arrows), card inset and text padding.
+    // Without the step axis (compact lanes, for panels) the gaps and paddings are tighter too.
+    // The gutter always has room for the playhead marker (7 px), also without the step numbers.
+    const geo = m => ({ head: m.title + (m.phone ? 4 : 6), rowH: m.row + (m.phone ? 6 : 8), gut: axis ? (m.phone ? 14 : 22) : (m.phone ? 8 : 10),
+      gap: axis ? (m.phone ? 10 : 30) : (m.phone ? 8 : 20), inset: m.phone ? (axis ? 3 : 2) : 6, pad: m.phone ? (axis ? 5 : 3) : 8, card: m.phone ? 5 : 10 });
+    const BAR = 4; // room for a lock bar (3 px and a 1 px gap) between the cards and the lane's edge
+    let startRow = null; // whether there is a step 0 row; cached, forgotten when an event is added
+    const hasStart = () => (startRow ??= items.some(i => i.step === 0));
+    const rows = () => steps + (hasStart() ? 1 : 0);
+    const rowIndex = st => (hasStart() ? st : st - 1);
+    // Code is mono; a text with CJK characters (a short Korean phrase, say) is set in the sans font even on a mono event.
+    const isMono = (ev, text) => ev.mono && !/[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]/.test(text);
+    const evFont = (ev, m, text = shownText(ev, m)) => (ev.lane.spec.resource ? m.key : isMono(ev, text) ? m.meta + 0.5 : m.text);
+    // Phones show the short text; a desktop stage too narrow for the full text shows the short text at desktop sizes.
+    let tight = false;
+    const shownText = (ev, m, short = m.phone || tight) => (short ? ev.short : ev.full);
+    const laneName = (c, short) => (short ? c.spec.short ?? c.spec.name ?? c.spec.id : c.spec.name ?? c.spec.id);
+    // The edge of a lane that faces its nearest resource lane (a lock bar stands there); ties go left.
+    const facing = c => {
+      const i = cols.indexOf(c);
+      let best = -1;
+      cols.forEach((o, j) => { if (o.spec.resource && j !== i && (best < 0 || Math.abs(j - i) < Math.abs(best - i))) best = j; });
+      return best < 0 || best > i ? 'right' : 'left';
+    };
+    const lockSide = c => (items.some(i => i.kind === 'span' && i.what === 'lock' && i.lane === c) ? facing(c) : null);
+    const laneW = (c, m, short = m.phone) => {
+      const q = geo(m), bar = lockSide(c) ? BAR : 0;
+      const texts = c.items.filter(i => i.kind === 'event').map(ev => {
+        const t = shownText(ev, m, short), mono = isMono(ev, t);
+        return textW(t, evFont(ev, m, t), { mono, bold: ev.lane.spec.resource }) + 2 * (q.pad + q.inset) + bar;
+      });
+      return Math.ceil(Math.max(m.phone ? 40 : 64, textW(laneName(c, short), m.text, { bold: true }) + 2 * q.pad, ...texts));
+    };
+    const widthOf = (m, short) => geo(m).gut + cols.reduce((sum, c) => sum + laneW(c, m, short), 0) + geo(m).gap * (cols.length - 1);
+    const top = st => part.box.y + geo(sc.m).head + 4 + rowIndex(st) * geo(sc.m).rowH;
+    const part = {
+      kind: 'lanes', g, items, steps,
+      get now() { return now; },
+      setNow(v) { now = v; },
+      rowH: () => geo(sc.m).rowH,
+      // The playhead's height after step st (the bottom of its row); fractional steps lie in between.
+      yOf: st => part.box.y + geo(sc.m).head + 4 + (rowIndex(st) + 1) * geo(sc.m).rowH,
+      lane: id => { const c = laneOf(id, 'lane()'); return { g: c.g, badgeAt: () => [c.x + c.w, c.y] }; },
+      event(id, step, text, { short = text, mono = true, tone = '', state = '' } = {}) {
+        const c = laneOf(id, `event("${text}")`);
+        stepIn(step, `event("${text}")`);
+        if (state && !['commit', 'rollback'].includes(state)) fail(`event("${text}"): state "${state}" must be 'commit' or 'rollback'`);
+        const eg = svgNode('g', { class: 'lev' + (c.spec.resource ? ' val' : '') + toneClass(tone) + (state ? ' ' + state : ''), 'data-step': step }, c.cardG);
+        const ev = { kind: 'event', lane: c, step, g: eg, rect: svgNode('rect', { rx: 5 }, eg), full: String(text), short: String(short), mono: mono || c.spec.resource };
+        ev.text = label(eg, ev.mono ? 'mono' : '', text);
+        framed(ev.text, ev.rect);
+        if (step > 0) eg.style.opacity = 0;
+        ev.mark = (cls, on = true) => eg.classList.toggle(cls, on);
+        ev.badgeAt = () => [ev.box.x + ev.box.w, ev.box.y];
+        c.items.push(ev); items.push(ev);
+        startRow = null;
+        return ev;
+      },
+      message(from, to, step, { toStep = step, tone = '', dashed = false } = {}) {
+        const a = laneOf(from, 'message()'), b = laneOf(to, 'message()');
+        if (a === b) fail(`message(${from}, ${to}): a message goes between two lanes`);
+        stepIn(step, 'message()', 1); stepIn(toStep, 'message() toStep', step);
+        const mg = svgNode('g', { class: 'lmsg', 'data-step': step }, wires);
+        const path = svgNode('path', { class: 'flow' + (dashed ? ' dashed' : '') + toneClass(tone), 'marker-end': `url(#plz-arr${tone === 'bound' ? '-b' : ''})` }, mg);
+        mg.style.opacity = 0;
+        const msg = { kind: 'message', from: a, to: b, step, toStep, g: mg, path, p: 0 };
+        items.push(msg);
+        return msg;
+      },
+      span(id, from, to, kind) {
+        const c = laneOf(id, `span(${kind})`);
+        if (!['wait', 'lock'].includes(kind)) fail(`span kind "${kind}" must be 'wait' or 'lock'`);
+        stepIn(from, `span(${kind})`, 1); stepIn(to, `span(${kind})`, 1);
+        if (to < from) fail(`span(${kind}): from ${from} is after to ${to}`);
+        const sg = svgNode('g', { class: `lspan ${kind}`, 'data-step': from }, c.bandG);
+        const sp = { kind: 'span', lane: c, step: from, from, to, what: kind, g: sg, rect: svgNode('rect', { rx: kind === 'wait' ? 4 : 1.5 }, sg) };
+        sg.style.opacity = 0;
+        items.push(sp);
+        return sp;
+      },
+      // The size at width w: the full texts when they fit, the short texts otherwise (as place() will draw it).
+      size(m, w = Infinity) {
+        const q = geo(m), short = m.phone || w < widthOf(m, false) - 0.5;
+        return { w: widthOf(m, short), min: widthOf(m, true), h: q.head + 4 + rows() * q.rowH + 6 };
+      },
+      place(m, x, y, w = Infinity) {
+        const q = geo(m);
+        tight = !m.phone && w < widthOf(m, false) - 0.5;
+        let xx = x + q.gut;
+        for (const c of cols) { c.w = laneW(c, m, m.phone || tight); c.x = xx; c.y = y; xx += c.w + q.gap; }
+        part.box = { x, y, w: xx - q.gap - x, h: part.size(m).h };
+      },
+      restore() { now = 0; for (const i of items) if (i.kind === 'message') i.p = 0; },
+      // Layout pass (on every relayout): step numbers, lane frames and headers, cards and their text.
+      layout(m) {
+        const q = geo(m), b = part.box, bottom = b.y + q.head + 4 + rows() * q.rowH;
+        nums.forEach((n, i) => svgSet(n, { x: b.x, y: top(i + 1) + q.rowH / 2, 'text-anchor': 'start', 'font-size': m.meta })); // flush left: the part's box starts at its drawing
+        for (const c of cols) {
+          c.lock = lockSide(c);
+          svgSet(c.bg, { x: c.x, y: b.y, width: c.w, height: bottom - b.y + 2 });
+          svgSet(c.head, { x: c.x, y: b.y, width: c.w, height: m.title });
+          c.name.textContent = laneName(c, m.phone || tight);
+          svgSet(c.name, { x: c.x + c.w / 2, y: b.y + m.title / 2, 'text-anchor': 'middle', 'font-size': m.text });
+        }
+        for (const it of items) {
+          if (it.kind !== 'event') continue;
+          const c = it.lane, h = q.rowH - q.card, left = q.inset + (c.lock === 'left' ? BAR : 0), right = q.inset + (c.lock === 'right' ? BAR : 0);
+          it.box = { x: c.x + left, y: top(it.step) + (q.rowH - h) / 2, w: c.w - left - right, h };
+          svgSet(it.rect, { x: it.box.x, y: it.box.y, width: it.box.w, height: h });
+          it.text.textContent = shownText(it, m);
+          it.text.setAttribute('class', isMono(it, it.text.textContent) ? 'mono' : '');
+          const center = c.spec.resource;
+          svgSet(it.text, { x: center ? it.box.x + it.box.w / 2 : it.box.x + q.pad, y: it.box.y + h / 2 + 0.5, 'text-anchor': center ? 'middle' : 'start', 'font-size': evFont(it, m) });
+        }
+      },
+      // Per-frame pass (a.play calls only this): spans growing with the playhead, messages, the playhead itself.
+      tick() {
+        if (!part.box) return;
+        const q = geo(sc.m), b = part.box, cy = st => top(st) + q.rowH / 2;
+        for (const it of items) {
+          if (it.kind === 'span') {
+            const c = it.lane, h = clamp(0, now - (it.from - 1), it.to - it.from + 1) * q.rowH, y = top(it.from);
+            if (it.what === 'wait') svgSet(it.rect, { x: c.x + 2, y, width: c.w - 4, height: h });
+            else svgSet(it.rect, { x: c.lock === 'left' ? c.x + q.inset : c.x + c.w - q.inset - 3, y, width: 3, height: h });
+          } else if (it.kind === 'message') {
+            const { from: a, to: c } = it, right = a.x < c.x;
+            const x1 = right ? a.x + a.w - q.inset : a.x + q.inset, x2 = right ? c.x + q.inset : c.x + c.w - q.inset;
+            const y1 = cy(it.step), y2 = cy(it.toStep);
+            // A message that arrives later follows the playhead: its tip is where the playhead's time is.
+            const p = it.toStep > it.step ? (it.p > 0 ? clamp(0, (now - it.step) / (it.toStep - it.step), 1) : 0) : it.p;
+            const ex = x1 + (x2 - x1) * p, ey = y1 + (y2 - y1) * p, len = Math.hypot(ex - x1, ey - y1) || 1;
+            const e = [ex - (ex - x1) / len, ey - (ey - y1) / len]; // 1px short: the arrowhead touches the card
+            it.path.setAttribute('d', p > 0 ? `M${+x1.toFixed(2)},${+y1.toFixed(2)} L${+e[0].toFixed(2)},${+e[1].toFixed(2)}` : '');
+          }
+        }
+        const py = part.yOf(now);
+        svgSet(phLine, { x1: b.x + q.gut - 1, x2: b.x + b.w, y1: py, y2: py });
+        phMark.setAttribute('d', `M${+(b.x + q.gut - 7).toFixed(2)},${+(py - 4).toFixed(2)} l6,4 l-6,4 Z`);
+      },
+      draw(m) {
+        if (!part.box) return; // made but not part of the diagram
+        part.layout(m);
+        part.tick();
+      },
+    };
+    return register(part);
+  }
+
   // Containers. grid: rows of cells (parts or null) with a gutter between columns for connectors and gates.
   // panels: the same kind of diagram side by side (stacked on phones), each with a title. stack: a plain row or column.
   function grid(rows, { gutter = null } = {}) {
@@ -1994,18 +2221,28 @@ function svgBuilder(sc) {
   }
   function stack(items, { dir = 'row', gap = null } = {}) {
     const gp = m => (typeof gap === 'function' ? gap(m) : gap) ?? (dir === 'row' ? m.panelGap : m.gapY); // gap: px, or a function of the sizes (m.phone)
+    // A row in width w: items shrink in proportion toward their minimum; an item that draws narrower at its share (lanes
+    // switching to short text) reports that width, and the room it leaves goes back to the items that were shrunk.
+    const rowSizes = (m, w = Infinity) => {
+      const s = items.map(p => p.size(m)), gaps = gp(m) * (s.length - 1), nat = s.reduce((a, b) => a + b.w, 0);
+      if (!(w < nat + gaps)) return s;
+      const f = Math.max(0, (w - gaps) / nat);
+      const out = s.map((x, i) => { const ww = Math.max(x.min, x.w * f), y = items[i].size(m, ww); return { ...y, w: Math.min(ww, y.w), shrunk: y.w >= ww && ww < x.w, nat: x.w }; });
+      const spare = w - gaps - out.reduce((a, b) => a + b.w, 0), give = out.filter(o => o.shrunk).reduce((a, o) => a + (o.nat - o.w), 0);
+      if (spare > 0 && give > 0) out.forEach(o => { if (o.shrunk) o.w += Math.min(o.nat - o.w, spare * (o.nat - o.w) / give); });
+      return out;
+    };
     const node = {
       size(m, w) {
-        const s = items.map(p => p.size(m, dir === 'col' ? w : undefined)); // a column passes its width down (panels inside pick by it)
-        if (dir === 'row') return { w: s.reduce((a, b) => a + b.w, 0) + gp(m) * (s.length - 1), min: s.reduce((a, b) => a + b.min, 0) + gp(m) * (s.length - 1), h: Math.max(...s.map(x => x.h)) };
+        if (dir === 'row') { const s = rowSizes(m, w); return { w: s.reduce((a, b) => a + b.w, 0) + gp(m) * (s.length - 1), min: items.reduce((a, p) => a + p.size(m).min, 0) + gp(m) * (s.length - 1), h: Math.max(...s.map(x => x.h)) }; }
+        const s = items.map(p => p.size(m, w)); // a column passes its width down (panels inside pick by it)
         return { w: Math.max(...s.map(x => x.w)), min: Math.max(...s.map(x => x.min)), h: s.reduce((a, b) => a + b.h, 0) + gp(m) * (s.length - 1) };
       },
       place(m, x, y, w) {
-        const s = items.map(p => p.size(m));
         if (dir === 'row') {
-          const nat = s.reduce((a, b) => a + b.w, 0), f = Math.min(1, (w - gp(m) * (s.length - 1)) / nat);
+          const s = rowSizes(m, w);
           let xx = x;
-          items.forEach((p, i) => { const ww = Math.max(s[i].min, s[i].w * f); p.gridSlot = null; p.place(m, xx, y, ww); xx += ww + gp(m); });
+          items.forEach((p, i) => { p.gridSlot = null; p.place(m, xx, y, s[i].w); xx += s[i].w + gp(m); });
         } else {
           let yy = y;
           items.forEach((p, i) => { p.gridSlot = null; const si = p.size(m, w); p.place(m, x, yy, Math.min(w, si.w)); yy += si.h + gp(m); });
@@ -2019,7 +2256,7 @@ function svgBuilder(sc) {
     const titled = list.map(({ title, body }) => {
       const t = label(sc.layer.parts, 'g panel-title', title);
       return {
-        size: m => { const s = body.size(m); return { w: s.w, min: s.min, h: s.h + m.title + 4 }; },
+        size: (m, w) => { const s = body.size(m, w); return { w: s.w, min: s.min, h: s.h + m.title + 4 }; },
         place(m, x, y, w) { svgSet(t, { x, y: y + m.title / 2, 'font-size': m.text + 1 }); body.place(m, x, y + m.title + 4, w); },
       };
     });
@@ -2028,12 +2265,12 @@ function svgBuilder(sc) {
     const pick = (m, w) => (w < row.size(m).min ? col : row);
     return {
       // The size of the arrangement place() will use for this width (no width: side by side).
-      size: (m, w = Infinity) => ({ ...pick(m, w).size(m), min: col.size(m).min }),
+      size: (m, w = Infinity) => ({ ...pick(m, w).size(m, w), min: col.size(m).min }),
       place: (m, x, y, w) => pick(m, w).place(m, x, y, w),
     };
   }
   return {
-    table, buckets, box, gate, tree, columns, link, token, grid, stack, panels,
+    table, buckets, box, gate, tree, columns, lanes, link, token, grid, stack, panels,
     corner: (a, b) => () => [pointOf(b)[0], pointOf(a)[1]],
     phone: () => sc.m.phone,
   };
@@ -2114,6 +2351,37 @@ function svgAnimator(dir, sc) {
       const anim = n.animate([{ transform: 'scale(1.14)' }, { transform: 'scale(1)' }], { duration: 160, easing: 'ease-out' });
       anim.playbackRate = dir.speed();
     },
+    // Lanes: move the playhead step by step up to `to` (about 0.5 s a step), revealing each step in causal order: the
+    // actors' events and starting spans, then messages (drawn from sender to receiver), then values on resource lanes
+    // (older values dim). The newest step's items carry .new (an ink outline) until the next step.
+    async play(L, to, { ms = 500 } = {}) {
+      if (L?.kind !== 'lanes') throw new Error('[plz] lanes: a.play(L, step) needs a part made by d.lanes');
+      if (!Number.isInteger(to) || to < 0 || to > L.steps) throw new Error(`[plz] lanes: a.play step ${to} is outside 0–${L.steps}`);
+      const redraw = () => L.tick(); // per frame: playhead, spans, messages only
+      while (L.now < to) {
+        const s = Math.floor(L.now) + 1, from = L.now;
+        for (const i of L.items) i.g.classList.remove('new');
+        await dir.tween(ms * (s - from), t => { L.setNow(from + (s - from) * t); redraw(); });
+        L.setNow(s); redraw();
+        const at = L.items.filter(i => i.step === s);
+        const first = at.filter(i => i.kind === 'span' || (i.kind === 'event' && !i.lane.spec.resource));
+        const msgs = at.filter(i => i.kind === 'message');
+        const vals = at.filter(i => i.kind === 'event' && i.lane.spec.resource);
+        if (first.length) { first.forEach(i => { if (i.kind === 'event') i.g.classList.add('new'); }); await Promise.all(first.map(i => fade(i, 1))); }
+        if (msgs.length) {
+          msgs.forEach(m => { m.g.style.opacity = 1; });
+          const now = msgs.filter(m => m.toStep === m.step), later = msgs.filter(m => m.toStep > m.step);
+          later.forEach(m => { m.p = 1; }); // drawn with the playhead from here on
+          if (now.length) await dir.tween(450, t => { now.forEach(m => { m.p = t; }); redraw(); });
+          else redraw();
+        }
+        if (vals.length) {
+          for (const v of vals) for (const o of L.items) if (o.kind === 'event' && o.lane === v.lane && o.step < s) o.mark('old');
+          vals.forEach(v => v.g.classList.add('new'));
+          await Promise.all(vals.map(v => fade(v, 1)));
+        }
+      }
+    },
     // Run fn(item, i) for items in groups (default 3, at most 4) that move together, with a pause between groups.
     // People track 3–4 moving things at once, so this is the easy way to move many rows.
     async groups(items, fn, { size = 3, pause = 400 } = {}) {
@@ -2137,6 +2405,10 @@ defineKit('svg', {
       const mk = svgNode('marker', { id, viewBox: '0 0 8 8', refX: 7, refY: 4, markerUnits: 'userSpaceOnUse', markerWidth: 9, markerHeight: 9, orient: 'auto' }, defs);
       svgNode('path', { d: 'M0,0 L8,4 L0,8 Z', style: `fill:${color}`, 'fill-opacity': op }, mk);
     }
+    // Hatching for a lane that waits (blocked).
+    const hatch = svgNode('pattern', { id: 'plz-hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, defs);
+    svgNode('rect', { width: 6, height: 6, style: 'fill:rgba(30,42,51,0.03)' }, hatch);
+    svgNode('line', { x1: 1, y1: 0, x2: 1, y2: 6, style: 'stroke:rgba(30,42,51,0.26);stroke-width:1.6' }, hatch);
   },
   build(def) {
     const root = svgNode('g', { class: 'svg-scene' }, this.svg);
@@ -2155,11 +2427,14 @@ defineKit('svg', {
     return built;
   },
   // Lay the diagram out with metrics m in at most availW (diagram units). Computes boxes only (no DOM work). Returns the size.
+  // size(m, availW) is the size the diagram will have when placed in availW (a part such as lanes may draw narrower than
+  // its share), so the block the kit centres and scales is the block that is drawn.
   arrange(sc, m, availW) {
     sc.m = m;
     const nat = sc.diagram.size(m, availW);
     const w = Math.max(nat.min, Math.min(nat.w, availW));
-    const placed = sc.diagram.place(m, 0, 0, w); // containers return their height; a single part as the diagram does not
+    const room = Math.max(nat.min, Math.min(availW, sc.diagram.size(m).w)); // the width place() lays the diagram out in
+    const placed = sc.diagram.place(m, 0, 0, room); // containers return their height; a single part as the diagram does not
     for (const p of sc.parts) if (p.layoutless) p.place(m);
     return { w, h: typeof placed === 'number' ? placed : sc.diagram.size(m).h };
   },

@@ -202,6 +202,7 @@ Resting points know how a token sits on them, so a token of any width fits: `tab
 | `d.tree(spec)` | `spec = { id, label, metric, children: [...] }`. An operator tree; edges carry data up to the parent. An unknown id in `node(id)` or `edge(id)` stops the page with an error naming it | `node(id).mark('active' \| 'hit', on)`, `node(id).metric(text)`, `node(id).top()`, `.bottom()`, `edge(id)`: the points of the drawn edge from that node up to its parent, for `a.along(token, tree.edge(id))` |
 | `d.columns(names, { slots })` | Nodes or servers side by side, each with `slots` places for rows | `col(i).slot(j)`, `col(i).top()`, `col(i).bottom()`, `col(i).mark('active')` |
 | `d.link(points, { dashed, tone, label, labelAt, arrow, hidden, opacity })` | A connector through two or more points (functions or fixed `[x, y]`) with an arrowhead. `dashed` + `tone: 'bound'` + `label` for a signal passed sideways (`labelAt` a point for the label pill, which grows with its text) | Fade or dim it with `a.fade(link, 0.12)` |
+| `d.lanes(list, { steps, axis })` | Time-axis swimlanes, see "Lanes" below | `event()`, `message()`, `span()`, `now`, `yOf(step)`, `rowH()`, `lane(id)` (badge anchor at its header) |
 | `d.token(text, at, { tone, w })` | A chip resting at point `at`, as wide as its text (at least the standard width; `w` fixes it; measured again when the text, its size or the fonts change). `tone: 'matter' \| 'bound' \| 'hit'`. Create tokens during `run()`, when their group starts | `mark('hit' \| 'active', on)` (active: ink halo) |
 
 Every part also has `left(at)`, `right(at)`, `top(at)`, `bottom(at)` (a point on its frame; `at` is a 0–1 fraction along the edge or another point whose coordinate to use), `mid()`, and `mark(cls, on)`. `d.corner(a, b)` is the point `[b.x, a.y]` for an elbow. `d.phone()` tells whether phone sizes are in use.
@@ -219,11 +220,46 @@ A diagram may also be a single part (for example `diagram: d.tree(…)`).
 | `await a.fade(target, to, ms=250)` | Opacity of a part, link, token, or `box.lane(i)` (color and opacity still animate under reduced motion) |
 | `await a.flash(target, cls='on', ms=200)` | A brief emphasis: the ink outline (`'on'`), or `'hot'` on a gate |
 | `a.tick(node)` | A small pulse on a counter after its number changed (not awaited) |
+| `await a.play(L, step, { ms = 500 })` | Lanes: moves the playhead of `L` step by step up to `step` and reveals each step (see "Lanes"). Reduced motion: the playhead and arrows cut, every step keeps its time; instant mode reaches the same end state |
 | `a.wait(ms)`, `a.tween(ms, fn, opts)`, `a.live()` | As in the director |
 
 Captions: `say('2. …', { anchor })` puts the step number in a badge at the anchor: a part (its top-right corner), a point function, a fixed `[x, y]` in diagram units, or an SVG node such as `box.tallyNode`.
 
 Rotation: the svg kit is not rotatable, so the drag hint and Reset view are hidden on its chapters.
+
+### Lanes (time-axis swimlanes)
+
+For 2–5 actors whose relative timing decides the outcome (a race, an isolation anomaly, a lock wait, a retry, a handshake). Not for one actor (use a step diagram) or many identical ones.
+Each actor is a column and time runs down in steps. Columns read well at 390px when every event has a short form, and more steps grow the diagram downward, where a phone has room. A resource lane (the shared row, a lock) sits between the actors, so reads and writes are short horizontal arrows.
+
+```js
+const L = d.lanes([
+  { id: 'a', name: 'Session A' },
+  { id: 'row', name: 'accounts · id 1', short: 'id 1', resource: true },   // a resource lane: values, brass-tinted
+  { id: 'b', name: 'Session B' },
+], { steps: 6 });                      // axis: false drops the step numbers and tightens the gaps (for d.panels)
+L.event('row', 0, '100');                                               // step 0: the start state, shown before the run
+L.event('a', 1, 'SELECT balance → 100', { short: 'read 100' });          // mono by default; short on phones and tight stages
+L.message('row', 'a', 1);                                               // an arrow between two lanes at a step
+L.span('a', 1, 4, 'lock');                                              // a bar on the lane edge: holding a lock
+L.span('b', 2, 4, 'wait');                                              // a hatched band: blocked
+L.event('a', 4, 'COMMIT', { state: 'commit' });                         // state: 'commit' | 'rollback'
+const v120 = L.event('row', 3, '120');
+L.event('row', 5, '130', { tone: 'actor' });
+// run:
+await a.play(L, 2); say('1. Both read 100.');
+await a.play(L, 5); v120.mark('lost');                                  // 'lost': struck through in red
+```
+
+| Method | Options and behavior |
+|---|---|
+| `L.event(id, step, text, { short, mono = true, tone, state })` | A card in a lane at a step (0 = start state). `short` for phones and stages too narrow for the full text. Text with CJK characters is set in the sans font. On a resource lane the card is a value; when a new value appears, older values dim (`old`). `mark('lost')` strikes a value through |
+| `L.message(from, to, step, { toStep, tone, dashed })` | An arrow from one lane's card edge to another's at a step. It draws from sender to receiver. With `toStep` (a later arrival) its tip follows the playhead and reaches the receiver at `toStep` |
+| `L.span(id, from, to, 'wait' \| 'lock')` | A lane state over steps: it grows with the playhead from `from` and stops at `to`. A lock bar stands on the lane's edge that faces the nearest resource lane, in room kept beside the cards |
+| `L.now`, `L.yOf(step)`, `L.rowH()` | The playhead's step, the y of the playhead after a step, the row height (diagram units) |
+
+`a.play(L, step)` reveals each step in causal order: the actors' events and the spans that start there, then messages, then the values they cause on resource lanes. The newest step's cards carry an ink outline until the next step, and every passed step stays as a static trace. Reset puts the playhead at the start and hides everything after step 0.
+Lane widths come from the measured text (an estimate until the scene is first drawn; measured again when the fonts arrive), never from pixels the author gives. A stage too narrow for the full text switches the lanes to the short texts at desktop sizes; phones always use them. Two lanes diagrams fit side by side in `d.panels` on a landscape phone only with `axis: false` and short texts of about 8 characters. Bad lane ids, steps out of range, a lane count outside 2–5 actors and unknown span kinds stop the page with a `[plz] lanes:` error.
 
 ## Kits: `defineKit(name, kit)`
 
