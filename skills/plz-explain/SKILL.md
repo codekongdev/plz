@@ -35,7 +35,8 @@ of the explanation, not decoration. Motion carries only the change being learned
   - `assets/example-agent-sandbox.html` (axo kit): how AI-agent code sandboxes isolate code, 10 chapters.
   - `assets/example-hash-join-sip.html` (svg kit): hash join and SIP, 5 chapters. It covers the operator tree, step diagrams with a filter, side-by-side panels and node columns.
   - `assets/example-lost-update.html` (svg kit): two sessions writing one row (lost update, row lock, version check), 5 chapters of time lanes.
-  - Every example has an English counterpart beside it, with the same name ending in `.en.html` (`example-agent-sandbox.en.html`, `example-hash-join-sip.en.html`, `example-lost-update.en.html`); look at that one when building an English page. When you need a similar scene, look in these files first.
+  - `assets/example-bloom-filter.html` (svg kit): Bloom filters, 5 chapters: a bit array step by step, then three parameter playgrounds (sliders, charts, readouts).
+  - Every example has an English counterpart beside it, with the same name ending in `.en.html` (`example-agent-sandbox.en.html`, `example-hash-join-sip.en.html`, `example-lost-update.en.html`, `example-bloom-filter.en.html`); look at that one when building an English page. When you need a similar scene, look in these files first.
 
 ## Page structure: shell and kits
 
@@ -44,7 +45,7 @@ The page has two layers of engine code. Neither is edited when building a page.
 - **The shell** owns the layout, chapter switching, HUD, caption rail, speed menu, split, auto-play, timing (the director), and verification hooks. It does not draw anything.
 - **A kit** draws the stage. Each scene names its kit with `kit:` (default `'axo'`). There are two:
   - `axo`: a three.js axonometric model of white blocks with ink outlines.
-  - `svg`: a 2D step diagram (tables of rows with keys, hash buckets, operator boxes with lanes, filters, operator trees, node columns, time-axis swimlanes), with no library.
+  - `svg`: a 2D step diagram (tables of rows with keys, hash buckets, operator boxes with lanes, filters, operator trees, node columns, time-axis swimlanes, and parameter playgrounds with sliders, charts and readouts), with no library.
 - The stage lists the kits the page uses in `data-kits` on `aside.stage`: the template has `axo svg`; use `svg` alone when there is no axo chapter, so three.js is never downloaded.
 - Each kit's code and styles sit in their own sections of the template, marked `KIT <kit> css` / `KIT <kit> js` … `END KIT <kit> …`. A page keeps only the sections of the kits it uses (see "Build from the template").
 
@@ -54,6 +55,7 @@ Decide by where the information lives.
 
 - **svg** when the lesson is about values and order: which row, key, or request goes where, in what order, and what is dropped or matched (joins, filters, hashing, queues, routing rows to nodes, a query plan with counts). Removing a third dimension loses nothing here, and 2D keeps every key readable without rotating.
 - **svg lanes** (`d.lanes`) when the relative timing of a few actors (2–5) decides the outcome: races, isolation anomalies, lock waits, retries, handshakes. One column per actor, time running down, a playhead marking "now". Not for one actor (a step diagram) or hundreds (a simulation).
+- **svg playground** (`params` on the scene, `d.chart`, `d.readout`) when the lesson is how an outcome responds to a continuous or ordinal parameter. Keep to 1–3 controls, each a cause the reader varies; the run button plays a short tour first, and the reader explores after it. Not for a fixed procedure, where a slider would only replay time.
 - **axo** when depth or containment is the concept: layers on layers, rooms inside a boundary, what sits under what (kernels, sandboxes, VMs, network zones).
 - A page may mix them; each chapter uses one kit. Keep the three semantic colors and the same labels for the same thing in both kits.
 
@@ -158,7 +160,8 @@ Read `references/gotchas.md` first. Overlapping labels and clipped models cannot
 7. Check on phones too. At 390×844 and 360×800 (deviceScaleFactor 3, isMobile, hasTouch), confirm that `overlaps()` and `clipped()` are empty arrays for every chapter, with the caption sheet closed and open (`__explainer.rail(true)`), that there is no horizontal scroll (`document.documentElement.scrollWidth === innerWidth`), and that the layout does not break in landscape at 844×390. While scrolling, confirm that `__explainer.current()` matches the chapter being read on screen. Confirm that a vertical swipe on the stage scrolls the page and a horizontal swipe rotates the model.
 8. If you built a page that is not Korean (`en`, `ja`, `zh-CN`, an override language), confirm that `__explainer.lang()` is that language and that the screen text (HUD, hint, speed menu, glossary and sources headings) appears in that language. At 390×844 and 360×800, confirm that the HUD's chapter title, switch, and reset-view button do not overlap.
 9. Confirm that no placeholder remains and that no Hangul is left in a non-Korean page. Grep the finished page for placeholders of the form `__…__` (for example `grep -nE '__[^_ ][^_]*__' <page>.html | grep -v -e __explainer -e "label = '__actor__'"`; the two filters skip the verification hook and the engine's own default label argument), and expect no output. If the page language is not Korean, confirm that the visible text (excluding script and style, for example `document.body.innerText` and `document.title`) contains no Hangul (`/[가-힣]/`).
-10. After fixing, rerun 3, 4, 6, 7, 8, and 9.
+10. Pages with controls (playgrounds): for every playground chapter, set each parameter to its minimum and maximum with `__explainer.params(name, { id: value })` (`__explainer.paramSpec(name)` gives the range) and check that `overlaps()` and `clipped()` stay empty at every size above, including 844×390 (where the controls may move into the chapter text). Check that the sliders work with the arrow keys, that the numbers the page shows match the formula in the body, and that with auto-play on, pressing a control stops the loop, a value you changed stays until you run the chapter or leave it, and a press without a change lets the loop come back after a few seconds.
+11. After fixing, rerun 3, 4, 6, 7, 8, 9, and 10.
 
 The phone layout is built into the template.
 

@@ -261,6 +261,62 @@ await a.play(L, 5); v120.mark('lost');                                  // 'lost
 `a.play(L, step)` reveals each step in causal order: the actors' events and the spans that start there, then messages, then the values they cause on resource lanes. The newest step's cards carry an ink outline until the next step, and every passed step stays as a static trace. Reset puts the playhead at the start and hides everything after step 0.
 Lane widths come from the measured text (an estimate until the scene is first drawn; measured again when the fonts arrive), never from pixels the author gives. A stage too narrow for the full text switches the lanes to the short texts at desktop sizes; phones always use them. Two lanes diagrams fit side by side in `d.panels` on a landscape phone only with `axis: false` and short texts of about 8 characters. Bad lane ids, steps out of range, a lane count outside 2–5 actors and unknown span kinds stop the page with a `[plz] lanes:` error.
 
+### Parameter playground
+
+For a lesson about how an outcome responds to a continuous or ordinal parameter (bits vs error rate, load vs latency, node size vs tree height). Not for a fixed procedure, where a slider would only replay time.
+The scene declares 1–3 parameters and returns `update(params)`, which draws the diagram for those values. The run button plays an authored tour that moves the sliders through a few stops with numbered captions; afterwards the reader explores freely.
+
+```js
+defineScene('bits', {
+  kit: 'svg',
+  title: '3  More bits',
+  params: {
+    m: { label: 'Bits m', min: 1000, max: 20000, step: 500, value: 4000, format: v => v.toLocaleString('en-US') }, // a range
+    k: { label: 'Hash functions k', values: [1, 2, 3, 4, 5, 6, 7, 8], value: 4 },                                   // a list (ordinal)
+  },
+  presets: [{ label: '8 bits per key', values: { m: 8000 } }, { label: '16 bits per key', values: { m: 16000, k: 8 } }],
+  build(d) {
+    const chart = d.chart({ title: 'False positive rate (log scale)', x: { label: 'bits m', min: 1000, max: 20000, ticks: [1000, 10000, 20000] },
+      y: { min: 1e-4, max: 1, log: true, ticks: [1e-4, 1e-2, 1], format: v => v * 100 + '%' } });
+    const curve = chart.line(m => rate(m, 4), { tone: 'actor' });
+    const mark = chart.marker(curve);
+    chart.ref('y', 0.01, { label: '1%' });
+    const out = d.readout({ label: 'False positive rate', sample: '0.0012%' });
+    return {
+      diagram: d.stack([chart, out], { dir: 'col' }),
+      update(p) { curve.set(m => rate(m, p.k)); mark.at(p.m); out.set(pct(rate(p.m, p.k))); return `With ${p.m} bits: about ${pct(rate(p.m, p.k))}.`; },
+      async run(a, say) { await a.set({ m: 2000 }); say('1. …', { anchor: chart.near(2000, rate(2000, 4)) }); await a.set({ m: 16000 }, { ms: 1500 }); say('2. …'); },
+    };
+  },
+});
+```
+
+| Piece | Behavior |
+|---|---|
+| `params` | 1–3 entries. A range `{ label, min, max, step, value, unit, format }` or a list `{ label, values, value, format }` (the slider steps through the list; entries may be numbers or strings, and `value` must be one of them). A range value snaps to `min + k·step` and never passes `max`, as the native slider does: when `max − min` is not a multiple of `step`, the top value is the last step below `max`, so align them. `format(v)` is the value shown next to the slider and read by screen readers (`aria-valuetext`); without it, `value unit` |
+| `presets` | Optional buttons that set several parameters at once: `[{ label, values }]` |
+| `update(p)` | Required. Draws the diagram for the values `p` and returns the live sentence (one line, shown under the controls while the reader explores; `aria-live="polite"`, at most every 300 ms). Called on every slider move, preset, tour frame and reset; the kit redraws right after it |
+| `run(a, say)` | The tour. `await a.set(values, { ms = 900 })` sweeps the sliders to `values` (others stay); ranges move continuously, lists step. Speed, instant mode and reduced motion apply (reduced motion: the sliders jump, the step keeps its time). Anchor tour captions to `chart.near(x, y)`, not to the marker, which moves |
+
+- **Where the controls live.** In the stage, directly under the diagram, at most 560px wide (an HTML band the kit places; the diagram gets the height above it), so the reader's hand and eyes stay on one block and the controls never cover the drawing. On a stacked phone the stage-height minimum includes them. On a short stage beside the text (a landscape phone) where both do not fit, the controls move into the chapter's text, under its run button.
+- **Controls.** Native `<input type="range">` with a `<label>` and an `<output>`, 44px tall; arrow keys, Home and End work; presets are 44px buttons. Values are not saved across reloads.
+- **Run and reset.** Every run and every reset start from the default values (the `value` of each parameter).
+- **The reader's hand wins.** The kit reports input, never focus (Safari and Firefox on macOS do not focus buttons or sliders on click): a pointer down on the controls, a key, a changed value. Any of them stops a running tour, and auto-play waits while a pointer is down and for 2.5 s after the last input. The hold is always released: by that timer, a chapter change, or the controls moving or hiding.
+- **The reader's values stay.** Once the reader changed a value, the chapter's auto-play does not restart (its reset would wipe the values) until the reader runs the chapter or leaves it. Pressing a control without changing anything only holds auto-play for the grace period.
+- **Checks.** `clipped()` reports `'[controls]'` when the controls overlap the drawing or leave the stage, control text that is cut off, and `'[live]'` when the live sentence is longer than two lines.
+
+Chart parts (sized by the layout like other parts; text at the kit's sizes, so the 12px/11px minimums hold):
+
+| Part | Options | Methods |
+|---|---|---|
+| `d.chart({ title, x, y, w })` | `x`, `y`: `{ min, max, ticks, format, log, label }` (`x.label` under the axis; put the y unit in the title). The end tick labels of the x axis align with the plot edges, and an inner x label that would come within half a character of its neighbour is hidden (its tick mark stays); `clipped()` reports tick labels that still touch | `line(fn, { tone, samples })` → `series.set(fn)`; `marker(series)` → `marker.at(x)` (a dot on the curve with a guide to the axis); `ref('x' \| 'y', v, { label })` (a dashed reference line); `at(x, y)` / `near(x, y)`: points for links and badges |
+| `d.meter({ title, parts })` | `parts: [{ label, tone }, …]` (two or more); the last part takes the rest | `set(fracs, texts)`: fractions for all but the last part, and a value shown after each label |
+| `d.readout({ label, sample })` | A large mono number with a label. `sample` is the widest value it will show, so the frame keeps its size | `set(text)` |
+| `d.bits({ title, count, tone })` | A bit array: each cell shows its index and 0/1 | `set(i, on)`, `cell(i).mark('active' \| 'zero' \| 'on')`, `top(i)`, `bottom(i)` |
+
+Charts and meters keep their state in JS (series, marker, fractions); `set` and `at` only store it and the next paint draws it once. Reset puts them back as they were when the scene was built, in step-diagram scenes too.
+`d.table({ …, note })` takes a sample of the longest row note (the table is sized so it fits between the key column and the × mark); `row(i).note(text, { tone })` writes it in the payload column (an answer, a result), and the key column widens for word keys.
+
 ## Kits: `defineKit(name, kit)`
 
 A page author does not write kits; this section is for engine changes. A kit is an object with these methods (only `load` and `build` are required):
@@ -268,7 +324,7 @@ A page author does not write kits; this section is for engine changes. A kit is 
 | Member | Called |
 |---|---|
 | `rotatable` | `true` shows the drag hint and Reset view while this kit's scene is active |
-| `load(host)` | Once, before the kit's first scene is built. `host = { layer, wrap, relayout }`; `layer` is the kit's own element inside the stage. Import libraries here. Throw an error with `uiKey: 'fallback'` to show the "can't draw" notice instead of the load error |
+| `load(host)` | Once, before the kit's first scene is built. `host = { layer, wrap, relayout, control }`; `layer` is the kit's own element inside the stage. A kit with reader controls calls `control(true)` when the reader takes a control (focus, press) and `control(false)` when they leave it; the shell stops a running action and holds auto-play in between. Import libraries here. Throw an error with `uiKey: 'fallback'` to show the "can't draw" notice instead of the load error |
 | `build(def)` | Turns a `defineScene` definition into the kit's scene object, which must have `reset()` and `run(a, say)` |
 | `show(scene, prev)` / `hide(scene)` | The scene became active / stopped being active (`hide` drops temporary objects) |
 | `reset(scene)` | Restore what the engine owns (colors) before the scene's own `reset()` |
@@ -283,6 +339,7 @@ A page author does not write kits; this section is for engine changes. A kit is 
 | `labels()` | Label elements now visible, for `overlaps()` and `clipped()`. Labels must be DOM elements |
 | `badge(anchor, n)` | Put step number `n` next to `anchor`; return a function that removes it |
 | `resetView()`, `info()` | Reset view; `{ resources, azimuth }` for the hooks |
+| `params(scene, values)`, `paramSpec(scene)` | Optional: a playground's parameters, behind `__explainer.params` and `paramSpec` |
 
 ## Stage states and verification hooks `window.__explainer`
 
@@ -305,6 +362,8 @@ a Retry button that reloads the page. On small screens the failed stage becomes 
 | `resources()` | axo: counts of registered labels, decluttering state entries, and renderer geometries (`labels`, `labelStates`, `geometries`), step badges excluded. Compare after warming up the same scene and after repeated runs |
 | `azimuth()` | axo: camera azimuth (radians). Use it to check whether the model rotated |
 | `kitInfo()` | The active kit's state. svg: `{ scale, arrangement, row }` (`arrangement`: `right`, `below`, `fit`, or `phone`) |
+| `params(name, values?)` | A playground's parameters: reads them, or sets some (as the reader would, without stopping a run; the live line updates) and returns all. `null` for a scene without parameters |
+| `paramSpec(name)` | `{ id: { min, max, value } }` of a playground's parameters (`min`/`max` are the first and last values of a list) |
 | `timing()` | The latest run's own timeline: `{ base, scaled }` in ms. `base` is the time every wait and tween asked for at 1×, `scaled` the time they were scheduled for at the speeds in effect (0 in instant mode; parallel steps add up). Use it to check speed without depending on machine load |
 
 ## Speed menu

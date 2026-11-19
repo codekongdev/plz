@@ -12,14 +12,14 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const assets = join(root, 'skills/plz-explain/assets');
 const DESKTOP = { width: 1440, height: 900 };
 // Shipped example pages drawn only by the svg kit.
-const SVG_EXAMPLES = ['example-hash-join-sip.html', 'example-hash-join-sip.en.html', 'example-lost-update.html', 'example-lost-update.en.html'];
+const SVG_EXAMPLES = ['example-hash-join-sip.html', 'example-hash-join-sip.en.html', 'example-lost-update.html', 'example-lost-update.en.html', 'example-bloom-filter.html', 'example-bloom-filter.en.html'];
 // The chapters of each svg example, in order.
-const EXAMPLE_SCENES = { 'hash-join-sip': ['plan', 'build', 'sip', 'compare', 'nodes'], 'lost-update': ['serial', 'lost', 'lock', 'version', 'compare'] };
+const EXAMPLE_SCENES = { 'hash-join-sip': ['plan', 'build', 'sip', 'compare', 'nodes'], 'lost-update': ['serial', 'lost', 'lock', 'version', 'compare'], 'bloom-filter': ['add', 'lookup', 'bits', 'hashes', 'sizing'] };
 let browser, server, origin;
 
 // Scenes that use every svg part: a row-level step diagram with a filter (s1), side-by-side panels fed by one trigger (s2),
 // and an operator tree next to node columns (s3).
-const LANE_CHAPTERS = { extra: ['s4', 's5'] }; // SVG_SCENES has two lanes chapters after the template's three
+const LANE_CHAPTERS = { extra: ['s4', 's5', 's6'] }; // SVG_SCENES has two lanes chapters and a playground after the template's three
 const SVG_SCENES = `
 const KEYS = [8, 17, 23, 31, 42, 56], IN = [17, 42], HIT = KEYS.map(k => IN.includes(k));
 defineScene('s1', {
@@ -197,6 +197,47 @@ defineScene('s5', {
     };
   },
 });
+// A parameter playground: two sliders (bits m: a range; hash functions k: a list), presets, a line chart with a marker
+// and a reference line, a stacked meter and a readout. The run is the tour; the reader explores afterwards.
+defineScene('s6', {
+  kit: 'svg',
+  title: '6  Bits and false positives',
+  params: {
+    m: { label: 'Bits m', min: 100, max: 2000, step: 100, value: 800, unit: 'bits' },
+    k: { label: 'Hash functions k', values: [1, 2, 3, 4, 5, 6, 7, 8], value: 4 },
+  },
+  presets: [{ label: '4 bits per item', values: { m: 400 } }, { label: '16 bits per item', values: { m: 1600, k: 8 } }],
+  build(d) {
+    const n = 100, f = (m, k) => (1 - Math.exp(-k * n / m)) ** k;
+    const pct = v => (v * 100).toFixed(2) + '%';
+    const chart = d.chart({ title: 'False positive rate', x: { label: 'bits m', min: 100, max: 2000, ticks: [100, 500, 1000, 1500, 2000] },
+      y: { min: 1e-4, max: 1, log: true, ticks: [1e-4, 1e-3, 1e-2, 1e-1, 1], format: v => (v * 100) + '%' } });
+    const curve = chart.line(m => f(m, 4), { tone: 'actor' });
+    const mark = chart.marker(curve);
+    chart.ref('y', 0.01, { label: '1%' });
+    const fill = d.meter({ title: 'Bits set to 1', parts: [{ label: '1', tone: 'matter' }, { label: '0' }] });
+    const out = d.readout({ label: 'False positive rate', sample: '100.00%' });
+    window.__pg = { n };
+    return {
+      diagram: d.stack([chart, d.stack([fill, out], { dir: 'row' })], { dir: 'col' }),
+      update(p) {
+        curve.set(m => f(m, p.k));
+        mark.at(p.m);
+        const ones = 1 - Math.exp(-p.k * n / p.m);
+        fill.set([ones], [pct(ones), pct(1 - ones)]);
+        out.set(pct(f(p.m, p.k)));
+        return 'With ' + p.m + ' bits and k = ' + p.k + ', about ' + pct(f(p.m, p.k)) + ' of lookups for absent keys say maybe.';
+      },
+      async run(a, say) {
+        await a.set({ m: 200 });
+        say('1. With 2 bits per item, most lookups said maybe.', { anchor: chart.near(200, f(200, 4)) }); // a point by the curve, not the moving marker
+        await a.wait(500);
+        await a.set({ m: 1600 }, { ms: 1500 });
+        say('2. With 16 bits per item, the rate fell below 1%.', { anchor: chart.near(1600, f(1600, 4)) });
+      },
+    };
+  },
+});
 `;
 
 // Long Korean text in every framed label: counters, tally, gate chip, link label, lane text.
@@ -360,6 +401,7 @@ before(async () => {
     // data-kits lists a kit no scene uses.
     'variant-unused-kit.html': variantWithScenes(tpl, SVG_SCENES, 'axo svg', LANE_CHAPTERS),
     'variant-lanes-extra.html': variantWithScenes(tpl, LANES_EXTRA, 'svg'),
+    'variant-pg-extra.html': variantWithScenes(tpl, PG_EXTRA, 'svg'),
   };
   server = await startPageServer(path => variants[path] ?? (['template.html', 'example-agent-sandbox.en.html', ...SVG_EXAMPLES].includes(path) ? readFile(join(assets, path)) : null));
   origin = server.origin;
@@ -509,6 +551,19 @@ async function svgChapterChecks(page, tag, { phone }) {
     assert.deepEqual(r.clipped, [], `${tag} ${n}: clipped`);
     const f = await minFont(page);
     assert.ok(f >= (phone ? 11 : 12) - 0.01, `${tag} ${n}: smallest label ${f}px`);
+    // A playground: also at the minimum and maximum of every slider, then back to the defaults.
+    const ext = await page.evaluate(n => {
+      const p = window.__explainer.params(n), spec = window.__explainer.paramSpec(n);
+      if (!p) return [];
+      const out = [];
+      for (const [id, s] of Object.entries(spec)) for (const v of [s.min, s.max]) {
+        window.__explainer.params(n, { ...p, [id]: v });
+        out.push({ at: `${id}=${v}`, overlaps: window.__explainer.overlaps(), clipped: window.__explainer.clipped() });
+      }
+      window.__explainer.params(n, p);
+      return out;
+    }, n);
+    for (const e of ext) assert.deepEqual([e.overlaps, e.clipped], [[], []], `${tag} ${n} at ${e.at}`);
     if (phone && (await page.evaluate(() => document.querySelector('.rail').classList.contains('compact')))) {
       await page.evaluate(() => window.__explainer.rail(true));
       assert.deepEqual(await page.evaluate(() => window.__explainer.clipped()), [], `${tag} ${n}: clipped with the sheet open`);
@@ -770,8 +825,42 @@ for (const file of SVG_EXAMPLES) {
     assert.equal(await page.locator('.hint').isVisible(), false);
     if (file.endsWith('.en.html')) assert.equal(await page.evaluate(() => /[가-힣]/.test(document.body.innerText + document.title)), false, 'no Hangul on the English page');
     for (const n of await noteTexts(page)) assert.doesNotMatch(n, file.endsWith('.en.html') ? ROTATE.en : ROTATE.ko, 'the step-by-step note, without overrides');
+    if (file.includes('bloom-filter')) await bloomNumbers(page);
     assert.deepEqual(errors, []);
   });
+}
+
+// The Bloom filter page computes its numbers; they must match an independent calculation.
+const fnv1a = s => { let h = 2166136261; for (const ch of s) { h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; } return h; };
+async function bloomNumbers(page) {
+  const positions = await page.evaluate(() => Object.fromEntries(['apple', 'grape', 'lemon', 'plum', 'melon'].map(k => [k, window.__bloom.positions(k)])));
+  for (const [k, pos] of Object.entries(positions)) assert.deepEqual(pos, [0, 1, 2].map(i => fnv1a(`${i}:${k}`) % 12), `positions of ${k}`);
+  const readouts = async (name, values) => page.evaluate(([n, v]) => {
+    window.__explainer.params(n, v);
+    return [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').querySelectorAll('.readout .rv').length
+      ? [...[...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').querySelectorAll('.readout .rv')].map(t => t.textContent) : null;
+  }, [name, values]);
+  const close = (text, want, label) => { const v = parseFloat(text); assert.ok(Math.abs(v - want) <= Math.abs(want) * 0.051 + 1e-9, `${label}: page ${text}, expected ${want}`); };
+  await page.evaluate(() => window.__explainer.run('bits'));
+  let r = await readouts('bits', { m: 8000 });
+  close(r[0], fp(8000, 1000, 4) * 100, 'm = 8n, k = 4'); // just over 2% (Broder & Mitzenmacher)
+  assert.equal(r[1], '8');
+  r = await readouts('bits', { m: 1000 });
+  close(r[0], fp(1000, 1000, 4) * 100, 'm = n');
+  await page.evaluate(() => window.__explainer.run('hashes'));
+  r = await readouts('hashes', { k: 7 });
+  close(r[0], fp(10000, 1000, 7) * 100, 'k = 7, m/n = 10');
+  r = await readouts('hashes', { k: 1 });
+  close(r[0], fp(10000, 1000, 1) * 100, 'k = 1');
+  await page.evaluate(() => window.__explainer.run('sizing'));
+  const per = p => -Math.log(p) / Math.LN2 ** 2;
+  for (const [n, p] of [[1e6, 0.01], [1e6, 0.001], [1e7, 0.0001], [1000, 0.1]]) {
+    r = await readouts('sizing', { n, p });
+    close(r[0], per(p), `bits per key at p = ${p}`);
+    const bytes = per(p) * n / 8, mem = bytes < 1e6 ? bytes / 1e3 : bytes / 1e6;
+    close(r[1], mem, `memory for n = ${n}, p = ${p}`);
+    assert.equal(r[2], String(Math.round(per(p) * Math.LN2)), `hash functions at p = ${p}`);
+  }
 }
 
 test('a gate without label or pass has no chip, and a pill covered by another frame is reported by clipped()', async t => {
@@ -1103,4 +1192,221 @@ test('lanes on a phone: lock bars face the nearest resource lane and stay visibl
   assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
   assert.deepEqual(errors, []);
   await close();
+});
+
+// ---- Parameter playground ----
+const fp = (m, n, k) => (1 - Math.exp(-k * n / m)) ** k; // independent of the page
+const pgState = page => page.evaluate(() => ({
+  params: window.__explainer.params('s6'),
+  inputs: [...document.querySelectorAll('.pg:not([hidden]) input[type=range]')].map(i => ({ value: i.value, label: i.labels?.[0]?.textContent ?? i.getAttribute('aria-label'), h: i.getBoundingClientRect().height, text: i.getAttribute('aria-valuetext') })),
+  outs: [...document.querySelectorAll('.pg:not([hidden]) output')].map(o => o.textContent),
+  presets: [...document.querySelectorAll('.pg:not([hidden]) .pg-preset')].map(b => ({ text: b.textContent, h: b.getBoundingClientRect().height })),
+  readout: [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').querySelector('.readout .rv')?.textContent,
+  live: document.querySelector('.pg:not([hidden]) .pg-live')?.textContent ?? null,
+  liveRole: document.querySelector('.pg:not([hidden]) .pg-live')?.getAttribute('aria-live'),
+  caps: document.querySelectorAll('.rail-list .cap').length,
+}));
+const pct = v => (v * 100).toFixed(2) + '%';
+const gotoChapter = async (page, name) => {
+  await page.evaluate(n => document.querySelector(`[data-scene="${n}"]`).scrollIntoView({ block: 'center', behavior: 'instant' }), name);
+  await page.waitForFunction(n => window.__explainer.current() === n, name);
+};
+
+test('playground: sliders and presets render, work by keyboard and pointer, redraw at once, and the tour restores the defaults on reset', { timeout: 90_000 }, async t => {
+  for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
+    const { page, errors, close } = await openPage(t, 'variant-svg-only.html', { viewport });
+    await gotoChapter(page, 's6');
+    let st = await pgState(page);
+    assert.deepEqual(st.params, { m: 800, k: 4 });
+    assert.deepEqual(st.inputs.map(i => i.label), ['Bits m', 'Hash functions k']);
+    assert.deepEqual(st.outs, ['800 bits', '4']);
+    assert.equal(st.inputs[0].text, '800 bits');
+    assert.ok([...st.inputs, ...st.presets].every(c => c.h >= 44), `touch targets: ${JSON.stringify(st)}`);
+    assert.equal(st.readout, pct(fp(800, 100, 4)));
+    assert.equal(st.liveRole, 'polite');
+    // keyboard: one step right
+    await page.focus('.pg:not([hidden]) input[type=range]');
+    await page.keyboard.press('ArrowRight');
+    await nextFrames(page);
+    st = await pgState(page);
+    assert.deepEqual(st.params, { m: 900, k: 4 });
+    assert.equal(st.readout, pct(fp(900, 100, 4)), 'the chart and readout follow the slider at once');
+    assert.match(st.live, /900 bits/, 'the live line describes the new value');
+    const caps0 = st.caps;
+    // the ordinal slider moves through its list
+    await page.focus('.pg:not([hidden]) .pg-row:nth-of-type(2) input[type=range]');
+    await page.keyboard.press('End');
+    await nextFrames(page);
+    assert.deepEqual((await pgState(page)).params, { m: 900, k: 8 });
+    // pointer: press at the far left of the first slider
+    const box = await page.locator('.pg:not([hidden]) input[type=range]').first().boundingBox();
+    await page.mouse.click(box.x + 2, box.y + box.height / 2);
+    await nextFrames(page);
+    assert.equal((await pgState(page)).params.m, 100);
+    // a preset sets several sliders at once
+    await page.locator('.pg:not([hidden]) .pg-preset', { hasText: '16 bits per item' }).click();
+    await nextFrames(page);
+    st = await pgState(page);
+    assert.deepEqual(st.params, { m: 1600, k: 8 });
+    assert.equal(st.readout, pct(fp(1600, 100, 8)));
+    assert.equal(st.caps, caps0, 'exploring writes the live line, not captions');
+    // the hook sets values deterministically
+    assert.deepEqual(await page.evaluate(() => window.__explainer.params('s6', { m: 500 })), { m: 500, k: 8 });
+    assert.equal((await pgState(page)).readout, pct(fp(500, 100, 8)));
+    assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+    // the run is the tour; a new run starts from the defaults (captured when reset clears the rail)
+    await page.evaluate(() => window.__explainer.instant(true));
+    assert.equal(await page.evaluate(() => window.__explainer.run('s6')), '2. With 16 bits per item, the rate fell below 1%.');
+    assert.deepEqual((await pgState(page)).params, { m: 1600, k: 4 }, 'the tour ends at its last stop');
+    const atReset = await page.evaluate(async () => {
+      const list = document.querySelector('.rail-list');
+      let snap = null;
+      const mo = new MutationObserver(() => { if (snap === null && list.children.length === 0) snap = window.__explainer.params('s6'); });
+      mo.observe(list, { childList: true });
+      window.__explainer.instant(false); window.__explainer.speed(2); // a real-time run, so the reset state is observable
+      await window.__explainer.run('s6');
+      mo.disconnect();
+      window.__explainer.speed(1);
+      return snap;
+    });
+    assert.deepEqual(atReset, { m: 800, k: 4 }, 'reset restores the defaults');
+    assert.deepEqual(errors, []);
+    await close();
+  }
+});
+
+// The reader's hand on a control, without focus (Safari and Firefox on macOS do not focus buttons or sliders on click).
+const press = (page, sel) => page.evaluate(sel => { const n = document.querySelector(sel); n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 })); }, sel);
+const release = page => page.evaluate(() => window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 })));
+const capCount = page => page.evaluate(() => document.querySelectorAll('.rail-list .cap').length);
+const autoplayOn = async (page, name) => {
+  await gotoChapter(page, name);
+  await page.evaluate(() => { window.__explainer.speed(2); window.__explainer.autorun(true); });
+  await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length >= 1, null, { timeout: 20_000 });
+};
+const GRACE = 2500; // the shell's hold after the last reader input (ms)
+
+test('playground hold: a focus-less preset press stops the tour, keeps the reader\'s values until they leave the chapter, then auto-play resumes', { timeout: 90_000 }, async t => {
+  const { page, errors, close } = await openPage(t, 'variant-svg-only.html');
+  await autoplayOn(page, 's6');
+  const preset = '.pg:not([hidden]) .pg-preset:nth-child(2)';
+  await press(page, preset);
+  await release(page);
+  await page.evaluate(sel => document.querySelector(sel).click(), preset); // click() does not focus
+  assert.equal(await page.evaluate(() => document.activeElement?.matches?.('.pg *') ?? false), false, 'the controls never took focus');
+  const caps = await capCount(page);
+  assert.deepEqual((await pgState(page)).params, { m: 1600, k: 8 });
+  await sleep(GRACE + 1500);
+  assert.deepEqual((await pgState(page)).params, { m: 1600, k: 8 }, 'the reader\'s values stay after the hold ends');
+  assert.equal(await capCount(page), caps, 'auto-play does not restart a chapter the reader changed');
+  await gotoChapter(page, 's5');
+  await gotoChapter(page, 's6');
+  await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length >= 1, null, { timeout: 20_000 });
+  await page.waitForFunction(() => JSON.stringify(window.__explainer.params('s6')) !== JSON.stringify({ m: 1600, k: 8 }), null, { timeout: 20_000 });
+  await page.evaluate(() => { window.__explainer.autorun(false); window.__explainer.speed(1); });
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('playground hold: a press without a change releases after the grace period, a pointer never released is released by a chapter change, and keys hold too', { timeout: 120_000 }, async t => {
+  const { page, errors, close } = await openPage(t, 'variant-svg-only.html');
+  await autoplayOn(page, 's6');
+  // press and release on the controls, no value change: auto-play comes back after the grace period
+  await press(page, '.pg:not([hidden])');
+  await release(page);
+  const caps = await capCount(page);
+  await sleep(800);
+  assert.equal(await capCount(page), caps, 'nothing runs during the hold');
+  await page.waitForFunction(c => document.querySelectorAll('.rail-list .cap').length !== c, caps, { timeout: GRACE + 15_000 });
+  // keyboard: an arrow key changes the value and holds; the value stays
+  await page.focus('.pg:not([hidden]) input[type=range]');
+  await page.keyboard.press('ArrowRight');
+  const kept = (await pgState(page)).params;
+  await sleep(GRACE + 1500);
+  assert.deepEqual((await pgState(page)).params, kept, 'a keyboard change is kept');
+  await page.evaluate(() => document.activeElement.blur());
+  // a pointer pressed and never released: leaving the chapter releases it, and the next chapter's auto-play runs
+  await press(page, '.pg:not([hidden]) input[type=range]');
+  await gotoChapter(page, 's5');
+  await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length >= 1, null, { timeout: 20_000 });
+  await page.evaluate(() => { window.__explainer.autorun(false); window.__explainer.speed(1); });
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('playground controls are not chapters, and a docked slider keeps focus across relayouts (landscape phone)', async t => {
+  const { page, errors, close } = await openPage(t, 'variant-svg-only.html', { viewport: { width: 844, height: 390 } });
+  assert.equal(await page.evaluate(() => document.querySelectorAll('.pg[data-scene]').length), 0, 'the controls carry no data-scene');
+  await gotoChapter(page, 's6');
+  assert.equal(await page.evaluate(() => document.querySelector('.pg:not([hidden])').classList.contains('docked')), true);
+  await page.focus('.pg:not([hidden]) input[type=range]');
+  const before = await page.evaluate(() => { window.__pgInput = document.activeElement; window.__pgParent = document.activeElement.closest('.pg').parentElement; return true; });
+  for (const h of [391, 392, 390]) { await page.setViewportSize({ width: 844, height: h }); await nextFrames(page, 3); }
+  assert.ok(before && await page.evaluate(() => document.activeElement === window.__pgInput && window.__pgInput.closest('.pg').parentElement === window.__pgParent), 'the focused slider stayed where it was');
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+// Part details: a table note sized with the key column it is drawn after, list and stepped params, chart and meter state
+// restored by reset in a step-diagram scene, and x tick labels that keep a gap.
+const PG_EXTRA = `
+defineScene('s1', { kit: 'svg', title: '1  Notes and charts', build(d) {
+  const t = d.table({ title: 'Answers', keys: [1, 2], header: ['key', 'answer'], note: 'a rather long answer' });
+  const chart = d.chart({ title: 'Rate', x: { label: 'n', min: 1000, max: 20000, ticks: [1000, 2000, 3000, 4000, 5000, 10000, 15000, 20000], format: v => v.toLocaleString('en-US') }, y: { min: 0, max: 1, ticks: [0, 0.5, 1] } });
+  const s = chart.line(x => 0.5);
+  const mk = chart.marker(s); mk.at(1000);
+  const meter = d.meter({ title: 'Share', parts: [{ label: 'a', tone: 'matter' }, { label: 'b' }] }); meter.set([0.25]);
+  window.__px = { t, chart, s, mk, meter };
+  return { diagram: d.stack([t, chart, meter], { dir: 'col' }), async run(a, say) {
+    t.row(0).note('a rather long answer'); s.set(x => x / 20000); mk.at(15000); meter.set([0.8], ['80%', '20%']);
+    await a.wait(400); say('Done.');
+  } };
+} });
+defineScene('s2', { kit: 'svg', title: '2  List and step', params: { mode: { label: 'Mode', values: ['off', 'on', 'auto'], value: 'on' }, r: { label: 'R', min: 0, max: 10, step: 4, value: 8 } },
+  build(d) { const out = d.readout({ label: 'Value', sample: 'auto 10' }); return { diagram: out, update(p) { out.set(p.mode + ' ' + p.r); return p.mode + ' ' + p.r; }, async run(a, say) { say('Done.'); } }; } });
+`;
+const PX_STATE = () => {
+  const P = window.__px, seg = [...P.meter.g.querySelectorAll('.mseg')].slice(0, 2).map(r => r.getAttribute('width'));
+  return JSON.stringify({ path: P.s.path.getAttribute('d'), dot: [P.mk.dot.getAttribute('cx'), P.mk.dot.getAttribute('cy')], seg });
+};
+
+test('parts: a long table note stays clear of the × mark, list and stepped params snap, chart and meter state is restored by reset, and x tick labels keep a gap', { timeout: 60_000 }, async t => {
+  for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
+    const { page, errors, close } = await openPage(t, 'variant-pg-extra.html', { viewport });
+    const fresh = await page.evaluate(PX_STATE);
+    await page.evaluate(() => window.__explainer.instant(true));
+    await page.evaluate(() => window.__explainer.run('s1'));
+    const note = await page.evaluate(() => { const r = window.__px.t.row(0); return { note: r.noteText.getBoundingClientRect().right, x: r.xc.getBoundingClientRect().left }; });
+    assert.ok(note.note <= note.x - 2, `the note ends before the × mark: ${JSON.stringify(note)}`);
+    const ticks = await page.evaluate(() => [...window.__px.chart.g.querySelectorAll('.tk')].filter(n => n.getBoundingClientRect().top > window.__px.chart.g.querySelector('.plot').getBoundingClientRect().bottom - 1)
+      .map(n => ({ text: n.textContent, shown: n.style.display !== 'none', r: n.getBoundingClientRect() })));
+    const shown = ticks.filter(x => x.shown);
+    for (let i = 1; i < shown.length; i++) assert.ok(shown[i].r.left - shown[i - 1].r.right >= 3, `${viewport.width}: tick labels ${shown[i - 1].text} and ${shown[i].text} keep a gap`);
+    assert.ok(shown[0].text === '1,000' && shown.at(-1).text === '20,000', `the end ticks stay: ${shown.map(x => x.text)}`);
+    assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+    // reset restores the chart and meter of a step-diagram scene (captured when reset clears the rail)
+    const atReset = await page.evaluate(async src => {
+      const state = new Function(`return (${src})()`), list = document.querySelector('.rail-list');
+      let snap = null;
+      const mo = new MutationObserver(() => { if (snap === null && list.children.length === 0) snap = state(); });
+      mo.observe(list, { childList: true });
+      window.__explainer.instant(false);
+      await window.__explainer.run('s1');
+      mo.disconnect();
+      return snap;
+    }, PX_STATE.toString());
+    assert.equal(atReset, fresh, 'reset restores the series, the marker and the meter');
+    // list params snap by index, stepped params stay within max and agree with the native slider
+    const p = await page.evaluate(() => { window.__explainer.instant(true); return window.__explainer.run('s2').then(() => {
+      const a = window.__explainer.params('s2', { mode: 'auto' });
+      const b = window.__explainer.params('s2', { r: 10 });
+      const inputs = [...document.querySelectorAll('.pg:not([hidden]) input[type=range]')].map(i => i.value);
+      return { a, b, inputs };
+    }); });
+    assert.equal(p.a.mode, 'auto');
+    assert.ok(p.b.r <= 10 && String(p.b.r) === p.inputs[1], `stepped value ${p.b.r} vs slider ${p.inputs[1]}`);
+    assert.equal(p.inputs[0], '2', 'the list slider stands at the third entry');
+    assert.deepEqual(errors, []);
+    await close();
+  }
 });

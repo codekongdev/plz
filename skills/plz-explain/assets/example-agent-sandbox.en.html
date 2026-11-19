@@ -1162,7 +1162,8 @@ Split.apply(); // the saved split holds while kits load, and after a load failur
 /* ---- Kits and scenes ----
    defineKit(name, kit) registers a stage kit. Methods (all but load/build optional):
      rotatable            true shows the drag hint and Reset view
-     load(host)           once, before the kit's first scene is built. host = { layer, wrap, relayout }. Throw an error with .uiKey to pick the failure notice
+     load(host)           once, before the kit's first scene is built. host = { layer, wrap, relayout, control }. Throw an error with .uiKey to pick the failure notice.
+                          control(on): a kit with reader controls (sliders) calls it when the reader takes (true) or leaves (false) a control
      build(def)           turns a defineScene definition into the kit's scene object; it must have reset() and run(a, say)
      show(scene, prev)    the scene became the active one (prev may be null or belong to another kit)
      hide(scene)          the scene stopped being active; drop its temporary objects
@@ -1171,6 +1172,8 @@ Split.apply(); // the saved split holds while kits load, and after a load failur
      animator(dir, scene) the `a` passed to run(); defaults to the director { wait, tween, live }
      fit(rect, W, H, chrome) fit the drawing to rect (px inside the layer W × H); the rest is under the caption rail.
                           chrome = { top, bottom }: the band between the HUD and the legend, for kits that must stay clear of them
+     params(scene, values) optional: a scene's parameters (playgrounds): set some (values) and return all; null without parameters
+     paramSpec(scene)     optional: { id: { min, max, value } } of a scene's parameters
      place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom };
                           return { rail: { x, y, w, h }, scale, model } (scale also sizes the captions), or null for the default
      minHeight()          optional: the smallest model height (px) for the stage-height handle on phones
@@ -1199,6 +1202,9 @@ function setupKit(name, fn) {
   if (typeof fn !== 'function') throw new Error(`[plz] setupKit('${name}', fn): fn must be a function`);
   kitSetups.push({ name, fn });
 }
+// Kits report the reader's hand on a stage control through host.control; the auto-play section sets what it does.
+let onReaderControl = () => {};
+const readerControl = on => onReaderControl(on);
 function loadKit(name) {
   const kit = kits[name];
   if (!kit) return Promise.reject(new Error(`[plz] kit "${name}" is not on this page: copy its KIT ${name} sections (css and js) from the template and list "${name}" in data-kits.`));
@@ -1206,7 +1212,7 @@ function loadKit(name) {
     kit.layer = el('div', { className: 'kit-layer', hidden: true }, wrap);
     kit.layer.dataset.kit = name;
     wrap.append(railEl); // the rail stays above every kit layer
-    kit.loading = Promise.resolve(kit.load({ layer: kit.layer, wrap, relayout: layoutStage }));
+    kit.loading = Promise.resolve(kit.load({ layer: kit.layer, wrap, relayout: layoutStage, control: readerControl }));
   }
   return kit.loading;
 }
@@ -2355,6 +2361,7 @@ function activate(name, force = false) {
   bumpRun();
   const prev = current ? scenes[current] : null;
   if (prev && prev !== s) kits[prev.kit].hide?.(prev.built);
+  if (current !== name) { explored = null; current = name; releaseControl(); } // leaving a chapter releases the reader's hold
   current = name;
   if (!prev || prev.kit !== s.kit) railOpen = false;
   showKitLayer(s.kit);
@@ -2374,6 +2381,7 @@ async function runScene(name) {
   if (!s) return;
   const kit = kits[s.kit];
   const mine = bumpRun(); // a run or chapter change after this point cancels this run
+  if (explored === name) explored = null; // running a chapter the reader changed: its values reset, auto-play may loop it again
   liveRun = mine;
   Object.assign(timeline, { token: mine, base: 0, scaled: 0 });
   clearCaptions();
@@ -2435,7 +2443,32 @@ function armAuto(name, ms, fn) {
 }
 function stopAuto() { clearTimeout(autoTimer); autoTimer = 0; autoWait = null; autoPaused = null; }
 // Whether this scene should still be looped. If a token is given, no other run (button included) or chapter switch may have happened in between.
-const loopOk = (name, token) => autorunOn && current === name && scrollY > TOP_HOLD && (token === undefined || token === runToken);
+const loopOk = (name, token) => autorunOn && !controlHold && explored !== name && current === name && scrollY > TOP_HOLD && (token === undefined || token === runToken);
+// The reader's hand on a stage control (a playground slider or preset). Kits report input, not focus (Safari and Firefox
+// on macOS do not focus buttons or sliders on click): control({ pressed }) when a pointer goes down or up on a control,
+// control({ changed: true }) when the reader changed a value, control({}) for any other input (a key), control({ release:
+// true }) when the controls moved or hid. The hold: a running action stops, and auto-play waits while a pointer is down and
+// for CONTROL_GRACE ms after the last input. It is always released: by that timer, a chapter change, or the kit.
+// A chapter whose values the reader changed keeps them: its auto-play does not restart (its reset would wipe them)
+// until the reader runs it or leaves the chapter.
+const CONTROL_GRACE = 2500;
+let controlHold = false, controlPressed = false, controlTimer = 0, explored = null;
+function releaseControl() {
+  clearTimeout(controlTimer);
+  controlTimer = 0;
+  controlPressed = false;
+  if (!controlHold) return;
+  controlHold = false;
+  if (autorunOn && autoEl && explored !== current) { autoPending = true; tryAutorun(); }
+}
+onReaderControl = ({ pressed = null, changed = false, release = false } = {}) => {
+  if (release) { releaseControl(); return; }
+  if (pressed !== null) controlPressed = pressed;
+  if (changed && current) explored = current;
+  if (!controlHold) { controlHold = true; stopAuto(); if (liveRun) bumpRun(); }
+  clearTimeout(controlTimer);
+  controlTimer = controlPressed ? 0 : setTimeout(releaseControl, CONTROL_GRACE);
+};
 function startCycle(name) { // reset → initial state → run
   resetScene(name);
   const t = runToken;
@@ -2448,7 +2481,7 @@ function onSceneDone(name, token) { // Called by runScene when the action ran to
 }
 function tryAutorun() { // schedule the first run of the chapter being read
   const node = autoEl, btn = runnerOf(node);
-  if (!autoPending || !autorunOn || !btn || scrollY <= TOP_HOLD) return;
+  if (!autoPending || !autorunOn || controlHold || !btn || scrollY <= TOP_HOLD || explored === btn.dataset.run) return;
   autoPending = false;
   const name = btn.dataset.run, t = runToken;
   armAuto(name, autoMs(AUTORUN_DELAY), () => {
@@ -2556,6 +2589,10 @@ window.__explainer = {
   rail: v => (v === undefined || Boolean(v) === railOpen ? railOpen : setRailOpen(v)), // The caption sheet on narrow stages (open: true)
   azimuth: () => activeKit()?.info?.().azimuth ?? null, // for checking whether the model rotated
   kitInfo: () => activeKit()?.info?.() ?? null,
+  // A playground's parameters: params(name) reads them, params(name, { id: value }) sets some (as the reader would, without
+  // stopping a run) and returns all. paramSpec(name) gives { id: { min, max, value } }. null for a scene without parameters.
+  params: (name, values) => { const s = scenes[name]; return s?.built ? kits[s.kit].params?.(s.built, values) ?? null : null; },
+  paramSpec: name => { const s = scenes[name]; return s?.built ? kits[s.kit].paramSpec?.(s.built) ?? null : null; },
   timing: () => ({ base: Math.round(timeline.base), scaled: Math.round(timeline.scaled) }), // the latest run's own timeline (ms; see account())  // the active kit's own state (svg: { scale, arrangement, row })
   async run(name) {
     // In the stacked layout, scroll so the chapter's top sits just below the stage (CSS scroll-margin-top); in the side-by-side layout, scroll it to the center.

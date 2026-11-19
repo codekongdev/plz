@@ -350,6 +350,51 @@
   .svg-stage .lspan.lock rect { fill: var(--bound); }
   .svg-stage .playhead line { stroke: var(--ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
   .svg-stage .playhead path { fill: var(--ink); }
+  /* Playground parts: charts with hairline axes, a stacked meter, a readout, a bit array. */
+  .svg-stage .chart .plot { fill: #fff; stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .svg-stage .chart .gl { stroke: var(--hair); stroke-opacity: .35; stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .svg-stage .chart .tick { stroke: var(--ink-soft); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .svg-stage .chart .tk { font-family: var(--mono); }
+  .svg-stage .chart .series { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .svg-stage .chart .series.t-actor { stroke: var(--actor); }
+  .svg-stage .chart .series.t-bound { stroke: var(--bound); }
+  .svg-stage .chart .series.t-matter { stroke: var(--matter); }
+  .svg-stage .chart .refl { stroke: var(--bound); stroke-width: 1.25; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+  .svg-stage .chart .reft { fill: var(--bound); }
+  .svg-stage .chart .guide { stroke: var(--ink); stroke-opacity: .45; stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+  .svg-stage .chart .dot { fill: var(--ink); stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .svg-stage .meter .mbar { fill: #fff; stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .svg-stage .meter .mseg { fill: rgba(30, 42, 51, 0.12); }
+  .svg-stage .meter .mseg.t-matter { fill: var(--matter); }
+  .svg-stage .meter .mseg.t-actor { fill: var(--actor); }
+  .svg-stage .meter .mseg.t-bound { fill: var(--bound); }
+  .svg-stage .readout .rbox { fill: #fff; stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .svg-stage .readout .rv { font-weight: 600; }
+  .svg-stage .bit rect { fill: #fff; stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; transition: fill .18s, stroke .15s, stroke-width .15s; }
+  .svg-stage .bit.on1 rect { fill: rgba(196, 146, 31, 0.22); stroke: var(--matter); }
+  .svg-stage .bit.on1 .mono { font-weight: 700; }
+  .svg-stage :is(.bit.active, .bit.on) rect { stroke: var(--ink); stroke-width: 2.5; }
+  .svg-stage .bit.zero rect { stroke: var(--bound); stroke-width: 2.5; }
+  .svg-stage .row .note { font-weight: 600; }
+  /* Playground controls: an HTML band under the diagram (the kit places it). Native range inputs, 44px targets. */
+  .pg { position: absolute; z-index: 2; display: grid; grid-template-columns: max-content minmax(96px, 1fr) max-content; align-items: center; gap: 2px 10px; font: 500 0.8rem/1.3 var(--sans); color: var(--ink); }
+  .pg[hidden] { display: none; }
+  .pg.docked { position: static; margin-top: 1rem; }
+  .pg-row { display: contents; } /* every slider row shares the three columns, so the tracks line up */
+  .pg-presets, .pg-live { grid-column: 1 / -1; }
+  .pg-row label { font-weight: 600; white-space: nowrap; }
+  .pg-out { font: 500 0.8rem/1 var(--mono); text-align: right; white-space: nowrap; }
+  .pg input[type=range] { width: 100%; min-width: 0; height: 44px; margin: 0; accent-color: var(--ink); cursor: pointer; background: transparent; }
+  .pg-presets { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+  .pg-preset { min-height: 44px; padding: 0 12px; border: 1px solid var(--rule); border-radius: 8px; background: #fff; font: inherit; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .pg-preset:focus-visible, .pg input[type=range]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .pg-live { margin: 2px 0 0; min-height: 2.6em; max-height: 2.6em; overflow: hidden; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.3; }
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+    .pg { font-size: 0.75rem; }
+    .pg { grid-template-columns: max-content minmax(80px, 1fr) max-content; column-gap: 8px; }
+    .pg-out { font-size: 0.75rem; }
+    .pg-live { font-size: 0.75rem; }
+  }
   /* END KIT svg css */
   /* A kit may scale the caption column with its diagram (--cap-k). */
   .rail.side { --k: var(--cap-k, 1); }
@@ -1133,7 +1178,8 @@ Split.apply(); // the saved split holds while kits load, and after a load failur
 /* ---- Kits and scenes ----
    defineKit(name, kit) registers a stage kit. Methods (all but load/build optional):
      rotatable            true shows the drag hint and Reset view
-     load(host)           once, before the kit's first scene is built. host = { layer, wrap, relayout }. Throw an error with .uiKey to pick the failure notice
+     load(host)           once, before the kit's first scene is built. host = { layer, wrap, relayout, control }. Throw an error with .uiKey to pick the failure notice.
+                          control(on): a kit with reader controls (sliders) calls it when the reader takes (true) or leaves (false) a control
      build(def)           turns a defineScene definition into the kit's scene object; it must have reset() and run(a, say)
      show(scene, prev)    the scene became the active one (prev may be null or belong to another kit)
      hide(scene)          the scene stopped being active; drop its temporary objects
@@ -1142,6 +1188,8 @@ Split.apply(); // the saved split holds while kits load, and after a load failur
      animator(dir, scene) the `a` passed to run(); defaults to the director { wait, tween, live }
      fit(rect, W, H, chrome) fit the drawing to rect (px inside the layer W × H); the rest is under the caption rail.
                           chrome = { top, bottom }: the band between the HUD and the legend, for kits that must stay clear of them
+     params(scene, values) optional: a scene's parameters (playgrounds): set some (values) and return all; null without parameters
+     paramSpec(scene)     optional: { id: { min, max, value } } of a scene's parameters
      place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom };
                           return { rail: { x, y, w, h }, scale, model } (scale also sizes the captions), or null for the default
      minHeight()          optional: the smallest model height (px) for the stage-height handle on phones
@@ -1170,6 +1218,9 @@ function setupKit(name, fn) {
   if (typeof fn !== 'function') throw new Error(`[plz] setupKit('${name}', fn): fn must be a function`);
   kitSetups.push({ name, fn });
 }
+// Kits report the reader's hand on a stage control through host.control; the auto-play section sets what it does.
+let onReaderControl = () => {};
+const readerControl = on => onReaderControl(on);
 function loadKit(name) {
   const kit = kits[name];
   if (!kit) return Promise.reject(new Error(`[plz] kit "${name}" is not on this page: copy its KIT ${name} sections (css and js) from the template and list "${name}" in data-kits.`));
@@ -1177,7 +1228,7 @@ function loadKit(name) {
     kit.layer = el('div', { className: 'kit-layer', hidden: true }, wrap);
     kit.layer.dataset.kit = name;
     wrap.append(railEl); // the rail stays above every kit layer
-    kit.loading = Promise.resolve(kit.load({ layer: kit.layer, wrap, relayout: layoutStage }));
+    kit.loading = Promise.resolve(kit.load({ layer: kit.layer, wrap, relayout: layoutStage, control: readerControl }));
   }
   return kit.loading;
 }
@@ -1187,7 +1238,8 @@ function activeKit() { return current ? kits[scenes[current].kit] : null; }
 
 /* KIT svg js — the svg kit. A page without svg chapters deletes this section, up to END KIT svg js (and KIT svg css). */
 /* ---- Kit "svg": 2D step diagrams in native SVG. No library. ----
-   A scene's build(d) makes parts with the builder `d` (table, buckets, box, gate, tree, columns, lanes, link, token) and arranges them
+   A scene's build(d) makes parts with the builder `d` (table, buckets, box, gate, tree, columns, lanes, chart, meter, readout, bits,
+   link, token) and arranges them
    with d.grid / d.panels / d.stack. The kit computes the layout for the stage: natural size on desktop scaled by k (1 to 1.6),
    compressed columns and adaptive row heights on narrow stages and phones. Parts expose points (functions returning [x, y]
    in diagram units); links, tokens and badges are drawn from those points, so they follow every relayout, also mid-run.
@@ -1289,7 +1341,8 @@ function svgBuilder(sc) {
 
   // Table: a title, a header row, and rows that carry a key (mono) and a faint payload. Row states: hit, gone, active.
   // payload: false draws a key-only table (no faint payload column): narrower, for compact diagrams such as panels.
-  function table({ title = '', keys = [], tone = '', header = null, payload = true } = {}) {
+  // note: the longest row note the table will show (row(i).note), so the table is wide enough for it and for word keys.
+  function table({ title = '', keys = [], tone = '', header = null, payload = true, note = '' } = {}) {
     const g = svgNode('g', { class: 'part table' }, sc.layer.parts);
     const ttl = label(g, 'g' + toneClass(tone), title);
     const frame = svgNode('rect', { class: 'tbl', rx: 6 }, g);
@@ -1304,20 +1357,33 @@ function svgBuilder(sc) {
       n.xc = svgNode('circle', { fill: 'none', stroke: 'var(--ink-soft)', 'stroke-width': 1.2 }, x);
       n.xp = svgNode('path', { fill: 'none', stroke: 'var(--ink-soft)', 'stroke-width': 1.2 }, x);
       n.mark = (cls, on = true) => r.classList.toggle(cls, on);
+      // A short note in the payload column (an answer, a result) in place of the faint payload bar.
+      n.noteText = label(r, 'meta note', '');
+      n.note = (text, { tone: t = '' } = {}) => { n.noteText.textContent = text; n.noteText.setAttribute('class', 'meta note' + toneClass(t)); if (n.skel) n.skel.style.opacity = text ? 0 : ''; };
+      framed(n.noteText, n.bg);
       return n;
     });
     const part = {
       kind: 'table', g, rows,
       // A header row only when a header is given (and phone rows are tall enough); a key-only table shows the key title only.
       hdrH: m => (header ? (m ?? sc.m).hdr : 0),
-      size: m => ({ w: payload ? (m.phone ? 128 : 184) : (m.phone ? 72 : 100), min: payload ? (m.phone ? 104 : 140) : (m.phone ? 64 : 84), h: m.title + part.hdrH(m) + keys.length * m.row + part.below(m) }),
+      // The key column fits the widest key (word keys too); a table with notes is as wide as the key column plus the longest note.
+      keyW: m => Math.max(0, ...keys.map(k => estimateText(k, m.key, { mono: true }))) + 22,
+      // The key column at width w; sizing uses its widest case (max of m.kw and the keys), so a note always fits after it
+      // and before the × mark (the last 28px).
+      kw: (m, w) => (payload ? Math.max(Math.min(m.kw, w * 0.35), note ? part.keyW(m) : 0) : w - 28),
+      size: m => {
+        const noteW = note && payload ? Math.max(m.kw, part.keyW(m)) + 8 + estimateText(note, m.meta, { bold: true }) + 6 + 28 : 0;
+        const w = payload ? Math.max(m.phone ? 128 : 184, noteW) : (m.phone ? 72 : 100), min = payload ? Math.max(m.phone ? 104 : 140, noteW) : (m.phone ? 64 : 84);
+        return { w, min, h: m.title + part.hdrH(m) + keys.length * m.row + part.below(m) };
+      },
       place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: part.hdrH(m) + keys.length * m.row }; },
       rowC: i => part.box.y + part.hdrH() + i * sc.m.row + sc.m.row / 2,
       row: i => rows[i],
       out: i => () => [part.box.x + part.box.w, part.rowC(i)],
       src: i => rest(() => [part.box.x + part.box.w - 8, part.rowC(i)], 'right', { within: frame }), // a token rests by its right edge
       draw(m) {
-        const { x, y, w, h } = part.box, kw = payload ? Math.min(m.kw, w * 0.35) : w - 28; // key-only: the × mark has the last 28px
+        const { x, y, w, h } = part.box, kw = part.kw(m, w); // key-only: the × mark has the last 28px
         const hh = part.hdrH(m);
         svgSet(ttl, { x, y: y - m.title / 2, 'font-size': m.text });
         svgSet(frame, { x, y, width: w, height: h });
@@ -1331,6 +1397,7 @@ function svgBuilder(sc) {
           if (n.sep) svgSet(n.sep, { x1: x, x2: x + w, y1: top, y2: top });
           svgSet(n.key, { x: x + 14, y: cy, 'font-size': m.key });
           if (n.skel) svgSet(n.skel, { x: x + kw + 8, y: cy - 3, width: Math.max(8, (w - kw - 16) * 0.55), height: 6 });
+          svgSet(n.noteText, { x: x + kw + 8, y: cy, 'font-size': m.meta });
           const cx = x + w - 14;
           svgSet(n.xc, { cx, cy, r: 6 });
           svgSet(n.xp, { d: `M${cx - 2.5},${cy - 2.5} L${cx + 2.5},${cy + 2.5} M${cx + 2.5},${cy - 2.5} L${cx - 2.5},${cy + 2.5}` });
@@ -1820,6 +1887,215 @@ function svgBuilder(sc) {
     return register(part);
   }
 
+  // ---- Playground parts: a line chart, a stacked meter, a readout, a bit array. They redraw with the scene's update(params).
+  // Line chart: a plot with axes and tick labels; line(fn) draws fn over the x range, marker(series) a point at the current
+  // parameter, ref(axis, v) a dashed reference line. x / y: { min, max, ticks, format, log, label } (x.label under the axis;
+  // put the y unit in the title).
+  function chart({ title = '', x, y, w: natW = null } = {}) {
+    for (const [ax, s] of [['x', x], ['y', y]]) if (!s || !(s.max > s.min) || (s.log && !(s.min > 0))) throw new Error(`[plz] d.chart: ${ax} needs min < max (and min > 0 on a log axis)`);
+    const g = svgNode('g', { class: 'part chart' }, sc.layer.parts);
+    const ttl = label(g, 'g', title);
+    const frame = svgNode('rect', { class: 'plot' }, g);
+    const gridG = P(g), seriesG = P(g), markG = P(g);
+    const fmt = s => s.format ?? (v => String(v));
+    const xt = (x.ticks ?? []).map(v => ({ v, t: label(g, 'meta tk', fmt(x)(v)), l: svgNode('line', { class: 'tick' }, gridG) }));
+    const yt = (y.ticks ?? []).map(v => ({ v, t: label(g, 'meta tk', fmt(y)(v)), l: svgNode('line', { class: 'gl' }, gridG) }));
+    const xl = x.label ? label(g, 'meta', x.label) : null;
+    const unit = (s, v) => { const t = s.log ? (Math.log10(v) - Math.log10(s.min)) / (Math.log10(s.max) - Math.log10(s.min)) : (v - s.min) / (s.max - s.min); return clamp(0, Number.isFinite(t) ? t : 0, 1); };
+    const series = [], refs = [], markers = [];
+    const geo = m => {
+      const b = part.box, yw = Math.max(0, ...yt.map(t => textWidth(t.t, m.meta))) + 8, tickRow = m.meta + 8;
+      const top = m.title + m.meta / 2 + 4; // the top tick label stays clear of the title
+      const plot = { x: b.x + yw, y: b.y + top, w: b.w - yw - 4, h: b.h - top - tickRow - (xl ? m.meta + 6 : 0) };
+      return { plot, px: v => plot.x + unit(x, v) * plot.w, py: v => plot.y + plot.h - unit(y, v) * plot.h };
+    };
+    const plotH = m => (m.phone ? 5.5 * m.row : 5 * m.row);
+    const part = {
+      kind: 'chart', g,
+      size: m => ({ w: natW ?? (m.phone ? 300 : 440), min: m.phone ? 220 : 300, h: m.title + m.meta / 2 + 4 + plotH(m) + m.meta + 8 + (xl ? m.meta + 6 : 0) }),
+      place(m, bx, by, w) { part.box = { x: bx, y: by, w, h: part.size(m).h }; },
+      line(fn, { tone = '', samples = 80 } = {}) {
+        // set() only stores the function: the next paint (the playground's, or the kit's frame) draws it once.
+        const s = { fn, samples, path: svgNode('path', { class: 'series' + toneClass(tone) }, seriesG), set(f) { s.fn = f; sc.dirty?.(); } };
+        series.push(s);
+        return s;
+      },
+      marker(s) {
+        const mk = { s, x: x.min, guide: svgNode('line', { class: 'guide' }, markG), dot: svgNode('circle', { class: 'dot' }, markG) };
+        mk.at = v => { mk.x = v; sc.dirty?.(); };
+        mk.point = () => { const q = geo(sc.m); return [q.px(mk.x), q.py(mk.s.fn(mk.x))]; };
+        mk.badgeAt = () => { const [px, py] = mk.point(); return [px + 10, py - 10]; };
+        mk.g = mk.dot;
+        markers.push(mk);
+        return mk;
+      },
+      ref(axis, v, { label: name = '' } = {}) {
+        const r = { axis, v, line: svgNode('line', { class: 'refl' }, gridG), text: name ? label(g, 'meta reft', name) : null };
+        refs.push(r);
+        return r;
+      },
+      // Reset puts series and markers back as they were when the scene was built (captured after build).
+      capture() { for (const s of series) s.fn0 = s.fn; for (const mk of markers) mk.x0 = mk.x; },
+      // Tick labels (shown) that touch their neighbour on the same axis, for clipped().
+      crowded() {
+        const out = [];
+        for (const [list, axis] of [[xt, 'x'], [yt, 'y']]) {
+          const rs = list.filter(({ t }) => t.style.display !== 'none').map(({ t }) => ({ t, r: t.getBoundingClientRect() }));
+          rs.sort((a, b) => (axis === 'x' ? a.r.left - b.r.left : a.r.top - b.r.top));
+          for (let i = 1; i < rs.length; i++) {
+            const gap = axis === 'x' ? rs[i].r.left - rs[i - 1].r.right : rs[i].r.top - rs[i - 1].r.bottom;
+            if (gap < 2) out.push(rs[i].t.textContent);
+          }
+        }
+        return out;
+      },
+      restore() { for (const s of series) s.fn = s.fn0 ?? s.fn; for (const mk of markers) mk.x = mk.x0 ?? mk.x; },
+      // The plot's point for (xv, yv), in diagram units; near() is a point just above and right of it, for a caption badge
+      // that should not cover the curve or the axis labels.
+      at: (xv, yv) => () => { const q = geo(sc.m); return [q.px(xv), q.py(yv)]; },
+      near: (xv, yv) => () => { const q = geo(sc.m); return [q.px(xv) + 11, q.py(yv) - 11]; },
+      draw(m) {
+        const b = part.box, q = geo(m), { plot } = q;
+        svgSet(ttl, { x: b.x, y: b.y + m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x: plot.x, y: plot.y, width: plot.w, height: plot.h });
+        // Tick labels at the ends of the x axis align with the plot's edges, clear of the y labels and inside the part.
+        // They also keep a gap of about half a character: the end labels stay, an inner label that would come closer is hidden
+        // (its tick mark stays).
+        const gapX = m.meta * 0.3, spans = xt.map(({ v, t, l }) => {
+          const px = q.px(v), anchor = px <= plot.x + 0.5 ? 'start' : px >= plot.x + plot.w - 0.5 ? 'end' : 'middle';
+          svgSet(l, { x1: px, x2: px, y1: plot.y + plot.h, y2: plot.y + plot.h + 4 });
+          svgSet(t, { x: px, y: plot.y + plot.h + 6 + m.meta / 2, 'text-anchor': anchor, 'font-size': m.meta });
+          const w = textWidth(t, m.meta);
+          return anchor === 'start' ? [px, px + w] : anchor === 'end' ? [px - w, px] : [px - w / 2, px + w / 2];
+        });
+        let right = -Infinity;
+        xt.forEach(({ t }, i) => {
+          const end = i === xt.length - 1, [l, r] = spans[i], nextLeft = end ? Infinity : spans.at(-1)[0];
+          const show = i === 0 || end || (l >= right + gapX && r <= nextLeft - gapX);
+          t.style.display = show ? '' : 'none';
+          if (show) right = r;
+        });
+        yt.forEach(({ v, t, l }) => { const py = q.py(v); svgSet(l, { x1: plot.x, x2: plot.x + plot.w, y1: py, y2: py }); svgSet(t, { x: plot.x - 6, y: py, 'text-anchor': 'end', 'font-size': m.meta }); });
+        if (xl) svgSet(xl, { x: plot.x + plot.w, y: plot.y + plot.h + m.meta + 10 + m.meta / 2, 'text-anchor': 'end', 'font-size': m.meta });
+        for (const s of series) {
+          const pts = Array.from({ length: s.samples + 1 }, (_, i) => {
+            const t = i / s.samples, xv = x.log ? 10 ** (Math.log10(x.min) + t * (Math.log10(x.max) - Math.log10(x.min))) : x.min + t * (x.max - x.min);
+            return [q.px(xv), q.py(s.fn(xv))];
+          });
+          s.path.setAttribute('d', 'M' + pts.map(p => `${+p[0].toFixed(2)},${+p[1].toFixed(2)}`).join(' L'));
+        }
+        for (const r of refs) {
+          if (r.axis === 'y') { const py = q.py(r.v); svgSet(r.line, { x1: plot.x, x2: plot.x + plot.w, y1: py, y2: py }); if (r.text) svgSet(r.text, { x: plot.x + plot.w - 4, y: py - m.meta / 2 - 2, 'text-anchor': 'end', 'font-size': m.meta }); }
+          else { const px = q.px(r.v); svgSet(r.line, { x1: px, x2: px, y1: plot.y, y2: plot.y + plot.h }); if (r.text) svgSet(r.text, { x: px + 4, y: plot.y + m.meta / 2 + 3, 'text-anchor': 'start', 'font-size': m.meta }); }
+        }
+        for (const mk of markers) {
+          const [px, py] = mk.point();
+          svgSet(mk.guide, { x1: px, x2: px, y1: plot.y + plot.h, y2: py });
+          svgSet(mk.dot, { cx: px, cy: py, r: m.phone ? 4 : 5 });
+        }
+      },
+    };
+    return register(part);
+  }
+
+  // Stacked meter: one bar split into parts (fractions; the last part takes the rest), with a legend line of labels and values.
+  function meter({ title = '', parts: specs = [] } = {}) {
+    if (specs.length < 2) throw new Error('[plz] d.meter: give at least two parts');
+    const g = svgNode('g', { class: 'part meter' }, sc.layer.parts);
+    const ttl = label(g, 'g', title);
+    const frame = svgNode('rect', { class: 'mbar', rx: 4 }, g);
+    const segs = specs.map(sp => ({ sp, f: 1 / specs.length, rect: svgNode('rect', { class: 'mseg' + toneClass(sp.tone) }, g), sw: svgNode('rect', { class: 'mseg' + toneClass(sp.tone), rx: 2 }, g), t: label(g, 'meta', sp.label) }));
+    const barH = m => (m.phone ? 14 : 18);
+    const part = {
+      kind: 'meter', g,
+      size: m => ({ w: m.phone ? 150 : 220, min: m.phone ? 120 : 160, h: m.title + barH(m) + 8 + m.meta + 6 }),
+      place(m, bx, by, w) { part.box = { x: bx, y: by, w, h: part.size(m).h }; },
+      // fracs for every part but the last (it takes the rest); texts: a value shown after each part's label.
+      set(fracs, texts = []) {
+        let rest = 1;
+        segs.forEach((s, i) => { s.f = i < segs.length - 1 ? clamp(0, fracs[i] ?? 0, rest) : rest; rest -= s.f; s.t.textContent = texts[i] ? `${s.sp.label} ${texts[i]}` : s.sp.label; });
+        sc.dirty?.();
+      },
+      capture() { for (const s of segs) s.f0 = s.f; },
+      restore() { for (const s of segs) s.f = s.f0 ?? s.f; }, // the label texts come back with the kit's text snapshot
+      draw(m) {
+        const b = part.box, by = b.y + m.title, h = barH(m);
+        svgSet(ttl, { x: b.x, y: b.y + m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x: b.x, y: by, width: b.w, height: h });
+        let xx = b.x, lx = b.x;
+        const ly = by + h + 8 + m.meta / 2;
+        for (const s of segs) {
+          svgSet(s.rect, { x: xx, y: by, width: s.f * b.w, height: h });
+          xx += s.f * b.w;
+          svgSet(s.sw, { x: lx, y: ly - 4, width: 8, height: 8 });
+          svgSet(s.t, { x: lx + 12, y: ly, 'font-size': m.meta });
+          lx += 12 + textWidth(s.t, m.meta) + 12;
+        }
+      },
+    };
+    return register(part);
+  }
+
+  // Readout: a large number (mono) with a label above it. sample: the widest value it will show, so the frame does not
+  // change size with the value.
+  function readout({ label: name = '', sample = '000.00' } = {}) {
+    const g = svgNode('g', { class: 'part readout' }, sc.layer.parts);
+    const frame = svgNode('rect', { class: 'rbox', rx: 6 }, g);
+    const lab = label(g, 'meta', name), val = label(g, 'rv mono', '');
+    framed(val, frame); framed(lab, frame);
+    const fs = m => (m.phone ? 20 : 28), pad = m => (m.phone ? 8 : 12);
+    const part = {
+      kind: 'readout', g, valueNode: val,
+      size: m => { const w = Math.ceil(Math.max(estimateText(sample, fs(m), { mono: true }), estimateText(name, m.meta)) + 2 * pad(m)); return { w, min: w, h: m.meta + 6 + fs(m) * 1.25 + 2 * pad(m) }; },
+      place(m, bx, by, w) { const s = part.size(m); part.box = { x: bx, y: by, w: Math.min(w, s.w), h: s.h }; },
+      set(text) { val.textContent = String(text); },
+      draw(m) {
+        const b = part.box, p = pad(m);
+        svgSet(frame, { x: b.x, y: b.y, width: b.w, height: b.h });
+        svgSet(lab, { x: b.x + p, y: b.y + p + m.meta / 2, 'font-size': m.meta });
+        svgSet(val, { x: b.x + p, y: b.y + p + m.meta + 6 + fs(m) * 0.6, 'font-size': fs(m) });
+      },
+    };
+    return register(part);
+  }
+
+  // Bit array: a row of cells, each with its index and its bit (0 or 1). set(i) sets a bit; cell(i).mark('active' | 'zero').
+  // top(i) / bottom(i) are points on a cell's edges, for links that show where a key's hashes point.
+  function bits({ title = '', count = 12, tone = 'matter' } = {}) {
+    const g = svgNode('g', { class: 'part bits' }, sc.layer.parts);
+    const ttl = label(g, 'g', title);
+    const cells = Array.from({ length: count }, (_, i) => {
+      const c = svgNode('g', { class: 'bit' + toneClass(tone) }, g);
+      const n = { g: c, rect: svgNode('rect', { rx: 4 }, c), idx: label(c, 'meta', i), val: label(c, 'mono', 0) };
+      framed(n.idx, n.rect); framed(n.val, n.rect);
+      n.mark = (cls, on = true) => c.classList.toggle(cls, on);
+      // A caption badge sits at the cell's bottom-right corner, clear of the title above the array.
+      n.badgeAt = () => { const q = geo(); return [q.cx(i) + q.cw, q.y + cellH(sc.m)]; };
+      return n;
+    });
+    const cellH = m => (m.phone ? 34 : 46);
+    const geo = () => { const b = part.box, cw = (b.w - (count - 1) * 2) / count; return { cw, cx: i => b.x + i * (cw + 2), y: b.y + sc.m.title }; };
+    const part = {
+      kind: 'bits', g, cells,
+      size: m => ({ w: count * (m.phone ? 22 : 34), min: count * (m.phone ? 17 : 26), h: m.title + cellH(m) }),
+      place(m, bx, by, w) { part.box = { x: bx, y: by, w, h: m.title + cellH(m) }; },
+      cell: i => cells[i],
+      set(i, on = true) { cells[i].val.textContent = on ? 1 : 0; cells[i].mark('on1', on); },
+      top: i => () => { const q = geo(); return [q.cx(i) + q.cw / 2, q.y]; },
+      bottom: i => () => { const q = geo(); return [q.cx(i) + q.cw / 2, q.y + cellH(sc.m)]; },
+      draw(m) {
+        const b = part.box, q = geo(), h = cellH(m);
+        svgSet(ttl, { x: b.x, y: b.y + m.title / 2, 'font-size': m.text });
+        cells.forEach((c, i) => {
+          svgSet(c.rect, { x: q.cx(i), y: q.y, width: q.cw, height: h });
+          svgSet(c.idx, { x: q.cx(i) + q.cw / 2, y: q.y + (m.phone ? 8 : 11), 'text-anchor': 'middle', 'font-size': m.meta });
+          svgSet(c.val, { x: q.cx(i) + q.cw / 2, y: q.y + h * 0.66, 'text-anchor': 'middle', 'font-size': m.key });
+        });
+      },
+    };
+    return register(part);
+  }
+
   // Containers. grid: rows of cells (parts or null) with a gutter between columns for connectors and gates.
   // panels: the same kind of diagram side by side (stacked on phones), each with a title. stack: a plain row or column.
   function grid(rows, { gutter = null } = {}) {
@@ -1904,7 +2180,7 @@ function svgBuilder(sc) {
     };
   }
   return {
-    table, buckets, box, gate, tree, columns, lanes, link, token, grid, stack, panels,
+    table, buckets, box, gate, tree, columns, lanes, chart, meter, readout, bits, link, token, grid, stack, panels,
     corner: (a, b) => () => [pointOf(b)[0], pointOf(a)[1]],
     phone: () => sc.m.phone,
   };
@@ -1985,6 +2261,22 @@ function svgAnimator(dir, sc) {
       const anim = n.animate([{ transform: 'scale(1.14)' }, { transform: 'scale(1)' }], { duration: 160, easing: 'ease-out' });
       anim.playbackRate = dir.speed();
     },
+    // Playground: sweep the sliders from their values to `values` (others stay) in about ms; the diagram follows each frame.
+    // Range params move continuously (snapped to their steps), list params step through the list. Reduced motion: the
+    // sliders jump and the step keeps its time.
+    async set(values, { ms = 900 } = {}) {
+      const pg = sc.pg;
+      if (!pg) throw new Error('[plz] a.set(values): this scene has no params');
+      const from = pg.get(), to = Object.fromEntries(pg.ids.map(id => [id, pg.P[id].snap(values[id] ?? from[id])]));
+      const lerp = (id, t) => {
+        const q = pg.P[id];
+        if (!q.list) return from[id] + (to[id] - from[id]) * t;
+        const i0 = q.list.indexOf(from[id]), i1 = q.list.indexOf(to[id]);
+        return q.list[Math.round(i0 + (i1 - i0) * t)];
+      };
+      await dir.tween(ms, t => pg.apply(Object.fromEntries(pg.ids.map(id => [id, lerp(id, t)]))));
+      pg.apply(to);
+    },
     // Lanes: move the playhead step by step up to `to` (about 0.5 s a step), revealing each step in causal order: the
     // actors' events and starting spans, then messages (drawn from sender to receiver), then values on resource lanes
     // (older values dim). The newest step's items carry .new (an ink outline) until the next step.
@@ -2028,11 +2320,110 @@ function svgAnimator(dir, sc) {
   };
 }
 
+
+// ---- Playground: a scene with params gets reader controls under its diagram (1–3 sliders, optional presets, a live line).
+// A param is a range { label, min, max, step, value, unit, format } or a list { label, values, value, format } (an ordinal
+// slider over the list). update(p) draws the diagram for the values p and returns the live sentence. The run is the tour;
+// a.set(values) sweeps the sliders. Reset and every run start from the defaults. Values are not saved across reloads.
+function svgPlayground(sc, def, out, host) {
+  const name = def.name, specs = def.params;
+  const ids = Object.keys(specs);
+  if (ids.length < 1 || ids.length > 3) throw new Error(`[plz] svg scene ${name}: a playground has 1–3 params (got ${ids.length})`);
+  if (typeof out.update !== 'function') throw new Error(`[plz] svg scene ${name}: a scene with params must return update(params) from build`);
+  const P = {};
+  for (const id of ids) {
+    const sp = specs[id], list = Array.isArray(sp.values) ? sp.values : null;
+    const bad = msg => { throw new Error(`[plz] svg scene ${name}: param ${id} ${msg}`); };
+    if (list && !list.length) bad('has an empty values list');
+    if (list && sp.value !== undefined && !list.includes(sp.value)) bad(`value ${JSON.stringify(sp.value)} is not in its values list`);
+    if (!list && !(sp.max > sp.min && sp.step > 0)) bad('needs min < max and step > 0, or values: [...]');
+    const fmt = sp.format ?? (v => (sp.unit ? `${v} ${sp.unit}` : String(v)));
+    // A list snaps by entry (an unknown value falls back to the first entry; sliders report an index, read through the list).
+    // A range snaps to min + k·step and never past max (the native slider's own rule, so both agree; when max − min is not
+    // a multiple of step, the top value is the last step below max).
+    const top = list ? 0 : Math.floor((sp.max - sp.min) / sp.step + 1e-9);
+    const snap = v => {
+      if (list) return list.includes(v) ? v : list[0];
+      const k = clamp(0, Math.round((clamp(sp.min, Number(v), sp.max) - sp.min) / sp.step), top);
+      return +(sp.min + k * sp.step).toFixed(10);
+    };
+    P[id] = { sp, list, fmt, snap, min: list ? list[0] : sp.min, max: list ? list.at(-1) : snap(sp.max), def: snap(sp.value ?? (list ? list[0] : sp.min)) };
+  }
+  const root = el('div', { className: 'pg', hidden: true }, host.layer);
+  root.dataset.pg = name; // not data-scene: that marks chapters for the reading line
+  const rows = ids.map(id => {
+    const q = P[id], row = el('div', { className: 'pg-row' }, root), inputId = `pg-${name}-${id}`;
+    el('label', { htmlFor: inputId, textContent: q.sp.label ?? id }, row);
+    const input = el('input', { type: 'range', id: inputId }, row);
+    Object.assign(input, q.list ? { min: 0, max: q.list.length - 1, step: 1 } : { min: q.min, max: q.max, step: q.sp.step });
+    const output = el('output', { className: 'pg-out' }, row);
+    output.htmlFor = inputId;
+    return { id, q, input, output };
+  });
+  const presets = (def.presets ?? []).length ? el('div', { className: 'pg-presets' }, root) : null;
+  for (const pr of def.presets ?? []) {
+    const b = el('button', { type: 'button', className: 'pg-preset', textContent: pr.label }, presets);
+    b.addEventListener('click', () => { pg.apply({ ...pg.get(), ...pr.values }, { live: true }); host.control?.({ changed: true }); });
+  }
+  const live = el('p', { className: 'pg-live' }, root);
+  live.setAttribute('aria-live', 'polite');
+  let values = Object.fromEntries(ids.map(id => [id, P[id].def])), liveNext = '', liveTimer = 0;
+  // The live line follows the reader's changes; screen readers hear it at most every 300 ms.
+  const setLive = text => {
+    liveNext = text ?? '';
+    if (liveTimer) return;
+    live.textContent = liveNext;
+    const flush = () => { liveTimer = 0; if (live.textContent !== liveNext) { live.textContent = liveNext; liveTimer = setTimeout(flush, 300); } };
+    liveTimer = setTimeout(flush, 300);
+  };
+  const pg = {
+    root, ids, P,
+    get: () => ({ ...values }),
+    defaults: () => Object.fromEntries(ids.map(id => [id, P[id].def])),
+    // Draw the diagram for vals (snapped to each slider's steps or list). live: show the sentence on the live line.
+    apply(vals, { live: showLive = false } = {}) {
+      values = Object.fromEntries(ids.map(id => [id, P[id].snap(vals[id] ?? values[id])]));
+      for (const r of rows) {
+        const v = values[r.id];
+        r.input.value = String(r.q.list ? r.q.list.indexOf(v) : v);
+        r.output.textContent = r.q.fmt(v);
+        r.input.setAttribute('aria-valuetext', r.q.fmt(v));
+      }
+      const sentence = out.update({ ...values });
+      pg.redraw?.();
+      if (showLive) setLive(sentence);
+      return sentence;
+    },
+    clearLive() { clearTimeout(liveTimer); liveTimer = 0; liveNext = ''; live.textContent = ''; },
+    spec: () => Object.fromEntries(ids.map(id => [id, { min: P[id].min, max: P[id].max, value: P[id].def }])),
+  };
+  for (const r of rows) {
+    r.input.addEventListener('input', () => {
+      const raw = Number(r.input.value), v = r.q.list ? r.q.list[raw] : raw;
+      pg.apply({ ...values, [r.id]: v }, { live: true });
+      host.control?.({ changed: true });
+    });
+  }
+  // The reader's hand, reported as input (never focus): a pointer down on the controls holds until it goes up (anywhere)
+  // or the window loses focus; a key holds for the shell's grace period. The shell always releases the hold.
+  root.addEventListener('pointerdown', () => {
+    host.control?.({ pressed: true });
+    const up = () => { removeEventListener('pointerup', up); removeEventListener('pointercancel', up); removeEventListener('blur', up); host.control?.({ pressed: false }); };
+    addEventListener('pointerup', up); addEventListener('pointercancel', up); addEventListener('blur', up);
+  });
+  root.addEventListener('keydown', () => host.control?.({}));
+  pg.release = () => host.control?.({ release: true });
+  pg.apply(values);
+  return pg;
+}
+
+const CTL_GAP = 10; // px between the diagram and a playground's controls
 defineKit('svg', {
   rotatable: false,
   scenes: new Set(),
   current: null,
   load(host) {
+    this.host = host;
     this.svg = svgNode('svg', { class: 'svg-stage', 'aria-hidden': 'true' }, host.layer);
     const defs = svgNode('defs', {}, this.svg);
     for (const [id, color, op] of [['plz-arr', 'var(--ink-soft)', 0.7], ['plz-arr-b', 'var(--bound)', 1]]) {
@@ -2054,8 +2445,18 @@ defineKit('svg', {
     const out = def.build(d) ?? {};
     if (!out.diagram || typeof out.run !== 'function') throw new Error(`[plz] svg scene ${def.name}: build(d) must return { diagram, run }`);
     sc.diagram = out.diagram;
+    if (def.params) {
+      sc.pg = svgPlayground(sc, def, out, this.host);
+      sc.pg.redraw = () => { if (this.current?.sc === sc && sc.diagram) this.paint(sc); };
+    }
     this.layoutAt(sc, svgMetrics(false), Infinity);
     sc.snap = svgSnapshot(root);
+    for (const p of sc.parts) p.capture?.(); // JS state that reset restores (chart series and markers, meters)
+    // A part that changed state asks for one paint on the next frame (a synchronous paint in between makes it a no-op).
+    sc.dirty = () => {
+      if (sc.paintPending) return;
+      sc.paintPending = requestAnimationFrame(() => { sc.paintPending = 0; if (this.current?.sc === sc) this.paint(sc); });
+    };
     const built = { sc, run: out.run, reset: out.reset ?? (() => {}) };
     this.scenes.add(built);
     return built;
@@ -2074,6 +2475,7 @@ defineKit('svg', {
   },
   // Draw every part, link, token and badge from the arranged boxes.
   paint(sc) {
+    if (sc.paintPending) { cancelAnimationFrame(sc.paintPending); sc.paintPending = 0; }
     for (const p of sc.parts) p.draw(sc.m);
     for (const l of sc.links) l.draw(sc.m);
     for (const t of sc.tokens) drawToken(sc, t);
@@ -2092,7 +2494,10 @@ defineKit('svg', {
     if (!sc) return null;
     const m = svgMetrics(false), nat = sc.diagram.size(m);
     const PAD = 16, GAP = 24, RAIL_MIN = 248, KMAX = 1.6, BELOW = 12;
-    const aw = g.W - 2 * PAD, ah = g.bottom - g.top - PAD;
+    const aw = g.W - 2 * PAD;
+    // A playground's controls sit under the diagram (unscaled, at most 560px wide); the diagram gets the height above them.
+    this.ctlDock(sc, false);
+    const cw = Math.min(aw, 560), ch = this.ctlSize(sc, cw), ah = g.bottom - g.top - PAD - ch;
     const railBelow = 150; // room reserved for the captions under the diagram (they scroll inside it if longer)
     const kr = Math.min(aw / (nat.w + GAP + RAIL_MIN), ah / nat.h);
     const kb = Math.min(aw / nat.w, ah / (nat.h + BELOW + railBelow));
@@ -2101,13 +2506,16 @@ defineKit('svg', {
     const k = Math.min(KMAX, below ? kb : kr);
     const size = this.layoutAt(sc, m, Infinity);
     const railN = below ? size.w : clamp(RAIL_MIN, aw / k - size.w - GAP, 420);
-    const bw = (below ? size.w : size.w + GAP + railN) * k, bh = (below ? size.h + BELOW + railBelow : size.h) * k;
+    const bw = (below ? size.w : size.w + GAP + railN) * k, bh = (below ? size.h + BELOW + railBelow : size.h) * k + ch;
     const ox = (g.W - bw) / 2, oy = g.top + Math.max(0, (g.bottom - g.top - bh) * 0.4);
     this.transform(sc, ox, oy, k);
     sc.info = { scale: k, arrangement: below ? 'below' : 'right', row: m.row };
+    const ctlY = oy + size.h * k + CTL_GAP, ctlX = clamp(PAD, ox + (size.w * k - cw) / 2, g.W - PAD - cw);
+    if (ch) this.ctlPlace(sc, ctlX, ctlY);
     const rail = below
-      ? { x: ox, y: oy + (size.h + BELOW) * k, w: size.w * k, h: g.bottom - (oy + (size.h + BELOW) * k) - 8 }
+      ? { x: ox, y: oy + size.h * k + ch + BELOW * k, w: size.w * k, h: g.bottom - (oy + size.h * k + ch + BELOW * k) - 8 }
       : { x: ox + (size.w + GAP) * k, y: oy, w: railN * k, h: g.bottom - oy - 8 };
+    if (ch && !below && ctlX + cw > rail.x) rail.h = Math.min(rail.h, ctlY - oy - 8); // the captions stop above wide controls
     const model = below ? { x: 0, y: 0, w: g.W, h: rail.y - 4 } : { x: 0, y: 0, w: rail.x - 4, h: g.H };
     return { rail, scale: k, model };
   },
@@ -2118,6 +2526,21 @@ defineKit('svg', {
     if (!sc || !model.w || !model.h) return;
     // Stay clear of the HUD and the legend where they lie over the stage.
     const y0 = Math.max(model.y, chrome.top), rect = { x: model.x, y: y0, w: model.w, h: Math.min(model.y + model.h, chrome.bottom) - y0 };
+    // A playground's controls take a band under the diagram (unscaled); the diagram fits in the rest. On a short stage beside
+    // the text (a landscape phone) where both do not fit, the controls move into the chapter's text, under its run button.
+    // Docking is decided first (the controls' in-stage height is measured where they are), and the node moves only when
+    // that decision changes, so a focused or dragged slider is not re-parented by a relayout.
+    const cw = Math.min(rect.w - 16, 560);
+    let ch = 0;
+    if (sc.pg) {
+      ch = this.ctlSize(sc, cw);
+      const need = sc.diagram.size(svgMetrics(true, 15), rect.w - 10).h + 10;
+      const dock = !stackedQ.matches && rect.h - ch < need; // stacked: the stage grows instead
+      this.ctlDock(sc, dock);
+      if (dock) ch = 0;
+    }
+    sc.ctlH = ch;
+    rect.h -= ch;
     // Desktop sizes first (row 36, then 32 and 28: text stays at its desktop size), then phone sizes (row 20 down to 15).
     const tries = [...(barredQ.matches ? [] : [36, 32, 28].map(r => svgMetrics(false, r))), ...[20, 19, 18, 17, 16, 15].map(r => svgMetrics(true, r))];
     let size = null, m = null;
@@ -2132,14 +2555,37 @@ defineKit('svg', {
     const ox = rect.x + Math.max(m.pad, (rect.w - size.w * k) / 2);
     const oy = rect.y + (m.phone ? m.pad : Math.max(m.pad, (rect.h - size.h * k) * 0.4));
     this.transform(sc, ox, oy, k);
+    if (ch) this.ctlPlace(sc, rect.x + (rect.w - cw) / 2, oy + size.h * k + CTL_GAP);
     sc.info = { scale: k, arrangement: m.phone ? 'phone' : 'fit', row: m.row };
+  },
+  // A playground's controls: their height (with the gap above them) at width w, and their place (px in the layer).
+  ctlSize(sc, w) {
+    const r = sc.pg?.root;
+    if (!r || r.hidden) return 0;
+    const docked = r.classList.contains('docked');
+    r.style.width = `${Math.round(w)}px`; // docked: measured at the in-stage width, then back to the text column's width
+    const h = r.offsetHeight + CTL_GAP;
+    if (docked) r.style.width = '';
+    return h;
+  },
+  ctlPlace(sc, x, y) { Object.assign(sc.pg.root.style, { left: `${Math.round(x)}px`, top: `${Math.round(y)}px` }); },
+  // Controls in the stage (under the diagram) or docked in the chapter's text, after its run button.
+  ctlDock(sc, docked) {
+    const r = sc.pg?.root;
+    if (!r || r.classList.contains('docked') === docked) return;
+    const act = document.querySelector(`[data-scene="${sc.def.name}"] .act`);
+    if (docked && !act) return;
+    r.classList.toggle('docked', docked);
+    if (docked) { act.after(r); Object.assign(r.style, { left: '', top: '', width: '' }); }
+    else this.host.layer.append(r);
+    sc.pg.release(); // a moved node loses its pointer: the reader's hold ends
   },
   // The smallest model height at which the active diagram still fits with the smallest rows (phones), for the stage-height handle.
   minHeight() {
     const sc = this.current?.sc;
     if (!sc) return 150;
     const m = svgMetrics(true, 15);
-    return Math.max(150, sc.diagram.size(m, this.availW ?? Infinity).h + 2 * m.pad); // at the width the diagram was last fitted to
+    return Math.max(150, sc.diagram.size(m, this.availW ?? Infinity).h + 2 * m.pad + (sc.ctlH ?? 0)); // at the width last fitted to, with the controls
   },
   reset(built) {
     const { sc } = built;
@@ -2147,15 +2593,27 @@ defineKit('svg', {
     sc.tokens.clear();
     svgRestore(sc.snap);
     for (const p of sc.parts) p.restore?.(); // state a part keeps in JS (lane text)
+    if (sc.pg) { sc.pg.apply(sc.pg.defaults()); sc.pg.clearLive(); } // every run and reset starts from the defaults
     this.paint(sc);
   },
+  params(built, values) {
+    const pg = built.sc.pg;
+    if (!pg) return null;
+    if (values) pg.apply({ ...pg.get(), ...values }, { live: true });
+    return pg.get();
+  },
+  paramSpec: built => built.sc.pg?.spec() ?? null,
   show(built) {
-    for (const b of this.scenes) b.sc.root.style.display = b === built ? '' : 'none';
+    for (const b of this.scenes) {
+      b.sc.root.style.display = b === built ? '' : 'none';
+      if (b.sc.pg) b.sc.pg.root.hidden = b !== built;
+    }
     this.current = built;
   },
   hide(built) {
     for (const t of built.sc.tokens) t.g.remove();
     built.sc.tokens.clear();
+    if (built.sc.pg) { built.sc.pg.root.hidden = true; built.sc.pg.release(); }
   },
   clear(built) { this.hide(built); },
   animator: (dir, built) => svgAnimator(dir, built.sc),
@@ -2209,6 +2667,17 @@ defineKit('svg', {
       if (fs > b.height + 1 || cy < b.top || cy > b.bottom) return true;
       return covers.some(c => c !== frame && meet(a, c.getBoundingClientRect()));
     }).map(({ text }) => text.textContent);
+    for (const p of sc.parts) if (p.crowded) out.push(...p.crowded()); // chart tick labels that touch
+    // A playground's controls: never over the drawing, inside the stage, and no control text cut off.
+    const pg = sc.pg;
+    if (pg && !pg.root.hidden) {
+      const c = pg.root.getBoundingClientRect(), dr = sc.root.getBoundingClientRect(), st = this.svg.getBoundingClientRect();
+      const docked = pg.root.classList.contains('docked');
+      if (!docked && (meet(c, dr) || c.left < st.left - 0.5 || c.right > st.right + 0.5 || c.top < st.top - 0.5 || c.bottom > st.bottom + 0.5)) out.push('[controls]');
+      for (const n of pg.root.querySelectorAll('label, output, .pg-preset')) if (n.scrollWidth > n.clientWidth + 1) out.push(n.textContent);
+      const live = pg.root.querySelector('.pg-live');
+      if (live.scrollHeight > live.clientHeight + 1) out.push('[live]');
+    }
     for (const t of sc.tokens) {
       if (t.pos || !shown.has(t.text)) continue; // moving, or faded out
       const body = t.body.getBoundingClientRect(), { within, avoid } = t.at;
@@ -2479,6 +2948,7 @@ function activate(name, force = false) {
   bumpRun();
   const prev = current ? scenes[current] : null;
   if (prev && prev !== s) kits[prev.kit].hide?.(prev.built);
+  if (current !== name) { explored = null; current = name; releaseControl(); } // leaving a chapter releases the reader's hold
   current = name;
   if (!prev || prev.kit !== s.kit) railOpen = false;
   showKitLayer(s.kit);
@@ -2498,6 +2968,7 @@ async function runScene(name) {
   if (!s) return;
   const kit = kits[s.kit];
   const mine = bumpRun(); // a run or chapter change after this point cancels this run
+  if (explored === name) explored = null; // running a chapter the reader changed: its values reset, auto-play may loop it again
   liveRun = mine;
   Object.assign(timeline, { token: mine, base: 0, scaled: 0 });
   clearCaptions();
@@ -2559,7 +3030,32 @@ function armAuto(name, ms, fn) {
 }
 function stopAuto() { clearTimeout(autoTimer); autoTimer = 0; autoWait = null; autoPaused = null; }
 // Whether this scene should still be looped. If a token is given, no other run (button included) or chapter switch may have happened in between.
-const loopOk = (name, token) => autorunOn && current === name && scrollY > TOP_HOLD && (token === undefined || token === runToken);
+const loopOk = (name, token) => autorunOn && !controlHold && explored !== name && current === name && scrollY > TOP_HOLD && (token === undefined || token === runToken);
+// The reader's hand on a stage control (a playground slider or preset). Kits report input, not focus (Safari and Firefox
+// on macOS do not focus buttons or sliders on click): control({ pressed }) when a pointer goes down or up on a control,
+// control({ changed: true }) when the reader changed a value, control({}) for any other input (a key), control({ release:
+// true }) when the controls moved or hid. The hold: a running action stops, and auto-play waits while a pointer is down and
+// for CONTROL_GRACE ms after the last input. It is always released: by that timer, a chapter change, or the kit.
+// A chapter whose values the reader changed keeps them: its auto-play does not restart (its reset would wipe them)
+// until the reader runs it or leaves the chapter.
+const CONTROL_GRACE = 2500;
+let controlHold = false, controlPressed = false, controlTimer = 0, explored = null;
+function releaseControl() {
+  clearTimeout(controlTimer);
+  controlTimer = 0;
+  controlPressed = false;
+  if (!controlHold) return;
+  controlHold = false;
+  if (autorunOn && autoEl && explored !== current) { autoPending = true; tryAutorun(); }
+}
+onReaderControl = ({ pressed = null, changed = false, release = false } = {}) => {
+  if (release) { releaseControl(); return; }
+  if (pressed !== null) controlPressed = pressed;
+  if (changed && current) explored = current;
+  if (!controlHold) { controlHold = true; stopAuto(); if (liveRun) bumpRun(); }
+  clearTimeout(controlTimer);
+  controlTimer = controlPressed ? 0 : setTimeout(releaseControl, CONTROL_GRACE);
+};
 function startCycle(name) { // reset → initial state → run
   resetScene(name);
   const t = runToken;
@@ -2572,7 +3068,7 @@ function onSceneDone(name, token) { // Called by runScene when the action ran to
 }
 function tryAutorun() { // schedule the first run of the chapter being read
   const node = autoEl, btn = runnerOf(node);
-  if (!autoPending || !autorunOn || !btn || scrollY <= TOP_HOLD) return;
+  if (!autoPending || !autorunOn || controlHold || !btn || scrollY <= TOP_HOLD || explored === btn.dataset.run) return;
   autoPending = false;
   const name = btn.dataset.run, t = runToken;
   armAuto(name, autoMs(AUTORUN_DELAY), () => {
@@ -2680,6 +3176,10 @@ window.__explainer = {
   rail: v => (v === undefined || Boolean(v) === railOpen ? railOpen : setRailOpen(v)), // The caption sheet on narrow stages (open: true)
   azimuth: () => activeKit()?.info?.().azimuth ?? null, // for checking whether the model rotated
   kitInfo: () => activeKit()?.info?.() ?? null,
+  // A playground's parameters: params(name) reads them, params(name, { id: value }) sets some (as the reader would, without
+  // stopping a run) and returns all. paramSpec(name) gives { id: { min, max, value } }. null for a scene without parameters.
+  params: (name, values) => { const s = scenes[name]; return s?.built ? kits[s.kit].params?.(s.built, values) ?? null : null; },
+  paramSpec: name => { const s = scenes[name]; return s?.built ? kits[s.kit].paramSpec?.(s.built) ?? null : null; },
   timing: () => ({ base: Math.round(timeline.base), scaled: Math.round(timeline.scaled) }), // the latest run's own timeline (ms; see account())  // the active kit's own state (svg: { scale, arrangement, row })
   async run(name) {
     // In the stacked layout, scroll so the chapter's top sits just below the stage (CSS scroll-margin-top); in the side-by-side layout, scroll it to the center.

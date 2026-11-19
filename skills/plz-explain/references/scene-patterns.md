@@ -14,7 +14,7 @@ engine-api.md). Put one-shot objects in `temporaryGroup()` and use `disposeObjec
 - When it is not obvious which object a step is about, add `{ anchor: obj }`: the same number appears in a badge next to that object. Check `overlaps()` afterwards, because the badge is a label too.
 - Leave the result visible at the end (a held `flash`, a changed label, an object that stays) rather than letting everything return to the start.
 
-The example chapters of patterns 1–9 are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters); patterns 10–14 point at `assets/example-hash-join-sip.html` (hash join and SIP, 5 chapters, svg kit only), and pattern 15 at `assets/example-lost-update.html` (two sessions and one row, 5 chapters, svg kit only). Every example has an English counterpart beside it, with the same name ending in `.en.html` (for example `assets/example-lost-update.en.html`); look at that one when building an English page.
+The example chapters of patterns 1–9 are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters); patterns 10–14 point at `assets/example-hash-join-sip.html` (hash join and SIP, 5 chapters, svg kit only), pattern 15 at `assets/example-lost-update.html` (two sessions and one row, 5 chapters, svg kit only), and pattern 16 at `assets/example-bloom-filter.html` (Bloom filters, 5 chapters, svg kit only). Every example has an English counterpart beside it, with the same name ending in `.en.html` (for example `assets/example-lost-update.en.html`); look at that one when building an English page.
 
 | Shape of the concept | Pattern | Example chapter (example-agent-sandbox) |
 |---|---|---|
@@ -33,6 +33,7 @@ The example chapters of patterns 1–9 are the chapter numbers of `assets/exampl
 | A plan of operators with counts per step (svg) | 13. Operator tree | `example-hash-join-sip.html` chapter 1 |
 | Rows spread over several nodes or servers (svg) | 14. Node columns | `example-hash-join-sip.html` chapter 5 |
 | A few actors whose relative timing decides the outcome (svg) | 15. Lanes | `example-lost-update.html` chapters 1–4; two rules side by side: chapter 5 |
+| An outcome that responds to a continuous or ordinal parameter (svg) | 16. Parameter playground | `example-bloom-filter.html` chapters 3–5 |
 
 ## 1. Layers
 
@@ -304,3 +305,35 @@ v120.mark('lost'); say('4. A\'s 120 is gone.', { anchor: v120 });
 - A step is a moment both lanes share. Put two actors in the same step only when they really act at the same time.
 - Show a blocked actor with `L.span(id, from, to, 'wait')` and the holder with `'lock'` on the same steps, so the reader sees who waits for whom.
 - Same schedule under two rules: two lanes diagrams in `d.panels` with `axis: false`, played with `Promise.all([a.play(x, n), a.play(y, n)])`. Three panels of lanes do not fit a stage; compare the third rule in the body's summary table.
+
+## 16. Parameter playground
+
+One to three sliders drive a chart and a few readouts; the run button plays a short tour through chosen stops, then the reader explores. Use it when the lesson is how an outcome responds to a parameter (bits vs error rate, load vs latency). A slider that only replays a fixed procedure is not a playground; use a step diagram.
+
+```js
+defineScene('hashes', {
+  kit: 'svg', title: '4  How many hash functions?',
+  params: { k: { label: 'Hash functions k', values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], value: 3 } },
+  presets: [{ label: 'k = 1', values: { k: 1 } }, { label: 'k = 7', values: { k: 7 } }],
+  build(d) {
+    const chart = d.chart({ title: 'False positive rate (log scale)', x: { label: 'hash functions k', min: 1, max: 16, ticks: [1, 4, 8, 12, 16] },
+      y: { min: 1e-3, max: 1, log: true, ticks: [1e-3, 1e-2, 1e-1, 1], format: pct } });
+    const mark = chart.marker(chart.line(k => rate(10000, 1000, k), { tone: 'actor' }));
+    chart.ref('x', 10 * Math.LN2, { label: '(m/n)·ln 2 ≈ 6.9' });
+    const out = d.readout({ label: 'False positive rate', sample: '0.00%' });
+    return {
+      diagram: d.stack([chart, out], { dir: 'col' }),
+      update(p) { mark.at(p.k); out.set(pct(rate(10000, 1000, p.k))); return `With ${p.k} hashes: about ${pct(rate(10000, 1000, p.k))}.`; },
+      async run(a, say) {
+        for (const [n, k] of [[1, 1], [2, 7], [3, 16]]) { await a.set({ k }, { ms: 1100 }); say(`${n}. …`, { anchor: chart.near(k, rate(10000, 1000, k)) }); await a.wait(900); }
+      },
+    };
+  },
+});
+```
+
+- Keep to 1–3 controls, and make each one a cause the reader can vary: one slider per causal variable. Fix everything else and say so in the body.
+- Tour first, free exploration after: the tour visits the stops that matter (both ends and the interesting point), each with a numbered caption that states the value. Body text invites the reader to move the slider afterwards.
+- Presets jump to the values a reader should not miss (the minimum of a U-shaped curve, a common target).
+- Every number the page shows comes from the formula in the scene, never typed in. Show the formula in the body and say when it is an approximation.
+- End the chapter with a small table of the key values (the same formula, computed once for the table).
