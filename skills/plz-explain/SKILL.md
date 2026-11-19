@@ -31,7 +31,10 @@ of the explanation, not decoration. Motion carries only the change being learned
 - The run button is a split button: `[Run][1× ▾]`. The segment opens a speed menu (0.5×, 1×, 1.5×, 2×). The speed is shared by every chapter and remembered.
 - The divider between text and stage can be dragged (on portrait phones, a handle at the bottom of the stage changes its height). The position is remembered.
 - The "Auto-play" switch at the top right of the stage repeats the action of the chapter being read (off by default; the on state is remembered).
-- Finished example: `assets/example-agent-sandbox.html` (how AI-agent code sandboxes isolate code, 10 chapters; the same example exists in English as `assets/example-agent-sandbox.en.html`, so look at that one when building an English page). When you need a similar scene, look in this file first.
+- Finished examples:
+  - `assets/example-agent-sandbox.html` (axo kit): how AI-agent code sandboxes isolate code, 10 chapters.
+  - `assets/example-hash-join-sip.html` (svg kit): hash join and SIP, 5 chapters. It covers the operator tree, step diagrams with a filter, side-by-side panels and node columns.
+  - Both exist in English (`*.en.html`); look at that version when building an English page. When you need a similar scene, look in these files first.
 
 ## Page structure: shell and kits
 
@@ -153,7 +156,7 @@ The phone layout is built into the template.
 - Wide stages (720px and wider, side by side) show every caption in a column beside the model; the camera fits the model into the rest. Narrower stages show one caption bar: the newest caption, "k / n", and a toggle that opens all captions as a sheet inside the stage.
 - One line of the stage title bar holds the chapter title, the auto-play switch, and the reset-view button (the chapter title takes up to two lines and is truncated with an ellipsis if longer). At 430px wide and below, the switch text shrinks to a short per-language phrase (English "Auto"; the accessible name stays the long phrase "Auto-play"), and tap targets are 44px or more. Code blocks do not wrap; they scroll horizontally inside the block only.
 - Touch: on the stage, a vertical swipe scrolls the page and a horizontal drag rotates the model. Tilting up and down is not supported.
-- svg chapters: on wide stages the diagram is scaled up to 1.6× with the captions beside or below it; on narrow stages and phones the columns compress and the rows adapt (text stays at least 12px on desktop, 11px on phones).
+- svg chapters: on wide stages the diagram is scaled up to 1.6× with the captions beside or below it; on narrow stages and phones the columns compress and the rows adapt (text stays at least 12px on desktop, 11px on phones). An svg-only page overrides the intro note in `UI_OVERRIDES` (the built-in note mentions rotating a 3D model); see the hash-join example.
 - A stage 600px or narrower (phones, or a narrow stage beside the text) uses smaller labels. When the model area is narrower than 700px, the axo kit also pulls labels toward the inside of the model area and shifts them apart when they overlap. Overlaps beyond the cap (56px) remain.
 - When you build a page, write short labels and do not place two long labels close together.
 

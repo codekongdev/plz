@@ -11,6 +11,8 @@ import { launchBrowser, nextFrames, openExplainPage, railTexts, sleep, startPage
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const assets = join(root, 'skills/plz-explain/assets');
 const DESKTOP = { width: 1440, height: 900 };
+// Shipped example pages drawn only by the svg kit.
+const SVG_EXAMPLES = ['example-hash-join-sip.html', 'example-hash-join-sip.en.html'];
 let browser, server, origin;
 
 // Scenes that use every svg part: a row-level step diagram with a filter (s1), side-by-side panels fed by one trigger (s2),
@@ -110,6 +112,11 @@ defineScene('s3', {
       diagram: d.stack([tree, nodes], { dir: 'row' }),
       async run(a, say) {
         tree.node('scanA').mark('active');
+        // A count chip travels up the drawn edge to the parent; its width follows its text.
+        const count = d.token('6 rows read', tree.edge('scanA')[0]);
+        await a.along(count, tree.edge('scanA'));
+        window.__edgeToken = count;
+        await a.fade(count, 0, 150); // the count is handed on: the chip leaves (its position stays measurable)
         say('1. The scan read 6 rows.', { anchor: tree.node('scanA') });
         await a.wait(400);
         tree.node('scanA').mark('active', false);
@@ -131,7 +138,7 @@ defineScene('s3', {
 const KO_SCENES = `
 defineScene('s1', { kit: 'svg', title: '1  한국어 라벨', build(d) {
   const t = d.table({ title: '바깥쪽: 대상 테이블', keys: [8, 17, 23], header: ['키', '나머지 열'] });
-  const b = d.box({ title: '', lanes: 3, header: ['받은 행', '해시 조회'], counter: '조인 입력 {n}행 (예상보다 많음)', tally: '버려진 행 {n}개 (스캔 단계)' });
+  const b = d.box({ title: '', lanes: 3, header: ['받은 행', '해시 조회'], counter: '조인 입력 {n}행 (예상보다 많음)', tally: '버려진 행 {n}개' });
   const g = d.gate(t, { label: 'SIP 필터 (런타임 필터)', pass: '통과: 17 · 42 · 108 · 2048' });
   [0, 1, 2].forEach(i => { d.link([t.out(i), g.in(i)]); d.link([g.out(i), b.in(i)]); });
   d.link([b.right(0.2), d.corner(b.right(0.2), g.top()), g.top()], { dashed: true, tone: 'bound', label: '사이드웨이 정보 전달' });
@@ -143,6 +150,79 @@ defineScene('s1', { kit: 'svg', title: '1  한국어 라벨', build(d) {
 } });
 defineScene('s2', { kit: 'svg', title: '2  빈 장', build(d) { const t = d.table({ title: '표', keys: [1] }); return { diagram: d.grid([[t]]), async run(a, say) { say('끝.'); } }; } });
 defineScene('s3', { kit: 'svg', title: '3  빈 장', build(d) { const t = d.table({ title: '표', keys: [1] }); return { diagram: d.grid([[t]]), async run(a, say) { say('끝.'); } }; } });
+`;
+// Two compact panels (key-only tables, narrow boxes) that fit side by side on a landscape phone.
+const NARROW_SCENES = `
+const KEYS = [8, 17, 23, 31, 42, 56];
+defineScene('s1', { kit: 'svg', title: '1  Narrow panels', build(d) {
+  const side = f => { const t = d.table({ title: 'Scan', keys: KEYS, payload: false }); const b = d.box({ title: 'Join', lanes: 6, counter: 'in {n}', narrow: true });
+    const g = f ? d.gate(t, { label: 'Filter', pass: '17 · 42' }) : null;
+    KEYS.forEach((k, i) => (g ? (d.link([t.out(i), g.in(i)]), d.link([g.out(i), b.in(i)])) : d.link([t.out(i), b.in(i)])));
+    return d.grid([[t, b]]); };
+  window.__panels = d.panels([{ title: 'Off', body: side(false) }, { title: 'On', body: side(true) }]);
+  return { diagram: window.__panels, async run(a, say) { say('Done.'); } };
+} });
+// A diagram that is a single part (a tree), not a container.
+defineScene('s2', { kit: 'svg', title: '2  Plan only', build(d) {
+  const plan = d.tree({ id: 'j', label: 'Join', metric: '2 rows', children: [{ id: 'a', label: 'Scan A', metric: '6' }, { id: 'b', label: 'Scan B', metric: '2' }] });
+  return { diagram: plan, async run(a, say) { say('Done.'); } };
+} });
+// A gate chip next to a tally pill that is wider than its narrow box (on a phone the two frames meet),
+// and a gate with neither label nor pass, which has no chip.
+defineScene('s3', { kit: 'svg', title: '3  Chip and tally', build(d) {
+  const t = d.table({ title: 'Scan', keys: KEYS, payload: false });
+  const b = d.box({ title: '', lanes: 6, counter: 'in {n}', tally: '스캔에서 버림 {n}', narrow: true });
+  d.gate(t, { label: 'SIP 필터', pass: '통과: 17 · 42 · 108' });
+  const t2 = d.table({ title: 'Scan 2', keys: [1, 2], payload: false });
+  const b2 = d.box({ title: '', lanes: 2, narrow: true });
+  window.__chipless = d.gate(t2, {});
+  return { diagram: d.grid([[t, b], [t2, b2]]), async run(a, say) { b.tally(4); say('Done.'); } };
+} });
+`;
+// Panels on their own (s1) and nested in a column with a table below (s2): size() must agree with what place() does.
+const LAYOUT_SCENES = `
+const KEYS = [8, 17, 23, 31, 42, 56];
+const panelsOf = d => d.panels([0, 1].map(f => {
+  const t = d.table({ title: 'Scan', keys: KEYS, payload: false }), b = d.box({ title: '', lanes: 6, counter: 'in {n}', narrow: true });
+  const g = f ? d.gate(t, {}) : null;
+  KEYS.forEach((k, i) => (g ? (d.link([t.out(i), g.in(i)]), d.link([g.out(i), b.in(i)])) : d.link([t.out(i), b.in(i)])));
+  return { title: f ? 'On' : 'Off', body: d.grid([[t, b]]) };
+}));
+defineScene('s1', { kit: 'svg', title: '1  Panels', build(d) { const p = panelsOf(d); return { diagram: p, async run(a, say) { say('Done.'); } }; } });
+defineScene('s2', { kit: 'svg', title: '2  Panels and a table', build(d) {
+  window.__below = d.table({ title: 'Below', keys: [1, 2], payload: false });
+  return { diagram: d.stack([panelsOf(d), window.__below], { dir: 'col' }), async run(a, say) { say('Done.'); } };
+} });
+defineScene('s3', { kit: 'svg', title: '3', build(d) { return { diagram: d.grid([[d.table({ title: 'T', keys: [1] })]]), async run(a, say) { say('Done.'); } }; } });
+`;
+// Wide tokens at resting points (s1), a token too wide for its bucket (s2), table headers and gate chips (s3).
+const TOKEN_SCENES = `
+defineScene('s1', { kit: 'svg', title: '1  Wide tokens', build(d) {
+  const t = d.table({ title: 'Orders', keys: [8, 17], header: ['key', 'rest'] }), b = d.box({ title: 'Join', lanes: 2, header: ['in', 'lookup'] });
+  const g = d.gate(t, { label: 'Filter', pass: 'pass: 17' });
+  [0, 1].forEach(i => { d.link([t.out(i), g.in(i)]); d.link([g.out(i), b.in(i)]); });
+  window.__w = { t, b, g };
+  return { diagram: d.grid([[t, b]]), async run(a, say) {
+    window.__w.atGate = d.token('order-000008', t.src(0)); await a.along(window.__w.atGate, [t.src(0), g.before(0)]);
+    window.__w.inBox = d.token('order-000017', t.src(1)); await a.along(window.__w.inBox, [t.src(1), g.before(1), g.after(1), b.chip(1)]);
+    say('Done.');
+  } };
+} });
+defineScene('s2', { kit: 'svg', title: '2  Too wide for its bucket', build(d) {
+  const h = d.buckets({ title: 'Hash', count: 4 });
+  return { diagram: d.grid([[h]]), async run(a, say) { const tk = d.token('a-very-long-key-0042', h.slot(2)); window.__slotToken = tk; say('Done.'); } };
+} });
+defineScene('s3', { kit: 'svg', title: '3  Headers and chips', build(d) {
+  const keyOnly = d.table({ title: 'Key only', keys: [1, 2], header: ['key', 'rest'], payload: false });
+  const bare = d.table({ title: 'No header', keys: [1, 2] });
+  const b1 = d.box({ title: '', lanes: 2, narrow: true }), b2 = d.box({ title: '', lanes: 2, narrow: true });
+  const g = d.gate(keyOnly, { label: 'Filter' });   // a label but no pass list
+  window.__h = { keyOnly, bare, g };
+  return { diagram: d.grid([[keyOnly, b1], [bare, b2]]), async run(a, say) { say('Done.'); } };
+} });
+`;
+const BAD_EDGE = `
+defineScene('s1', { kit: 'svg', title: '1', build(d) { const tr = d.tree({ id: 'a', label: 'A', children: [{ id: 'b', label: 'B' }] }); tr.edge('nope'); return { diagram: tr, async run() {} }; } });
 `;
 const BAD_GATE = `
 defineScene('s1', { kit: 'svg', title: '1', build(d) { const b = d.box({ title: 'Join', lanes: 2 }); const t = d.table({ title: 'T', keys: [1, 2] }); d.gate(t, { label: 'F' }); return { diagram: d.grid([[b, t]]), async run() {} }; } });
@@ -157,9 +237,13 @@ before(async () => {
     'variant-svg-only.html': variantWithScenes(tpl, SVG_SCENES, 'svg'),
     'variant-svg-ko.html': variantWithScenes(tpl, KO_SCENES, 'svg').replace('<html lang="en">', '<html lang="ko">'),
     'variant-svg-bad-gate.html': variantWithScenes(tpl, BAD_GATE, 'svg'),
+    'variant-svg-narrow.html': variantWithScenes(tpl, NARROW_SCENES, 'svg'),
+    'variant-svg-layout.html': variantWithScenes(tpl, LAYOUT_SCENES, 'svg'),
+    'variant-svg-tokens.html': variantWithScenes(tpl, TOKEN_SCENES, 'svg'),
+    'variant-svg-bad-edge.html': variantWithScenes(tpl, BAD_EDGE, 'svg'),
     'variant-svg-bad-link.html': variantWithScenes(tpl, BAD_LINK, 'svg'),
   };
-  server = await startPageServer(path => variants[path] ?? (path === 'template.html' ? readFile(join(assets, path)) : null));
+  server = await startPageServer(path => variants[path] ?? (['template.html', ...SVG_EXAMPLES].includes(path) ? readFile(join(assets, path)) : null));
   origin = server.origin;
   browser = await launchBrowser();
 }, { timeout: 30_000 });
@@ -307,7 +391,7 @@ async function svgChapterChecks(page, tag, { phone }) {
   }
 }
 
-for (const file of ['variant-svg-only.html', 'template.html']) {
+for (const file of ['variant-svg-only.html', 'template.html', ...SVG_EXAMPLES]) {
   test(`${file}: svg chapters have no overlaps or clipped labels at every size, and scale up on a large stage`, { timeout: 240_000 }, async t => {
     await t.test('1440x900 default, min and max split', async t => {
       const { page, errors } = await openPage(t, file);
@@ -370,6 +454,13 @@ test('B1: framed labels grow with their text (Korean), and clipped() reports tex
         return window.__explainer.clipped();
       });
       assert.ok(reported.some(text => text.includes('조인 입력')), `clipped() reports the overflowing pill text: ${JSON.stringify(reported)}`);
+      // A frame too short for its text is reported as well.
+      const short = await page.evaluate(() => {
+        const r = [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').querySelector('.pill.tally rect');
+        r.setAttribute('width', 400); r.setAttribute('height', 4);
+        return window.__explainer.clipped();
+      });
+      assert.ok(short.some(text => text.includes('버려진 행')), `clipped() reports text taller than its frame: ${JSON.stringify(short)}`);
       assert.deepEqual(errors, []);
     });
   }
@@ -474,4 +565,179 @@ test('B7: a badge may sit at a fixed point, and a one-point link fails with a cl
   const bad = await openPage(t, 'variant-svg-bad-link.html', { waitReady: false });
   await bad.page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
   assert.ok(bad.errors.some(e => /d\.link.*two points/i.test(e)), `clear error: ${JSON.stringify(bad.errors)}`);
+});
+
+test('tree.edge(id) leads a token up the drawn edge to the parent, and a token is as wide as its text', async t => {
+  for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
+    const { page, errors } = await openPage(t, 'variant-svg-only.html', { viewport });
+    await page.evaluate(() => window.__explainer.run('s3'));
+    const r = await page.evaluate(() => {
+      const tok = window.__edgeToken, body = tok.body.getBoundingClientRect(), text = tok.text.getBoundingClientRect();
+      const parent = window.__parts.tree.node('join').rect.getBoundingClientRect();
+      return { dx: Math.abs((body.left + body.right) / 2 - (parent.left + parent.right) / 2), atParentBottom: Math.abs((body.top + body.bottom) / 2 - parent.bottom), inside: text.left >= body.left - 0.5 && text.right <= body.right + 0.5 };
+    });
+    assert.ok(r.dx < 1 && r.atParentBottom < 1, `${viewport.width}: the token ends at the parent's bottom center: ${JSON.stringify(r)}`);
+    assert.ok(r.inside, `${viewport.width}: the token text fits its chip`);
+    assert.deepEqual(errors, []);
+  }
+});
+
+test('columns: each column exposes top() and bottom() points on its frame', async t => {
+  const { page, errors } = await openPage(t, 'variant-svg-only.html');
+  await page.evaluate(() => window.__explainer.run('s3'));
+  const r = await page.evaluate(() => {
+    const c = window.__parts.nodes.col(1), top = c.top()(), bottom = c.bottom()(), slot = c.slot(0)();
+    const box = c.rect;
+    return { top, bottom, slotX: slot[0], frame: { x: +box.getAttribute('x'), y: +box.getAttribute('y'), w: +box.getAttribute('width'), h: +box.getAttribute('height') } };
+  });
+  assert.deepEqual(r.top, [r.frame.x + r.frame.w / 2, r.frame.y]);
+  assert.deepEqual(r.bottom, [r.frame.x + r.frame.w / 2, r.frame.y + r.frame.h]);
+  assert.equal(r.slotX, r.top[0]);
+  assert.deepEqual(errors, []);
+});
+
+test('key-only tables and narrow boxes let panels sit side by side on a landscape phone; token text height does not count as overflow', async t => {
+  for (const viewport of [{ width: 844, height: 390 }, { width: 390, height: 844 }]) {
+    const { page, errors } = await openPage(t, 'variant-svg-narrow.html', { viewport });
+    await page.evaluate(() => window.__explainer.instant(true));
+    await page.evaluate(() => window.__explainer.run('s1'));
+    const r = await page.evaluate(() => {
+      const titles = [...document.querySelectorAll('.svg-scene .panel-title')].filter(n => n.getBoundingClientRect().width).map(n => n.getBoundingClientRect());
+      return { sideBySide: Math.abs(titles[0].top - titles[1].top) < 1, clipped: window.__explainer.clipped(), overlaps: window.__explainer.overlaps() };
+    });
+    assert.equal(r.sideBySide, viewport.width > viewport.height, `${viewport.width}x${viewport.height}: panels side by side only when they fit`);
+    assert.deepEqual([r.overlaps, r.clipped], [[], []], `${viewport.width}x${viewport.height}`);
+    assert.deepEqual(errors, []);
+  }
+  // Phone tokens are shorter than their text box; only a text wider than its chip is an overflow.
+  const { page } = await openPage(t, 'variant-svg-only.html', { viewport: { width: 390, height: 844 } });
+  await page.evaluate(() => window.__explainer.instant(true));
+  await page.evaluate(() => window.__explainer.run('s1'));
+  assert.deepEqual(await page.evaluate(() => window.__explainer.clipped()), []);
+});
+
+test('a diagram that is a single part (a tree) lays out at every size without errors', async t => {
+  for (const viewport of [DESKTOP, { width: 2282, height: 1293 }, { width: 390, height: 844 }]) {
+    const { page, errors } = await openPage(t, 'variant-svg-narrow.html', { viewport });
+    await page.evaluate(() => window.__explainer.run('s2'));
+    const r = await page.evaluate(() => ({ k: window.__explainer.kitInfo().scale, transform: [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').getAttribute('transform') }));
+    assert.ok(Number.isFinite(r.k) && !/NaN/.test(r.transform), `${viewport.width}: ${JSON.stringify(r)}`);
+    assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+    assert.deepEqual(errors, [], `${viewport.width}: no console errors`);
+  }
+});
+
+for (const file of SVG_EXAMPLES) {
+  test(`${file}: an svg-only example never requests three.js, and every chapter ends with its final caption`, { timeout: 120_000 }, async t => {
+    const { page, errors, threeRequests } = await openPage(t, file);
+    await page.evaluate(() => window.__explainer.instant(true));
+    const scenes = await page.evaluate(() => window.__explainer.scenes());
+    assert.deepEqual(scenes, ['plan', 'build', 'sip', 'compare', 'nodes']);
+    for (const n of scenes) assert.ok((await page.evaluate(n => window.__explainer.run(n), n)).length > 0, n);
+    assert.deepEqual(threeRequests, []);
+    assert.equal(await page.locator('.hint').isVisible(), false);
+    if (file.endsWith('.en.html')) assert.equal(await page.evaluate(() => /[가-힣]/.test(document.body.innerText + document.title)), false, 'no Hangul on the English page');
+    assert.deepEqual(errors, []);
+  });
+}
+
+test('a gate without label or pass has no chip, and a pill covered by another frame is reported by clipped()', async t => {
+  const phone = await openPage(t, 'variant-svg-narrow.html', { viewport: { width: 390, height: 844 } });
+  await phone.page.evaluate(() => window.__explainer.instant(true));
+  await phone.page.evaluate(() => window.__explainer.run('s3'));
+  const r = await phone.page.evaluate(() => ({
+    chips: [...window.__chipless.g.querySelectorAll('.chip')].filter(c => c.getBoundingClientRect().width > 0).length,
+    clipped: window.__explainer.clipped(),
+  }));
+  assert.equal(r.chips, 0, 'no chip for a gate with neither label nor pass');
+  assert.ok(r.clipped.some(text => text.startsWith('스캔에서 버림')), `the tally text under the chip is reported: ${JSON.stringify(r.clipped)}`);
+  assert.deepEqual(phone.errors, []);
+});
+
+const centreX = page => page.evaluate(() => {
+  const boxes = [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').querySelector('.parts').getBoundingClientRect();
+  const wrap = document.querySelector('.canvas-wrap').getBoundingClientRect();
+  return { diagram: (boxes.left + boxes.right) / 2, stage: (wrap.left + wrap.right) / 2 };
+});
+test('R1/R4: panels report the size of the arrangement they use (centred when stacked; no blank band or overlap when nested)', async t => {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }, DESKTOP]) {
+    const { page, errors } = await openPage(t, 'variant-svg-layout.html', { viewport });
+    await page.evaluate(() => window.__explainer.instant(true));
+    await page.evaluate(() => window.__explainer.run('s1'));
+    if (viewport.width === 390) {
+      const c = await centreX(page);
+      assert.ok(Math.abs(c.diagram - c.stage) < 3, `stacked panels are centred: ${JSON.stringify(c)}`);
+    }
+    await page.evaluate(() => window.__explainer.run('s2'));
+    const gap = await page.evaluate(() => {
+      const sceneEl = [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none');
+      const panelBottom = Math.max(...[...sceneEl.querySelectorAll('.part')].filter(p => !window.__below.g.contains(p)).map(p => p.getBoundingClientRect().bottom));
+      const below = window.__below.g.getBoundingClientRect().top;
+      return { panelBottom, below, gap: below - panelBottom };
+    });
+    assert.ok(gap.gap >= 0 && gap.gap < 60, `${viewport.width}x${viewport.height}: the table below follows the panels: ${JSON.stringify(gap)}`);
+    assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+    assert.deepEqual(errors, []);
+  }
+});
+
+test('R6: a wide token rests clear of the gate barrier and inside its box; a token leaving its container is reported', async t => {
+  for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
+    const { page, errors } = await openPage(t, 'variant-svg-tokens.html', { viewport });
+    await page.evaluate(() => window.__explainer.instant(true));
+    await page.evaluate(() => window.__explainer.run('s1'));
+    const r = await page.evaluate(() => {
+      const W = window.__w, R = n => n.getBoundingClientRect();
+      const barrier = R(W.g.g.querySelector('.barrier')), box = R(W.b.g.querySelector('.box'));
+      const gateTok = R(W.atGate.body), boxTok = R(W.inBox.body);
+      return { clearOfBarrier: gateTok.right <= barrier.left + 0.5, insideBox: boxTok.left >= box.left - 0.5 && boxTok.right <= box.right + 0.5, clipped: window.__explainer.clipped() };
+    });
+    assert.ok(r.clearOfBarrier && r.insideBox, `${viewport.width}: ${JSON.stringify(r)}`);
+    assert.deepEqual(r.clipped, []);
+    await page.evaluate(() => window.__explainer.run('s2'));
+    const reported = await page.evaluate(() => window.__explainer.clipped());
+    assert.ok(reported.includes('a-very-long-key-0042'), `${viewport.width}: a token wider than its bucket is reported: ${JSON.stringify(reported)}`);
+    assert.deepEqual(errors, []);
+  }
+});
+
+test('R3: a token re-measures its width when its text changes', async t => {
+  const { page, errors } = await openPage(t, 'variant-svg-tokens.html');
+  await page.evaluate(() => window.__explainer.instant(true));
+  await page.evaluate(() => window.__explainer.run('s1'));
+  await page.evaluate(() => { window.__w.inBox.text.textContent = 'order-000017-with-a-longer-suffix'; });
+  await page.setViewportSize({ width: 1400, height: 900 }); // any relayout redraws the token
+  await nextFrames(page, 3);
+  const r = await page.evaluate(() => { const b = window.__w.inBox.body.getBoundingClientRect(), x = window.__w.inBox.text.getBoundingClientRect(); return { body: b.width, text: x.width }; });
+  assert.ok(r.body >= r.text, `the chip grew with its new text: ${JSON.stringify(r)}`);
+  assert.deepEqual(errors, []);
+});
+
+test('R9/R8: a key-only table has at most a key header and no row when none is given; a gate never draws an empty chip', async t => {
+  for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
+    const { page, errors } = await openPage(t, 'variant-svg-tokens.html', { viewport });
+    await page.evaluate(() => window.__explainer.instant(true));
+    await page.evaluate(() => window.__explainer.run('s3'));
+    const r = await page.evaluate(() => {
+      const H = window.__h, R = n => n.getBoundingClientRect();
+      const shown = n => n.textContent.trim() && R(n).width > 0 && getComputedStyle(n).opacity !== '0' && n.getAttribute('opacity') !== '0';
+      const keyFrame = R(H.keyOnly.g.querySelector('.tbl'));
+      const keyHeads = [...H.keyOnly.g.querySelectorAll(':scope > text.meta')].filter(shown).map(n => ({ text: n.textContent, inside: R(n).right <= keyFrame.right + 0.5 }));
+      const bareFrame = R(H.bare.g.querySelector('.tbl')), bareRow = R(H.bare.rows[0].bg);
+      const chip = H.g.g.querySelector('.chip'), chipText = [...H.g.g.querySelectorAll('text')].filter(shown).map(n => n.textContent);
+      return { keyHeads, bareGap: bareRow.top - bareFrame.top, chipShown: Boolean(chip && R(chip).width > 0 && chip.style.display !== 'none'), chipText };
+    });
+    assert.ok(r.keyHeads.length <= 1 && r.keyHeads.every(h => h.inside), `${viewport.width}: key-only header ${JSON.stringify(r.keyHeads)}`);
+    assert.ok(r.bareGap < 2, `${viewport.width}: no empty header row (${r.bareGap}px)`);
+    if (viewport.width < 500) assert.equal(r.chipShown, false, 'phones hide the gate label, so a label-only gate has no chip there');
+    else assert.ok(r.chipShown && r.chipText.includes('Filter'), 'desktop shows the label chip');
+    assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+    assert.deepEqual(errors, []);
+  }
+});
+
+test('R7: tree.edge with an unknown id fails with a clear error', async t => {
+  const { page, errors } = await openPage(t, 'variant-svg-bad-edge.html', { waitReady: false });
+  await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
+  assert.ok(errors.some(e => /\[plz\] tree\.edge\(nope\)/.test(e)), `clear error: ${JSON.stringify(errors)}`);
 });

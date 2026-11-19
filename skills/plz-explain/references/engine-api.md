@@ -174,35 +174,37 @@ defineScene('filter', {
   - When neither fits at k = 1, the kit uses the narrower layout described next.
 - **Narrower stages and phones:**
   - Columns are compressed toward their minimum widths, and the diagram is fitted between the HUD and the legend.
-  - When desktop sizes do not fit the height, phone sizes are used. The row height then adapts from 20px down to 15px; at 17px and below, table header rows are hidden.
+  - When desktop sizes do not fit the height, rows shrink first (36, 32, then 28px, with desktop text sizes); after that phone sizes are used. The phone row height adapts from 20px down to 15px; at 17px and below, table header rows are hidden.
 - Text is at least 12px on desktop sizes and at least 11px on phone sizes.
 - On phones, the stage-height minimum comes from the active chapter's diagram at its smallest rows. It is applied on every chapter change, also when no height is saved, so a diagram is never cut off.
 
 | Container | Arranges |
 |---|---|
 | `d.grid(rows, { gutter })` | Rows of cells (parts or `null`). Columns take the widest part; a gutter (96px, 60px on phones) separates columns and holds connectors and gates. Parts in one grid row share a top line, so a table and a box with the same row count line up lane by lane |
-| `d.panels([{ title, body }, …])` | The same kind of diagram side by side, each with a title (stacked when they do not fit, always stacked on phones). One run can feed both: `await Promise.all([play(a, off), play(a, on)])` |
-| `d.stack(items, { dir: 'row' \| 'col', gap })` | A plain row or column of parts or containers |
+| `d.panels([{ title, body }, …])` | The same kind of diagram side by side, each with a title; stacked when they do not fit side by side (on most phones). Compact parts (`payload: false` tables, `narrow` boxes) let them stay side by side on a landscape phone. One run can feed both: `await Promise.all([play(a, off), play(a, on)])` |
+| `d.stack(items, { dir: 'row' \| 'col', gap })` | A plain row or column of parts or containers. `gap` is px, or a function of the sizes such as `m => (m.phone ? 64 : 100)` |
 
 ### Parts
 
 Points are functions that return `[x, y]` in diagram units. Pass them to links, tokens, and badges; they follow every relayout, including one in the middle of a run.
+Resting points know how a token sits on them, so a token of any width fits: `table.src(i)` and `gate.before(i)` hold its right edge, `box.chip(i)` and `gate.after(i)` its left edge, `buckets.slot(b)` and `col(i).slot(j)` its centre. `clipped()` reports a resting token that sticks out of its table, box, bucket or column, or covers the gate barrier.
 
 | Part | Options | Points and methods |
 |---|---|---|
-| `d.table({ title, keys, tone, header })` | `keys`: the key shown per row (mono); a faint payload bar fills the rest. `tone: 'matter'` gives brass row bars. `header`: two column titles | `row(i).mark('hit' \| 'gone' \| 'active', on)` (matched: red; dropped: dimmed, struck through, × mark; active: ink outline). `out(i)` right edge of row i, `src(i)` where a row's token rests, `rowC(i)` |
+| `d.table({ title, keys, tone, header, payload })` | `keys`: the key shown per row (mono); a faint payload bar fills the rest (`payload: false` for a narrow key-only table). `tone: 'matter'` gives brass row bars. `header`: two column titles; without it there is no header row. A key-only table shows only the first title | `row(i).mark('hit' \| 'gone' \| 'active', on)` (matched: red; dropped: dimmed, struck through, × mark; active: ink outline). `out(i)` right edge of row i, `src(i)` where a row's token rests, `rowC(i)` |
 | `d.buckets({ title, count, label, short })` | `label(b)` / `short(b)`: cell index text (short on narrow cells and phones) | `slot(b)` where a key chip rests, `fill(b)` hides the "—", `cell(b).mark('active')` |
-| `d.box({ title, lanes, header, counter, tally })` | An operator with lanes. `counter`: pill text by the title, `{n}` replaced. `tally`: a pill under the box, hidden until first set | `in(i)` left edge of lane i, `chip(i)` where a token rests, `count(n)`, `tally(n)`, `counterNode`, `tallyNode`, `laneText(i, text, { short, tone })` (fade it in with `a.fade(box.lane(i), 1)`), `lane(i)` |
-| `d.gate(table, { label, pass, hidden })` | A filter in the gutter right of `table`, spanning its rows, with a chip below listing what passes (`pass`; the chip grows with its text). `table` must sit in a `d.grid` cell with another column to its right; anywhere else (the last column, a `d.stack`) the page fails to start with an error that says so. `hidden` starts invisible (show with `a.fade(gate, 1)`) | `in(i)` / `out(i)` barrier edges for connectors, `before(i)` / `after(i)` where tokens stop, `top()`. Flash with `a.flash(gate, 'hot')` |
-| `d.tree(spec)` | `spec = { id, label, metric, children: [...] }`. An operator tree; edges carry data up to the parent | `node(id).mark('active' \| 'hit', on)`, `node(id).metric(text)`, `node(id).top()`, `.bottom()` |
-| `d.columns(names, { slots })` | Nodes or servers side by side, each with `slots` places for rows | `col(i).slot(j)`, `col(i).mark('active')` |
+| `d.box({ title, lanes, header, counter, tally, narrow })` | An operator with lanes. `counter`: pill text by the title, `{n}` replaced. `tally`: a pill under the box, hidden until first set. `narrow: true` for a box that only receives tokens (no lane text); give it no title when the counter names it | `in(i)` left edge of lane i, `chip(i)` where a token rests, `count(n)`, `tally(n)`, `counterNode`, `tallyNode`, `laneText(i, text, { short, tone })` (fade it in with `a.fade(box.lane(i), 1)`), `lane(i)` |
+| `d.gate(table, { label, pass, hidden })` | A filter in the gutter right of `table`, spanning its rows, with a chip below listing what passes (`pass`; the chip grows with its text). `table` must sit in a `d.grid` cell with another column to its right; anywhere else (the last column, a `d.stack`) the page fails to start with an error that says so. The chip appears only when it has something to show: phones hide the label, so on phones a gate needs `pass` for a chip. Without a chip, only the bottom post's room is kept under the table. `hidden` starts invisible (show with `a.fade(gate, 1)`) | `in(i)` / `out(i)` barrier edges for connectors, `before(i)` / `after(i)` where tokens stop, `top()`. Flash with `a.flash(gate, 'hot')` |
+| `d.tree(spec)` | `spec = { id, label, metric, children: [...] }`. An operator tree; edges carry data up to the parent. An unknown id in `node(id)` or `edge(id)` stops the page with an error naming it | `node(id).mark('active' \| 'hit', on)`, `node(id).metric(text)`, `node(id).top()`, `.bottom()`, `edge(id)`: the points of the drawn edge from that node up to its parent, for `a.along(token, tree.edge(id))` |
+| `d.columns(names, { slots })` | Nodes or servers side by side, each with `slots` places for rows | `col(i).slot(j)`, `col(i).top()`, `col(i).bottom()`, `col(i).mark('active')` |
 | `d.link(points, { dashed, tone, label, labelAt, arrow, hidden, opacity })` | A connector through two or more points (functions or fixed `[x, y]`) with an arrowhead. `dashed` + `tone: 'bound'` + `label` for a signal passed sideways (`labelAt` a point for the label pill, which grows with its text) | Fade or dim it with `a.fade(link, 0.12)` |
-| `d.token(text, at, { tone, w })` | A chip resting at point `at`. `tone: 'matter' \| 'bound'`. Create tokens during `run()`, when their group starts | `mark('hit' \| 'active', on)` (active: ink halo) |
+| `d.token(text, at, { tone, w })` | A chip resting at point `at`, as wide as its text (at least the standard width; `w` fixes it; measured again when the text, its size or the fonts change). `tone: 'matter' \| 'bound' \| 'hit'`. Create tokens during `run()`, when their group starts | `mark('hit' \| 'active', on)` (active: ink halo) |
 
 Every part also has `left(at)`, `right(at)`, `top(at)`, `bottom(at)` (a point on its frame; `at` is a 0–1 fraction along the edge or another point whose coordinate to use), `mid()`, and `mark(cls, on)`. `d.corner(a, b)` is the point `[b.x, a.y]` for an elbow. `d.phone()` tells whether phone sizes are in use.
 
 `mark('on')` (and `a.flash(target)`) draws the ink outline on any part: a table, buckets and each cell, a box, a gate, a tree and each node, columns and each column, and a table row.
-Pills (counter, tally, link label) and the gate chip are sized from their measured text, so long or CJK text stays inside. Text that still does not fit its frame (lane text in a box, tree node labels, bucket labels) is reported by `clipped()`.
+Pills (counter, tally, link label), tokens and the gate chip are sized from their measured text, so long or CJK text stays inside. `clipped()` reports text that still does not fit its frame (lane text in a box, tree node labels, bucket labels) and text covered by another pill or chip.
+A diagram may also be a single part (for example `diagram: d.tree(…)`).
 
 ### Animator `a` (svg kit)
 

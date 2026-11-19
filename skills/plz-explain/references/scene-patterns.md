@@ -14,7 +14,7 @@ engine-api.md). Put one-shot objects in `temporaryGroup()` and use `disposeObjec
 - When it is not obvious which object a step is about, add `{ anchor: obj }`: the same number appears in a badge next to that object. Check `overlaps()` afterwards, because the badge is a label too.
 - Leave the result visible at the end (a held `flash`, a changed label, an object that stays) rather than letting everything return to the start.
 
-The example chapters are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters). The same example exists in English as `assets/example-agent-sandbox.en.html`; look at that one when building an English page.
+The example chapters of patterns 1–9 are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters); patterns 10–14 point at `assets/example-hash-join-sip.html` (hash join and SIP, 5 chapters, svg kit only; English: `example-hash-join-sip.en.html`). The same example exists in English as `assets/example-agent-sandbox.en.html`; look at that one when building an English page.
 
 | Shape of the concept | Pattern | Example chapter (example-agent-sandbox) |
 |---|---|---|
@@ -27,11 +27,11 @@ The example chapters are the chapter numbers of `assets/example-agent-sandbox.ht
 | Handled by passing through several components | 7. Request path | No such chapter (the template's `s2`) |
 | Created, kept, stopped, and revived | 8. Lifetime | Chapter 9 |
 | Two approaches compared under the same conditions | 9. Side-by-side comparison | Chapter 3 (same question, different answer), chapter 10 (four stages) |
-| Which rows or keys go where, and in what order (svg) | 10. Row-level step diagram | The template's `s3` |
-| Something is filtered out early (svg) | 11. Filter | The template's `s3` |
-| The same input with an option off and on (svg) | 12. Side-by-side panels | — |
-| A plan of operators with counts per step (svg) | 13. Operator tree | — |
-| Rows spread over several nodes or servers (svg) | 14. Node columns | — |
+| Which rows or keys go where, and in what order (svg) | 10. Row-level step diagram | `example-hash-join-sip.html` chapter 2 |
+| Something is filtered out early (svg) | 11. Filter | `example-hash-join-sip.html` chapter 3, the template's `s3` |
+| The same input with an option off and on (svg) | 12. Side-by-side panels | `example-hash-join-sip.html` chapter 4 |
+| A plan of operators with counts per step (svg) | 13. Operator tree | `example-hash-join-sip.html` chapter 1 |
+| Rows spread over several nodes or servers (svg) | 14. Node columns | `example-hash-join-sip.html` chapter 5 |
 
 ## 1. Layers
 
@@ -267,7 +267,7 @@ plan.node('scan').mark('active'); say('1. The scan read 6 rows.', { anchor: plan
 await a.wait(800); plan.node('scan').mark('active', false); plan.node('join').mark('active');
 ```
 
-Keep node labels short (about 14 characters); nodes narrow to fit on phones.
+Keep node labels short (about 14 characters); nodes narrow to fit on phones. To show rows handed up the plan, move a count chip along the edge and let it leave: `const t = d.token('6 rows', plan.edge('scan')[0]); await a.along(t, plan.edge('scan')); await a.fade(t, 0); plan.node('join').metric('got 6');`
 
 ## 14. Node columns
 
@@ -279,4 +279,4 @@ const nodes = d.columns(['Node 1', 'Node 2', 'Node 3'], { slots: 3 });
 await a.groups(rows, (t, i) => a.along(t, [nodes.col(0).slot(i), nodes.col(owner[i]).slot(i)]));
 ```
 
-Move a few representative rows (3–4) one by one and show the rest as a count.
+Move a few representative rows (3–4) one by one and show the rest as a count. When rows leave a column, leave a faint copy behind (`d.token(k, from).g.style.opacity = 0.3`) so the end state still shows where they started.

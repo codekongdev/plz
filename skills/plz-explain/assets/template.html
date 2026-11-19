@@ -1525,19 +1525,34 @@ function svgNode(tag, attrs = {}, parent = null, text = null) {
 const svgSet = (n, attrs) => { for (const k in attrs) n.setAttribute(k, typeof attrs[k] === 'number' ? +attrs[k].toFixed(2) : attrs[k]); };
 const toneClass = tone => (tone ? ` t-${tone}` : '');
 // Natural sizes in px at scale 1. Desktop text is at least 12px. Phones adapt the row height (20 → 15) to the stage; text is at least 11px.
-function svgMetrics(phone, row = 20) {
+// Desktop sizes come in three row heights (36, 32, 28) with the same text sizes, for stages that are a little too short.
+function svgMetrics(phone, row = phone ? 20 : 36) {
   if (!phone) {
-    return { phone, row: 36, hdr: 28, title: 30, cell: 60, tokW: 50, tokH: 28, key: 14.5, text: 13, meta: 12, kw: 64, pad: 16, gapY: 32, gutter: 96, hp: 8,
-      pill: 24, pillW: 116, chipH: 46, nodeW: 132, nodeH: 46, colW: 132, hgap: 16, vgap: 30, panelGap: 40, badge: 9 };
+    const t = (36 - row) / 8; // 0 at row 36, 1 at row 28
+    const lerp = (a, b) => Math.round(a + (b - a) * t);
+    return { phone, row, hdr: lerp(28, 24), title: lerp(30, 26), cell: lerp(60, 52), tokW: 50, tokH: row - 8, key: 14.5, text: 13, meta: 12, kw: 64, pad: 16, gapY: lerp(32, 22), gutter: 96, hp: 8,
+      pill: lerp(24, 22), pillW: 116, chipH: lerp(46, 42), nodeW: 132, nodeH: lerp(46, 42), colW: 132, hgap: 16, vgap: lerp(30, 22), panelGap: lerp(40, 28), badge: 9 };
   }
   const big = row >= 18;
   return { phone, row, hdr: big ? 17 : 0, title: big ? 20 : 17, cell: big ? 42 : 34, tokW: 30, tokH: row - 3, key: row < 17 ? 11.5 : 12.5, text: 12, meta: 11, kw: 36, pad: 5,
     gapY: 6, gutter: 60, hp: 5, pill: 18, pillW: 88, chipH: 20, nodeW: 96, nodeH: 36, colW: 96, hgap: 8, vgap: 16, panelGap: 12, badge: 8 };
 }
 // Width of an SVG text in diagram units: measured when the text is rendered, estimated otherwise (wide for CJK).
-function textWidth(node, fontSize) {
-  try { const w = node.getComputedTextLength(); if (w > 0) return w; } catch (e) { /* not rendered yet: estimate */ }
-  return [...node.textContent].reduce((sum, ch) => sum + fontSize * (ch.codePointAt(0) >= 0x2E80 ? 1 : 0.6), 0);
+function measureText(node, fontSize) {
+  try { const w = node.getComputedTextLength(); if (w > 0) return { w, measured: true }; } catch (e) { /* not rendered yet: estimate */ }
+  return { w: [...node.textContent].reduce((sum, ch) => sum + fontSize * (ch.codePointAt(0) >= 0x2E80 ? 1 : 0.6), 0), measured: false };
+}
+const textWidth = (node, fontSize) => measureText(node, fontSize).w;
+// Web fonts change text widths when they arrive: cached widths remember the epoch they were measured in.
+let svgFontEpoch = 0;
+document.fonts?.addEventListener?.('loadingdone', () => { svgFontEpoch += 1; });
+document.fonts?.ready.then(() => { svgFontEpoch += 1; });
+// A resting point: where a token sits by its right edge, left edge or centre, the frame it must stay inside, and what it must not cover.
+const rest = (fn, align = 'center', { within = null, avoid = null } = {}) => Object.assign(fn, { align, within, avoid });
+// The token centre for a point, given the token width (points without an alignment are centres).
+function centerOf(p, w) {
+  const [x, y] = pointOf(p), a = typeof p === 'function' ? p.align : null;
+  return a === 'right' ? [x - w / 2, y] : a === 'left' ? [x + w / 2, y] : [x, y];
 }
 // Point helpers: a point is a function returning [x, y] (or a fixed [x, y]).
 const pointOf = p => (typeof p === 'function' ? p() : p);
@@ -1584,7 +1599,8 @@ function svgBuilder(sc) {
   const framed = (text, frame) => sc.framed.push({ text, frame });
 
   // Table: a title, a header row, and rows that carry a key (mono) and a faint payload. Row states: hit, gone, active.
-  function table({ title = '', keys = [], tone = '', header = null } = {}) {
+  // payload: false draws a key-only table (no faint payload column): narrower, for compact diagrams such as panels.
+  function table({ title = '', keys = [], tone = '', header = null, payload = true } = {}) {
     const g = svgNode('g', { class: 'part table' }, sc.layer.parts);
     const ttl = label(g, 'g' + toneClass(tone), title);
     const frame = svgNode('rect', { class: 'tbl', rx: 6 }, g);
@@ -1594,7 +1610,7 @@ function svgBuilder(sc) {
       const r = svgNode('g', { class: 'row' + (tone === 'matter' ? ' brass' : '') }, g);
       const n = { g: r, bg: svgNode('rect', { class: 'bg' }, r), bar: svgNode('rect', { class: 'bar' }, r), sep: i ? svgNode('line', { class: 'hl' }, r) : null };
       n.key = label(r, 'key mono', k);
-      n.skel = svgNode('rect', { class: 'skel', rx: 3 }, r);
+      n.skel = payload ? svgNode('rect', { class: 'skel', rx: 3 }, r) : null;
       const x = svgNode('g', { class: 'x' }, r);
       n.xc = svgNode('circle', { fill: 'none', stroke: 'var(--ink-soft)', 'stroke-width': 1.2 }, x);
       n.xp = svgNode('path', { fill: 'none', stroke: 'var(--ink-soft)', 'stroke-width': 1.2 }, x);
@@ -1603,26 +1619,29 @@ function svgBuilder(sc) {
     });
     const part = {
       kind: 'table', g, rows,
-      size: m => ({ w: m.phone ? 128 : 184, min: m.phone ? 104 : 140, h: m.title + m.hdr + keys.length * m.row + part.below(m) }),
-      place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: m.hdr + keys.length * m.row }; },
-      rowC: i => part.box.y + sc.m.hdr + i * sc.m.row + sc.m.row / 2,
+      // A header row only when a header is given (and phone rows are tall enough); a key-only table shows the key title only.
+      hdrH: m => (header ? (m ?? sc.m).hdr : 0),
+      size: m => ({ w: payload ? (m.phone ? 128 : 184) : (m.phone ? 72 : 100), min: payload ? (m.phone ? 104 : 140) : (m.phone ? 64 : 84), h: m.title + part.hdrH(m) + keys.length * m.row + part.below(m) }),
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: part.hdrH(m) + keys.length * m.row }; },
+      rowC: i => part.box.y + part.hdrH() + i * sc.m.row + sc.m.row / 2,
       row: i => rows[i],
       out: i => () => [part.box.x + part.box.w, part.rowC(i)],
-      src: i => () => [part.box.x + part.box.w - sc.m.tokW / 2 - 8, part.rowC(i)],
+      src: i => rest(() => [part.box.x + part.box.w - 8, part.rowC(i)], 'right', { within: frame }), // a token rests by its right edge
       draw(m) {
-        const { x, y, w, h } = part.box, kw = Math.min(m.kw, w * 0.35);
+        const { x, y, w, h } = part.box, kw = payload ? Math.min(m.kw, w * 0.35) : w - 28; // key-only: the × mark has the last 28px
+        const hh = part.hdrH(m);
         svgSet(ttl, { x, y: y - m.title / 2, 'font-size': m.text });
         svgSet(frame, { x, y, width: w, height: h });
-        heads.forEach((n, i) => svgSet(n, { x: i ? x + kw + 8 : x + 10, y: y + m.hdr / 2, 'font-size': m.meta, opacity: m.hdr ? 1 : 0 }));
-        svgSet(hline, { x1: x, x2: x + w, y1: y + m.hdr, y2: y + m.hdr, opacity: m.hdr ? 1 : 0 });
-        svgSet(vline, { x1: x + kw, x2: x + kw, y1: y, y2: y + h });
+        heads.forEach((n, i) => svgSet(n, { x: i ? x + kw + 8 : x + 10, y: y + hh / 2, 'font-size': m.meta, opacity: hh && (i === 0 || payload) ? 1 : 0 }));
+        svgSet(hline, { x1: x, x2: x + w, y1: y + hh, y2: y + hh, opacity: hh ? 1 : 0 });
+        svgSet(vline, { x1: x + kw, x2: x + kw, y1: y, y2: y + h, opacity: payload ? 1 : 0 });
         rows.forEach((n, i) => {
-          const top = y + m.hdr + i * m.row, cy = top + m.row / 2;
+          const top = y + hh + i * m.row, cy = top + m.row / 2;
           svgSet(n.bg, { x: x + 1, y: top + 0.5, width: w - 2, height: m.row - 1 });
           svgSet(n.bar, { x: x + 1, y: top + 0.5, width: 3, height: m.row - 1 });
           if (n.sep) svgSet(n.sep, { x1: x, x2: x + w, y1: top, y2: top });
           svgSet(n.key, { x: x + 14, y: cy, 'font-size': m.key });
-          svgSet(n.skel, { x: x + kw + 8, y: cy - 3, width: Math.max(8, (w - kw - 16) * 0.55), height: 6 });
+          if (n.skel) svgSet(n.skel, { x: x + kw + 8, y: cy - 3, width: Math.max(8, (w - kw - 16) * 0.55), height: 6 });
           const cx = x + w - 14;
           svgSet(n.xc, { cx, cy, r: 6 });
           svgSet(n.xp, { d: `M${cx - 2.5},${cy - 2.5} L${cx + 2.5},${cy + 2.5} M${cx + 2.5},${cy - 2.5} L${cx - 2.5},${cy + 2.5}` });
@@ -1654,7 +1673,7 @@ function svgBuilder(sc) {
       size: m => ({ w: m.phone ? 184 : 248, min: m.phone ? 150 : 200, h: m.title + 2 * m.hp + m.cell }),
       place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: 2 * m.hp + m.cell }; },
       cell: b => cells[b],
-      slot: b => () => { const { cw, cx, cy } = geo(); return [cx(b) + cw / 2, cy + sc.m.cell - sc.m.tokH / 2 - (sc.m.phone ? 3 : 6)]; },
+      slot: b => rest(() => { const { cw, cx, cy } = geo(); return [cx(b) + cw / 2, cy + sc.m.cell - sc.m.tokH / 2 - (sc.m.phone ? 3 : 6)]; }, 'center', { within: cells[b].rect }),
       fill(b, on = true) { cells[b].dash.style.opacity = on ? 0 : ''; },
       draw(m) {
         const { x, y, w, h } = part.box, { cw, cx, cy } = geo();
@@ -1689,7 +1708,8 @@ function svgBuilder(sc) {
 
   // Operator box: a title with a counter pill, lanes (aligned with a table of the same row count in the same grid row),
   // per-lane result text, and an optional tally pill under the box (hidden until first set).
-  function box({ title = '', lanes = 0, tone = 'bound', header = null, counter = null, tally = null } = {}) {
+  // narrow: true for a box that only receives tokens (no lane text), for compact diagrams such as panels.
+  function box({ title = '', lanes = 0, tone = 'bound', header = null, counter = null, tally = null, narrow = false } = {}) {
     const g = svgNode('g', { class: 'part opbox' }, sc.layer.parts);
     const ttl = label(g, 'g' + toneClass(tone), title);
     const frame = svgNode('rect', { class: 'box', rx: 6 }, g);
@@ -1703,11 +1723,11 @@ function svgBuilder(sc) {
     const hasHdr = () => (header ? sc.m.hdr : 0);
     const part = {
       kind: 'box', g, frame, counterNode: cnt?.g ?? null, tallyNode: tal?.g ?? null,
-      size: m => ({ w: m.phone ? 184 : 248, min: m.phone ? 150 : 200, h: m.title + (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row + (tally ? m.pill + 8 : 0) }),
+      size: m => ({ w: narrow ? (m.phone ? 96 : 140) : (m.phone ? 184 : 248), min: narrow ? (m.phone ? 80 : 112) : (m.phone ? 150 : 200), h: m.title + (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row + (tally ? m.pill + 8 : 0) }),
       place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row }; },
       laneC: i => part.box.y + hasHdr() + i * sc.m.row + sc.m.row / 2,
       in: i => () => [part.box.x, part.laneC(i)],
-      chip: i => () => [part.box.x + 8 + sc.m.tokW / 2, part.laneC(i)],
+      chip: i => rest(() => [part.box.x + 8, part.laneC(i)], 'left', { within: frame }), // a token rests by its left edge
       lane: i => laneTexts[i],
       laneText(i, text, { short = text, tone: t = '' } = {}) {
         Object.assign(laneTexts[i], { full: text, short });
@@ -1737,9 +1757,11 @@ function svgBuilder(sc) {
     const barrier = svgNode('rect', { class: 'barrier', rx: 2 }, g);
     const posts = [svgNode('rect', { class: 'post', rx: 3 }, g), svgNode('rect', { class: 'post', rx: 3 }, g)];
     const ticks = tbl.rows.map(() => svgNode('line', { class: 'tick' }, g));
-    const chip = svgNode('rect', { class: 'chip', rx: 6 }, g);
-    const t1 = label(g, 'g' + toneClass(tone), name), t2 = label(g, 'mono' + toneClass(tone), pass);
-    framed(t1, chip); framed(t2, chip);
+    // The chip under the gate lists what passes. A gate with neither label nor pass has no chip (and needs no room for one).
+    const hasChip = Boolean(name || pass);
+    const chip = hasChip ? svgNode('rect', { class: 'chip', rx: 6 }, g) : null;
+    const t1 = hasChip ? label(g, 'g' + toneClass(tone), name) : null, t2 = hasChip ? label(g, 'mono' + toneClass(tone), pass) : null;
+    if (hasChip) { framed(t1, chip); framed(t2, chip); }
     if (hidden) g.style.opacity = 0;
     // The gate stands in the gutter between its table's grid column and the next one.
     const slot = () => {
@@ -1753,8 +1775,10 @@ function svgBuilder(sc) {
       const w = Math.max(m.phone ? 94 : 104, (m.phone ? 0 : textWidth(t1, m.text)) + 16, textWidth(t2, m.meta + 0.5) + 16);
       return { x: cx() - w / 2, y: b.y + b.h + (m.phone ? 6 : 18), w, h: m.chipH };
     };
-    const rows0 = () => tbl.box.y + sc.m.hdr, rowsB = () => tbl.box.y + tbl.box.h;
-    tbl.below = m => (m.phone ? 6 : 18) + m.chipH; // the chip sits under the table: the grid row makes room for it
+    const rows0 = () => tbl.box.y + tbl.hdrH(), rowsB = () => tbl.box.y + tbl.box.h;
+    const chipShown = m => hasChip && (Boolean(pass) || (!m.phone && Boolean(name))); // phones hide the label: a label-only chip would be empty
+    // Under the table: the chip, or at least the bottom post (it reaches 14px below the rows). The grid row makes room for it.
+    tbl.below = m => (chipShown(m) ? (m.phone ? 6 : 18) + m.chipH : 14);
     const part = {
       kind: 'gate', g, layoutless: true,
       size: () => ({ w: 0, h: 0, min: 0 }),
@@ -1762,15 +1786,18 @@ function svgBuilder(sc) {
       top: () => () => [cx(), rows0() - 14],
       in: i => () => [cx() - 15, tbl.rowC(i)],   // barrier edges, for connectors
       out: i => () => [cx() + 15, tbl.rowC(i)],
-      before: i => () => [cx() - 6 - 6 - sc.m.tokW / 2, tbl.rowC(i)], // where a token stops in front of the barrier
-      after: i => () => [cx() + 15 + sc.m.tokW / 2, tbl.rowC(i)],
+      before: i => rest(() => [cx() - 12, tbl.rowC(i)], 'right', { avoid: barrier }), // a token stops in front of the barrier
+      after: i => rest(() => [cx() + 15, tbl.rowC(i)], 'left'),
       badgeAt: () => [cx() + 16, rows0() - 14],
       draw(m) {
-        const c = cx(), r0 = rows0(), rb = rowsB(), b = chipBox();
+        const c = cx(), r0 = rows0(), rb = rowsB();
         svgSet(barrier, { x: c - (m.phone ? 5 : 6), y: r0 - 4, width: m.phone ? 10 : 12, height: rb - r0 + 8 });
         svgSet(posts[0], { x: c - 15, y: r0 - 14, width: 30, height: 10 });
         svgSet(posts[1], { x: c - 15, y: rb + 4, width: 30, height: 10 });
         ticks.forEach((t, i) => svgSet(t, { x1: c - 13, x2: c + 13, y1: tbl.rowC(i), y2: tbl.rowC(i) }));
+        for (const n of [chip, t1, t2]) if (n) n.style.display = chipShown(m) ? '' : 'none';
+        if (!chipShown(m)) return;
+        const b = chipBox();
         svgSet(chip, { x: b.x, y: b.y, width: b.w, height: b.h });
         svgSet(t1, { x: c, y: b.y + b.h * 0.27, 'text-anchor': 'middle', 'font-size': m.text, opacity: m.phone ? 0 : 1 });
         svgSet(t2, { x: c, y: b.y + b.h * (m.phone ? 0.52 : 0.74), 'text-anchor': 'middle', 'font-size': m.meta + 0.5 });
@@ -1792,6 +1819,12 @@ function svgBuilder(sc) {
       n.badgeAt = () => [n.x + n.w, n.y];
       n.top = () => () => [n.x + n.w / 2, n.y];
       n.bottom = () => () => [n.x + n.w / 2, n.y + n.h];
+      // The drawn edge from this node up to its parent, as points (for a.along): top, elbow, elbow, parent's bottom.
+      n.up = () => {
+        if (!n.parent) throw new Error(`[plz] tree.edge(${s.id}): the root has no edge`);
+        const mid = () => n.parent.y + n.parent.h + sc.m.vgap / 2;
+        return [n.top(), () => [n.x + n.w / 2, mid()], () => [n.parent.x + n.parent.w / 2, mid()], n.parent.bottom()];
+      };
       nodes.push(n); if (s.id) byId[s.id] = n;
       n.kids = (s.children ?? []).map(c => walk(c, depth + 1, n));
       if (parent) n.edge = svgNode('path', { class: 'flow', 'marker-end': 'url(#plz-arr)' }, sc.layer.flows);
@@ -1802,7 +1835,8 @@ function svgBuilder(sc) {
     const depth = Math.max(...nodes.map(n => n.depth)) + 1;
     const part = {
       kind: 'tree', g, nodes,
-      node: id => byId[id],
+      node: id => { if (!byId[id]) throw new Error(`[plz] tree.node(${id}): no node with that id`); return byId[id]; },
+      edge: id => { if (!byId[id]) throw new Error(`[plz] tree.edge(${id}): no node with that id`); return byId[id].up(); },
       size: m => ({ w: leaves.length * m.nodeW + (leaves.length - 1) * m.hgap, min: leaves.length * (m.phone ? 70 : 90) + (leaves.length - 1) * m.hgap, h: depth * m.nodeH + (depth - 1) * m.vgap }),
       place(m, x, y, w) {
         const nw = Math.min(m.nodeW, (w - (leaves.length - 1) * m.hgap) / leaves.length);
@@ -1834,7 +1868,9 @@ function svgBuilder(sc) {
       const cg = svgNode('g', { class: 'col' }, g);
       const c = { g: cg, ttl: label(cg, 'g' + toneClass(tone), name), rect: svgNode('rect', { class: 'box', rx: 6 }, cg), lines: Array.from({ length: slots - 1 }, () => svgNode('line', { class: 'hl' }, cg)) };
       c.mark = (cls, on = true) => cg.classList.toggle(cls, on);
-      c.slot = j => () => [c.x + c.w / 2, c.y + 4 + j * sc.m.row + sc.m.row / 2];
+      c.slot = j => rest(() => [c.x + c.w / 2, c.y + 4 + j * sc.m.row + sc.m.row / 2], 'center', { within: c.rect });
+      c.top = () => () => [c.x + c.w / 2, c.y];
+      c.bottom = () => () => [c.x + c.w / 2, c.y + c.h];
       c.badgeAt = () => [c.x + c.w, c.y];
       return c;
     });
@@ -1892,6 +1928,7 @@ function svgBuilder(sc) {
   function token(text, at, { tone = '', w = null } = {}) {
     const g = svgNode('g', { class: 'tok' + (tone ? ' ' + tone : '') }, sc.layer.toks);
     const t = { g, at: typeof at === 'function' ? at : () => at, w, pos: null, halo: svgNode('rect', { class: 'halo' }, g), body: svgNode('rect', { class: 'b' }, g), text: label(g, 'mono', text) };
+    framed(t.text, t.body);
     t.mark = (cls, on = true) => g.classList.toggle(cls, on);
     sc.tokens.add(t);
     drawToken(sc, t);
@@ -1932,10 +1969,10 @@ function svgBuilder(sc) {
     return node;
   }
   function stack(items, { dir = 'row', gap = null } = {}) {
-    const gp = m => gap ?? (dir === 'row' ? m.panelGap : m.gapY);
+    const gp = m => (typeof gap === 'function' ? gap(m) : gap) ?? (dir === 'row' ? m.panelGap : m.gapY); // gap: px, or a function of the sizes (m.phone)
     const node = {
-      size(m) {
-        const s = items.map(p => p.size(m));
+      size(m, w) {
+        const s = items.map(p => p.size(m, dir === 'col' ? w : undefined)); // a column passes its width down (panels inside pick by it)
         if (dir === 'row') return { w: s.reduce((a, b) => a + b.w, 0) + gp(m) * (s.length - 1), min: s.reduce((a, b) => a + b.min, 0) + gp(m) * (s.length - 1), h: Math.max(...s.map(x => x.h)) };
         return { w: Math.max(...s.map(x => x.w)), min: Math.max(...s.map(x => x.min)), h: s.reduce((a, b) => a + b.h, 0) + gp(m) * (s.length - 1) };
       },
@@ -1947,9 +1984,9 @@ function svgBuilder(sc) {
           items.forEach((p, i) => { const ww = Math.max(s[i].min, s[i].w * f); p.gridSlot = null; p.place(m, xx, y, ww); xx += ww + gp(m); });
         } else {
           let yy = y;
-          items.forEach((p, i) => { p.gridSlot = null; p.place(m, x, yy, Math.min(w, s[i].w)); yy += s[i].h + gp(m); });
+          items.forEach((p, i) => { p.gridSlot = null; const si = p.size(m, w); p.place(m, x, yy, Math.min(w, si.w)); yy += si.h + gp(m); });
         }
-        return node.size(m).h;
+        return node.size(m, w).h;
       },
     };
     return node;
@@ -1963,9 +2000,11 @@ function svgBuilder(sc) {
       };
     });
     const row = stack(titled, { dir: 'row' }), col = stack(titled, { dir: 'col' });
-    const pick = (m, w) => (m.phone || w < row.size(m).min ? col : row);
+    // Side by side whenever the row fits (phones included, for example a landscape phone); stacked otherwise.
+    const pick = (m, w) => (w < row.size(m).min ? col : row);
     return {
-      size: m => (m.phone ? col.size(m) : { ...row.size(m), min: col.size(m).min }),
+      // The size of the arrangement place() will use for this width (no width: side by side).
+      size: (m, w = Infinity) => ({ ...pick(m, w).size(m), min: col.size(m).min }),
       place: (m, x, y, w) => pick(m, w).place(m, x, y, w),
     };
   }
@@ -1976,8 +2015,19 @@ function svgBuilder(sc) {
   };
 }
 // Place a token at its point (moving: sc-computed pos; resting: its `at` point), sized from the current metrics.
+// A token is as wide as its text (at least the standard width). Measured again when the text size, the text, or the
+// fonts change, and as long as the last width was only an estimate (the text was not rendered yet).
+function tokenWidth(sc, t) {
+  const m = sc.m, text = t.text.textContent, f = t.fit;
+  if (!f || f.key !== m.key || f.text !== text || f.epoch !== svgFontEpoch || !f.measured) {
+    svgSet(t.text, { 'font-size': m.key });
+    const { w, measured } = measureText(t.text, m.key);
+    t.fit = { key: m.key, text, epoch: svgFontEpoch, measured, w: Math.max(m.tokW, w + (m.phone ? 10 : 14)) };
+  }
+  return t.w ?? t.fit.w;
+}
 function drawToken(sc, t) {
-  const m = sc.m, w = t.w ?? m.tokW, h = m.tokH, [x, y] = t.pos ?? t.at();
+  const m = sc.m, h = m.tokH, w = tokenWidth(sc, t), [x, y] = t.pos ?? centerOf(t.at, w);
   t.g.setAttribute('transform', `translate(${+(x - w / 2).toFixed(2)} ${+(y - h / 2).toFixed(2)})`);
   svgSet(t.halo, { x: -4, y: -4, width: w + 8, height: h + 8, rx: 10 });
   svgSet(t.body, { x: 0, y: 0, width: w, height: h, rx: 6 });
@@ -2021,7 +2071,7 @@ function svgAnimator(dir, sc) {
         return;
       }
       try {
-        await dir.tween(ms, t => { tok.pos = alongPolyline(points.map(pointOf), t); drawToken(sc, tok); });
+        await dir.tween(ms, t => { const w = tokenWidth(sc, tok); tok.pos = alongPolyline(points.map(p => centerOf(p, w)), t); drawToken(sc, tok); });
       } finally {
         tok.pos = null; tok.at = typeof last === 'function' ? last : () => last;
         if (tok.g.isConnected) drawToken(sc, tok);
@@ -2083,11 +2133,11 @@ defineKit('svg', {
   // Lay the diagram out with metrics m in at most availW (diagram units). Computes boxes only (no DOM work). Returns the size.
   arrange(sc, m, availW) {
     sc.m = m;
-    const nat = sc.diagram.size(m);
+    const nat = sc.diagram.size(m, availW);
     const w = Math.max(nat.min, Math.min(nat.w, availW));
-    const h = sc.diagram.place(m, 0, 0, w);
+    const placed = sc.diagram.place(m, 0, 0, w); // containers return their height; a single part as the diagram does not
     for (const p of sc.parts) if (p.layoutless) p.place(m);
-    return { w, h };
+    return { w, h: typeof placed === 'number' ? placed : sc.diagram.size(m).h };
   },
   // Draw every part, link, token and badge from the arranged boxes.
   paint(sc) {
@@ -2135,10 +2185,12 @@ defineKit('svg', {
     if (!sc || !model.w || !model.h) return;
     // Stay clear of the HUD and the legend where they lie over the stage.
     const y0 = Math.max(model.y, chrome.top), rect = { x: model.x, y: y0, w: model.w, h: Math.min(model.y + model.h, chrome.bottom) - y0 };
-    const tries = [...(barredQ.matches ? [] : [svgMetrics(false)]), ...[20, 19, 18, 17, 16, 15].map(r => svgMetrics(true, r))];
+    // Desktop sizes first (row 36, then 32 and 28: text stays at its desktop size), then phone sizes (row 20 down to 15).
+    const tries = [...(barredQ.matches ? [] : [36, 32, 28].map(r => svgMetrics(false, r))), ...[20, 19, 18, 17, 16, 15].map(r => svgMetrics(true, r))];
     let size = null, m = null;
     for (const cand of tries) { // pick the sizes with the boxes only, then draw once
       m = cand;
+      if (m.phone) this.availW = rect.w - 2 * m.pad;
       size = this.arrange(sc, m, rect.w - 2 * m.pad);
       if (size.h + 2 * m.pad <= rect.h && size.w + 2 * m.pad <= rect.w + 0.5) break;
     }
@@ -2154,7 +2206,7 @@ defineKit('svg', {
     const sc = this.current?.sc;
     if (!sc) return 150;
     const m = svgMetrics(true, 15);
-    return Math.max(150, sc.diagram.size(m).h + 2 * m.pad);
+    return Math.max(150, sc.diagram.size(m, this.availW ?? Infinity).h + 2 * m.pad); // at the width the diagram was last fitted to
   },
   reset(built) {
     const { sc } = built;
@@ -2203,15 +2255,34 @@ defineKit('svg', {
     const shown = n => { for (let e = n; e && e !== this.svg; e = e.parentNode) { const cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.05) return false; } return true; };
     return [...sc.root.querySelectorAll('text')].filter(n => n.textContent.trim() && shown(n));
   },
-  // Text wider than its frame (pills, chips, lane text, tree nodes, bucket labels) in the active scene; clipped() reports it.
+  // In the active scene, reported by clipped():
+  //  - text wider than its frame, or taller (its font size is larger than the frame, or its centre lies outside it):
+  //    pills, chips, tokens, lane text, tree nodes, bucket labels. The font size is used rather than the text box, whose
+  //    line height is taller than the glyphs;
+  //  - text covered by another pill or chip;
+  //  - a resting token outside the frame it belongs in (a bucket, a lane box, a table) or over what it must not cover (a gate).
   overflowing() {
     const sc = this.current?.sc;
     if (!sc) return [];
     const shown = new Set(this.labels());
-    return sc.framed.filter(({ text }) => shown.has(text)).filter(({ text, frame }) => {
+    const visible = sc.framed.filter(({ text }) => shown.has(text));
+    const covers = visible.filter(({ frame }) => frame.closest('.pill') || frame.classList.contains('chip')).map(({ frame }) => frame);
+    const meet = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+    const out = visible.filter(({ text, frame }) => {
       const a = text.getBoundingClientRect(), b = frame.getBoundingClientRect();
-      return a.width > 0 && (a.left < b.left - 0.5 || a.right > b.right + 0.5 || a.top < b.top - 0.5 || a.bottom > b.bottom + 0.5);
+      if (!a.width) return false;
+      if (a.left < b.left - 0.5 || a.right > b.right + 0.5) return true;
+      const fs = parseFloat(getComputedStyle(text).fontSize) * sc.k, cy = (a.top + a.bottom) / 2;
+      if (fs > b.height + 1 || cy < b.top || cy > b.bottom) return true;
+      return covers.some(c => c !== frame && meet(a, c.getBoundingClientRect()));
     }).map(({ text }) => text.textContent);
+    for (const t of sc.tokens) {
+      if (t.pos || !shown.has(t.text)) continue; // moving, or faded out
+      const body = t.body.getBoundingClientRect(), { within, avoid } = t.at;
+      if (within) { const w = within.getBoundingClientRect(); if (body.left < w.left - 0.5 || body.right > w.right + 0.5 || body.top < w.top - 0.5 || body.bottom > w.bottom + 0.5) out.push(t.text.textContent); }
+      if (avoid && meet(body, avoid.getBoundingClientRect())) out.push(t.text.textContent);
+    }
+    return [...new Set(out)];
   },
   info() { return this.current ? { ...this.current.sc.info } : null; },
 });

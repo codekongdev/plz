@@ -1,0 +1,2931 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- TEXT: page title -->
+<title>해시 조인과 SIP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Headline (h1) font: Pretendard Variable. One typeface covers both Hangul and Latin text and reads well. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  /* 3 semantic colors: actor (the protagonist that moves and causes things) · bound (boundary, rule, intermediary) · matter (data, resource, material).
+     Give each color exactly one meaning. If you change a value, change COLOR in the <script> below too. */
+  :root {
+    --paper: #ECEEEA;
+    --table: #E1E4DF;
+    --ink: #1E2A33;
+    --ink-soft: #55616B;
+    --rule: #C8CDC6;
+    --actor: #D2364A;
+    --actor-ink: #B4233A;
+    --bound: #2F6FB2;
+    --matter: #C4921F;
+    --matter-ink: #835A0E;
+    --serif: "Hahmlet", "Noto Serif KR", serif;
+    --title: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  /* Japanese and Chinese pages: Hahmlet, IBM Plex Sans KR, and Pretendard lack kana and Simplified Chinese glyphs, or cover them poorly.
+     Put system CJK fonts first so Han characters do not render in Korean letterforms (no new web fonts are downloaded). */
+  :lang(ja) {
+    --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Noto Serif CJK JP", "Source Han Serif JP", serif;
+    --title: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", "Source Han Sans JP", system-ui, sans-serif;
+    --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", "Source Han Sans JP", system-ui, sans-serif;
+  }
+  :lang(zh) {
+    --serif: "Songti SC", "STSong", "Noto Serif SC", "Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif;
+    --title: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 17px/1.8 var(--sans);
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    -webkit-font-smoothing: antialiased;
+  }
+  body:lang(ja), body:lang(zh) { word-break: normal; line-break: strict; }
+  a { color: var(--bound); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--bound); outline-offset: 3px; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 38rem) minmax(0, 1fr); }
+  .text { padding: 4.5rem clamp(1.5rem, 4vw, 3.5rem) 40vh; border-right: 1px solid var(--rule); }
+  /* svh, not dvh: the legend must stay inside the visible window, and dvh refits the stage whenever the address bar moves. */
+  .stage { position: sticky; top: 0; align-self: start; height: 100vh; height: 100svh; background: var(--table); overflow: hidden; }
+
+  .intro h1 { font: 700 2.2rem/1.3 var(--title); letter-spacing: -0.015em; margin: 0 0 1.5rem; }
+  .intro .lead { font-size: 1.1rem; margin: 0 0 1rem; }
+  .intro .note { color: var(--ink-soft); font-size: 0.95rem; margin: 0; }
+
+  .chapter { padding: 6rem 0 1rem; min-height: 72vh; }
+  .chapter h2 {
+    display: grid; grid-template-columns: 2.4rem 1fr; align-items: baseline;
+    margin: 0 0 1.25rem; font: 700 1.7rem/1.32 var(--serif); letter-spacing: -0.015em;
+  }
+  .chapter h2 .n { font-weight: 500; color: var(--rule); transition: color .3s; }
+  .chapter.is-active h2 .n { color: var(--ink); }
+  .chapter p { margin: 0 0 1rem; }
+  .chapter .gist { margin: 1.5rem 0 0; padding-left: 1rem; border-left: 3px solid var(--ink); font: 500 1.06rem/1.7 var(--serif); }
+  .chapter h3 { font: 700 1.15rem/1.45 var(--serif); margin: 2.25rem 0 0.75rem; }
+  /* Example code. Korean comments get wide in a monospace font, so lines wrap. */
+  pre.code {
+    margin: 0 0 1.25rem; padding: 0.95rem 1.05rem;
+    background: #E2E5E0; border-radius: 6px; overflow-x: auto; white-space: pre-wrap;
+    font: 500 0.8rem/1.7 "IBM Plex Mono", "IBM Plex Sans KR", monospace;
+  }
+  :lang(ja) pre.code, :lang(zh) pre.code { font-family: "IBM Plex Mono", var(--sans), monospace; }
+  pre.code code { background: none; padding: 0; font: inherit; }
+  pre.code .c { color: var(--ink-soft); }
+  /* For quoting "input that came from outside", such as an instruction hidden in a document */
+  blockquote.planted {
+    margin: 0 0 1rem; padding: 0.75rem 1rem;
+    border: 1px dashed var(--ink-soft); border-radius: 6px;
+    background: rgba(255, 255, 255, 0.4); font-size: 0.95rem;
+  }
+  code { font: 500 0.86em/1 var(--mono); background: rgba(30, 42, 51, 0.07); padding: 0.14em 0.36em; border-radius: 3px; }
+
+  /* Chapter action row: the run button becomes a split button [run][1× ▾] (the speed segment is added by the engine). */
+  .act { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.75rem 1.1rem; margin-top: 1.75rem; padding-top: 1.1rem; border-top: 1px solid var(--rule); }
+  .act button { font: 600 0.97rem/1 var(--sans); color: #fff; background: var(--ink); border: 0; border-radius: 6px; padding: 0.85rem 1.15rem; cursor: pointer; }
+  .act button:hover { background: #33444F; }
+  .splitbtn { display: inline-flex; align-items: stretch; }
+  .act .splitbtn > button:first-child { border-radius: 6px 0 0 6px; }
+  .act .speed-seg { display: inline-flex; align-items: center; gap: 0.45rem; border-radius: 0 6px 6px 0; border-left: 1px solid rgba(255, 255, 255, 0.3); padding: 0.85rem 0.8rem; font: 600 0.9rem/1 var(--sans); font-variant-numeric: tabular-nums; }
+  .speed-seg .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
+  .act .speed-seg[aria-expanded="true"] { background: #33444F; }
+  .speed-menu { position: fixed; z-index: 30; min-width: 108px; padding: 4px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 6px 16px rgba(30, 42, 51, 0.14); }
+  .speed-menu[hidden] { display: none; }
+  .speed-item { display: flex; align-items: center; gap: 0.5rem; width: 100%; min-height: 36px; padding: 0.4rem 0.7rem; font: 500 0.92rem/1 var(--sans); color: var(--ink); background: none; border: 0; border-radius: 5px; cursor: pointer; text-align: left; font-variant-numeric: tabular-nums; }
+  .speed-item .ck { width: 1em; visibility: hidden; }
+  .speed-item[aria-checked="true"] .ck { visibility: visible; }
+  .speed-item:hover, .speed-item:focus-visible { background: rgba(30, 42, 51, 0.08); }
+
+  /* Step list: making li a grid splits the text and <code> into separate cells. Attach the number with absolute positioning. */
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 1.25rem 0 0; }
+  ol.steps li { counter-increment: s; position: relative; padding-left: 2rem; margin-bottom: 0.55rem; font-size: 0.97rem; line-height: 1.65; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; font: 500 1rem/1.65 var(--serif); color: var(--ink-soft); }
+
+  table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.89rem; line-height: 1.55; }
+  th, td { text-align: left; vertical-align: top; padding: 0.65rem 0.55rem 0.65rem 0; border-bottom: 1px solid var(--rule); }
+  thead th { font-weight: 600; border-bottom: 1.5px solid var(--ink); }
+  tbody th { font-weight: 600; color: var(--ink-soft); width: 5.6rem; }
+
+  .terms h2 { display: block; }
+  dl.terms-list { display: grid; grid-template-columns: 8rem 1fr; gap: 0.7rem 1rem; margin: 0; font-size: 0.95rem; line-height: 1.65; }
+  dl.terms-list dt { font-weight: 600; }
+  dl.terms-list dd { margin: 0; color: var(--ink-soft); }
+  .sources { margin-top: 3.5rem; font-size: 0.85rem; color: var(--ink-soft); line-height: 1.7; }
+  .sources h3 { font: 600 0.95rem/1.4 var(--sans); color: var(--ink); margin: 0 0 0.5rem; }
+  .sources ul { margin: 0; padding-left: 1.1rem; }
+
+  /* Stage: the shell owns the HUD, legend, caption rail and split handles. Each kit draws inside its own .kit-layer. */
+  .canvas-wrap { position: absolute; inset: 0; }
+  /* isolation: kits may set z-index on their own elements (CSS2DRenderer does on every label); keep that inside the layer, under the caption rail. */
+  .kit-layer { position: absolute; inset: 0; isolation: isolate; z-index: 0; }
+  .kit-layer[hidden] { display: none; }
+  .kit-layer canvas { display: block; }
+  .labels { position: absolute; inset: 0; }
+  .tag { font: 500 12.5px/1.3 var(--sans); color: var(--ink); background: rgba(236, 238, 234, 0.9); padding: 3px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
+  .tag.actor { color: var(--actor-ink); }
+  .tag.bound { color: var(--bound); }
+  .tag.matter { color: var(--matter-ink); }
+  .tag.warn { background: var(--ink); color: #fff; }
+  .tag.big { font: 700 14px/1.3 var(--serif); padding: 4px 9px; }
+  /* Step badge next to an object: the same number as the caption on the rail. */
+  .tag.badge { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--ink); color: #fff; font: 600 12px/1 var(--sans); font-variant-numeric: tabular-nums; }
+  .hud { position: absolute; top: 1.1rem; left: 1.3rem; right: 1.3rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; pointer-events: none; z-index: 4; }
+  .hud .now { font: 700 1.05rem/1.35 var(--serif); }
+  .hud .tools { display: flex; align-items: flex-start; gap: 0.5rem; flex: none; }
+  .hud button { pointer-events: auto; font: 500 0.85rem/1 var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 0.55rem 0.75rem; cursor: pointer; }
+  /* Auto-play switch: when on, replays the current chapter's action in a loop. Draw it in ink color only so it does not collide with the 3 semantic colors. */
+  .hud .autorun { display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  /* Switch text has a long form (.long) and a short form (.short) per language. At 430px wide and below, the short form is used. */
+  .hud .autorun .short { display: none; }
+  .autorun .track { position: relative; flex: none; width: 1.9rem; height: 0.95rem; border: 1.5px solid var(--ink-soft); border-radius: 999px; transition: background .2s, border-color .2s; }
+  .autorun .track::after { content: ""; position: absolute; top: 50%; left: 2px; width: 0.6rem; height: 0.6rem; margin-top: -0.3rem; border-radius: 50%; background: var(--ink-soft); transition: transform .2s, background .2s; }
+  .autorun[aria-checked="true"] .track { background: var(--ink); border-color: var(--ink); }
+  .autorun[aria-checked="true"] .track::after { background: var(--paper); transform: translateX(0.86rem); }
+  .legend { position: absolute; left: 1.3rem; bottom: 1.1rem; z-index: 4; display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
+  .legend i { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 2px; margin-right: 0.4rem; vertical-align: -1px; }
+  .hint { position: absolute; right: 1.3rem; bottom: 1.1rem; z-index: 4; font-size: 0.82rem; color: var(--ink-soft); pointer-events: none; }
+  /* Rotation exists only in rotatable kits: hide the hint and the reset-view button otherwise. */
+  .stage:not([data-rotatable]) :is(.hint, .reset-view) { display: none; }
+
+  /* Caption rail: say() appends here. Wide stages: a column beside the model. Narrow stages: one bar (newest caption, k / n, toggle). */
+  .rail { position: absolute; z-index: 3; display: none; margin: 0; color: var(--ink-soft); }
+  .stage[data-state="ready"] .rail { display: flex; }
+  .rail.side { flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: 2px; }
+  .rail-list { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 0; list-style: none; }
+  .cap { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 9px; align-items: start; font: 500 14px/1.5 var(--sans); color: var(--ink-soft); }
+  .cap .n { width: 22px; height: 22px; margin-top: 0.05em; border-radius: 50%; border: 1px solid var(--ink-soft); font: 600 12px/20px var(--sans); text-align: center; font-variant-numeric: tabular-nums; }
+  .cap .n:empty { visibility: hidden; }
+  .cap.new { color: var(--ink); font-weight: 600; }
+  .cap.new .n { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .rail-bar { display: none; }
+  :root { --bar-h: 4.5rem; }
+  .rail.compact { flex-direction: row; align-items: center; gap: 8px; height: var(--bar-h); padding: 6px 8px 6px 12px; background: var(--table); border-top: 1px solid var(--rule); }
+  .rail.compact .rail-list { flex: 1 1 auto; min-width: 0; gap: 6px; }
+  .rail.compact .cap { grid-template-columns: 18px minmax(0, 1fr); column-gap: 6px; font-size: 12.5px; line-height: 1.4; }
+  .rail.compact .cap .n { width: 18px; height: 18px; font: 600 11px/16px var(--sans); }
+  .rail.compact:not(.open) .cap:not(.new) { display: none; }
+  .rail.compact:not(.open) .cap .t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+  .rail.compact .rail-bar { display: flex; flex: none; flex-direction: column; align-items: center; gap: 2px; }
+  .rail.compact.open { flex-direction: column; align-items: stretch; height: auto; border-top: 0; padding: 10px 12px 6px; }
+  .rail.compact.open .rail-list { overflow-y: auto; overscroll-behavior: contain; }
+  .rail.compact.open .rail-bar { flex-direction: row; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+  .rail-count { font: 600 11.5px/1.2 var(--sans); color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .rail-toggle { position: relative; display: grid; place-items: center; width: 40px; height: 34px; padding: 0; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; cursor: pointer; }
+  .rail-toggle .chev { width: 8px; height: 8px; margin-top: 3px; border-left: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); }
+  .rail-toggle[aria-expanded="true"] .chev { margin-top: -3px; transform: rotate(225deg); }
+  .rail-toggle::after { content: ""; position: absolute; inset: -6px; }
+
+  /* Loading and failure notices do not depend on the CDN or a working renderer. */
+  .fallback { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 1rem; padding: 2rem; text-align: center; color: var(--ink-soft); }
+  .fallback p { margin: 0; max-width: 32rem; }
+  .retry-load { min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 500 0.95rem/1.4 var(--sans); cursor: pointer; }
+  .stage[data-state="ready"] .fallback { display: none; }
+  .stage:not([data-state="ready"]) :is(.canvas-wrap, .hud, .legend, .hint) { visibility: hidden; }
+  button:disabled { cursor: default; opacity: 0.5; }
+
+  /* Center split: a draggable divider between text and stage (side by side), or a stage-height handle (stacked phones). Added by the engine. */
+  .split-v, .split-h { display: none; position: absolute; z-index: 6; }
+  .split-v::after, .split-h::after { content: ""; position: absolute; background: var(--ink-soft); border-radius: 3px; opacity: .55; transition: opacity .15s, background .15s; }
+  .split-v:hover::after, .split-v:focus-visible::after, .split-v.drag::after, .split-h:hover::after, .split-h:focus-visible::after, .split-h.drag::after { opacity: 1; background: var(--bound); }
+  .split-v:focus-visible, .split-h:focus-visible { outline: 3px solid var(--bound); outline-offset: 0; }
+  @media (min-width: 861px), (orientation: landscape) and (max-height: 520px) {
+    .layout { grid-template-columns: var(--text-w, minmax(0, 38rem)) minmax(0, 1fr); }
+    .split-v { display: block; position: fixed; top: 0; bottom: 0; width: 16px; margin-left: -8px; left: var(--split-x, 608px); cursor: col-resize; touch-action: none; }
+    .split-v::after { left: 6px; top: calc(50% - 24px); width: 4px; height: 48px; }
+  }
+
+  /* Shared by phones and narrow screens (both the stacked layout and landscape mode).
+     Split the stage into rows, "title bar / model / legend bar", so the title, buttons, and legend never sit on top of the model. */
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+    body { font-size: 16px; line-height: 1.75; }
+    .stage { display: flex; flex-direction: column; }
+    .hud { order: -1; position: static; flex: none; min-height: 3rem; padding: 0.3rem 0.9rem 0.3rem 1.1rem; align-items: center; }
+    .hud .now { flex: 1 1 auto; min-width: 0; font-size: 0.98rem; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+    .hud .tools { align-items: center; gap: 0.4rem; }
+    .canvas-wrap { position: relative; inset: auto; flex: 1 1 0; min-height: 0; overflow: hidden; }
+    .legend { position: static; flex: none; padding: 0.25rem 1.1rem 0.55rem; gap: 0.1rem 0.9rem; font-size: 0.76rem; line-height: 1.5; }
+    .hint { display: none; }
+    .tag { font-size: 11px; padding: 2px 5px; }
+    .tag.big { font-size: 12px; padding: 3px 6px; }
+    .tag.badge { width: 19px; height: 19px; font-size: 11px; padding: 0; }
+    .chapter .gist { font-size: 1rem; }
+    /* On phones, code blocks do not wrap; they scroll horizontally inside the block only (wrapping breaks URLs mid-word and makes indentation look like blank lines). */
+    pre.code { white-space: pre; font-size: 0.74rem; line-height: 1.65; overscroll-behavior-x: contain; tab-size: 4; }
+    .intro .lead { font-size: 1.02rem; }
+    .intro .note .wide { display: none; }
+    .intro .note .narrow { display: inline; }
+  }
+  /* Portrait phone: pin the stage to the top (sticky) and scroll the text below it. Stage 44svh plus the caption bar by default; the stage-height handle changes it. */
+  @media (max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px) {
+    /* The caption bar sits under the model, so the default stage is 44svh plus the bar: the model keeps its size. */
+    :root { --stage-h: calc(44vh + var(--bar-h)); }
+    @supports (height: 1svh) { :root { --stage-h: calc(44svh + var(--bar-h)); } }
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .stage { grid-row: 1; height: var(--stage-h); z-index: 7; border-bottom: 1px solid var(--rule); }
+    .text { grid-row: 2; border-right: 0; padding: 1.75rem 1.25rem 60vh; }
+    .intro h1 { font-size: 1.7rem; margin-bottom: 1.1rem; }
+    .chapter { min-height: auto; padding-top: 2.75rem; scroll-margin-top: var(--stage-h); }
+    .chapter h2 { font-size: 1.45rem; }
+    [data-scene] { scroll-margin-top: var(--stage-h); }
+    .split-h { display: block; left: 0; right: 0; bottom: 0; height: 18px; cursor: row-resize; touch-action: none; }
+    .split-h::after { left: calc(50% - 24px); top: 7px; width: 48px; height: 4px; }
+    .stage .legend { padding-bottom: 1.15rem; }
+  }
+  /* Landscape phone: text on the left, stage on the right, as on desktop. The stage takes the full screen height. */
+  @media (orientation: landscape) and (max-height: 520px) {
+    .layout { grid-template-columns: var(--text-w, minmax(0, 5fr)) minmax(0, 6fr); }
+    .stage { height: 100vh; height: 100svh; }
+    .text { padding: 1.5rem 1.25rem 55vh; }
+    .intro h1 { font-size: 1.6rem; margin-bottom: 1rem; }
+    .chapter { min-height: auto; padding-top: 2.5rem; }
+    .chapter h2 { font-size: 1.4rem; }
+  }
+  /* At 430px wide and below: switch the switch text to the short form (autorunShort) to give the chapter title more width (the accessible name stays the long form via aria-label). */
+  @media (max-width: 430px) {
+    .hud .autorun .long { display: none; }
+    .hud .autorun .short { display: inline; }
+    .hud .tools { gap: 0.3rem; }
+    .hud button { padding-left: 0.55rem; padding-right: 0.55rem; }
+    .hud .autorun { gap: 0.35rem; }
+  }
+  /* Touch devices: tap targets are at least 44px. */
+  @media (pointer: coarse), (max-width: 860px), (max-height: 520px) {
+    .act button, .hud button { min-height: 44px; min-width: 44px; }
+    .hud button { padding: 0.5rem 0.7rem; font-size: 0.85rem; }
+    .hud .autorun { gap: 0.4rem; }
+    .speed-item { min-height: 44px; }
+    .rail-toggle { width: 44px; height: 44px; }
+  }
+  /* An unavailable model must not stay pinned over the reading area on small screens. */
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+    .layout:has(.stage[data-state="failed"]) { grid-template-columns: minmax(0, 1fr); }
+    .stage[data-state="failed"] { position: static; grid-row: 1; height: auto; border-bottom: 1px solid var(--rule); }
+    .stage[data-state="failed"] :is(.canvas-wrap, .hud, .legend, .hint, .split-h) { display: none; }
+    .stage[data-state="failed"] .fallback { position: static; padding: 1.25rem; }
+    .layout:has(.stage[data-state="failed"]) .text { grid-row: 2; border-right: 0; }
+    .layout:has(.stage[data-state="failed"]) [data-scene] { scroll-margin-top: 0; }
+    .layout:has(.stage[data-state="failed"]) .split-v { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .chapter h2 .n { transition: none; }
+    .autorun .track, .autorun .track::after { transition: none; }
+  }
+  /* Kit "svg": 2D step diagrams. Ink outline for the active element, the 3 semantic colors for meaning, nothing else. */
+  :root { --hair: rgba(85, 97, 107, 0.55); }
+  .svg-stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+  .svg-stage text { font-family: var(--sans); fill: var(--ink); dominant-baseline: central; }
+  .svg-stage .mono { font-family: var(--mono); font-weight: 500; }
+  .svg-stage .g { font-weight: 600; }
+  .svg-stage .meta { fill: var(--ink-soft); }
+  .svg-stage .t-bound { fill: var(--bound); }
+  .svg-stage .t-matter { fill: var(--matter-ink); }
+  .svg-stage .t-actor { fill: var(--actor-ink); font-weight: 600; }
+  .svg-stage .panel-title { font-family: var(--serif); font-weight: 700; }
+  .svg-stage :is(.tbl, .hl, .box, .cell > rect, .flow, .tnode > rect) { vector-effect: non-scaling-stroke; }
+  .svg-stage :is(.tbl, .cell > rect) { fill: #fff; stroke: var(--hair); stroke-width: 1; }
+  .svg-stage .hl { stroke: var(--hair); stroke-width: 1; stroke-opacity: .6; }
+  .svg-stage .skel { fill: var(--ink-soft); fill-opacity: .22; }
+  .svg-stage .row .bg, .svg-stage .row .bar { fill: transparent; transition: fill .18s; }
+  .svg-stage .row.brass .bar { fill: var(--matter); }
+  .svg-stage .row .key { transition: opacity .18s; }
+  .svg-stage .row .x { opacity: 0; transition: opacity .18s; }
+  .svg-stage .row.gone .key { opacity: .5; text-decoration: line-through; }
+  .svg-stage .row.gone .skel { fill-opacity: .1; }
+  .svg-stage .row.gone .x { opacity: 1; }
+  .svg-stage .row.hit .bg { fill: #F7DADF; }
+  .svg-stage .row.hit .bar { fill: var(--actor); }
+  .svg-stage .row.hit .key { font-weight: 600; }
+  .svg-stage .row.active .bg { stroke: var(--ink); stroke-width: 2; }
+  .svg-stage .box { fill: rgba(47, 111, 178, 0.05); stroke: var(--bound); stroke-width: 1; transition: stroke .15s, stroke-width .15s; }
+  /* Emphasis (mark('on') or a.flash): an ink outline on the part's frame, whatever the part. */
+  .svg-stage :is(.part.on > .box, .part.on > .tbl, .col.on > .box, .col.active > .box, .columns.on .col > .box, .cell.on > rect, .tnode.on > rect, .tree.on .tnode > rect, .gate.on .barrier) { stroke: var(--ink); stroke-width: 2.5; stroke-opacity: 1; }
+  .svg-stage .row.on .bg { stroke: var(--ink); stroke-width: 2; }
+  .svg-stage .cell > rect { stroke-opacity: .7; transition: stroke .15s, stroke-width .15s; }
+  .svg-stage .cell.active > rect { stroke: var(--ink); stroke-width: 2.5; stroke-opacity: 1; }
+  .svg-stage .flow { fill: none; stroke: var(--ink-soft); stroke-opacity: .5; stroke-width: 1.25; }
+  .svg-stage .flow.dashed { stroke-dasharray: 5 4; }
+  .svg-stage .flow.t-bound { stroke: var(--bound); stroke-opacity: .85; }
+  .svg-stage .linklabel rect { fill: #fff; stroke: var(--bound); stroke-width: 1; }
+  .svg-stage .linklabel text { fill: var(--bound); }
+  .svg-stage .gate .barrier { fill: rgba(47, 111, 178, 0.16); stroke: var(--bound); stroke-width: 1; transition: stroke .15s, stroke-width .15s, fill .15s; }
+  .svg-stage .gate .post { fill: var(--bound); }
+  .svg-stage .gate .tick { stroke: var(--bound); stroke-width: 1.5; stroke-opacity: .7; }
+  .svg-stage .gate .chip { fill: #fff; stroke: var(--bound); stroke-width: 1; }
+  .svg-stage .gate.hot .barrier { stroke: var(--ink); stroke-width: 2.5; fill: rgba(30, 42, 51, 0.14); }
+  .svg-stage .pill rect { fill: #fff; stroke: var(--hair); stroke-width: 1; }
+  .svg-stage .pill { transform-box: fill-box; transform-origin: center; }
+  .svg-stage .tnode > rect { fill: #fff; stroke: var(--hair); stroke-width: 1; transition: stroke .15s, stroke-width .15s, fill .15s; }
+  .svg-stage .tnode.active > rect { stroke: var(--ink); stroke-width: 2.5; }
+  .svg-stage .tnode.hit > rect { fill: #F7DADF; stroke: var(--actor); }
+  .svg-stage .sb circle { fill: var(--ink); }
+  .svg-stage .sb text { fill: #fff; font-weight: 600; }
+  .svg-stage .tok .b { fill: #fff; stroke: var(--ink-soft); stroke-width: 1; transition: fill .15s, stroke .15s, stroke-width .15s; }
+  .svg-stage .tok .halo { fill: var(--ink); fill-opacity: .16; opacity: 0; transition: opacity .12s; }
+  .svg-stage .tok.matter .b { fill: var(--matter); stroke: #A67A15; }
+  .svg-stage .tok.bound .b { fill: var(--bound); stroke: #244F80; }
+  .svg-stage .tok.bound text { fill: #fff; }
+  .svg-stage .tok.hit .b { fill: var(--actor); stroke: var(--actor-ink); }
+  .svg-stage .tok.hit text { fill: #fff; }
+  .svg-stage .tok.active .halo { opacity: 1; }
+  .svg-stage .tok.active .b { stroke: var(--ink); stroke-width: 2; }
+  /* A kit may scale the caption column with its diagram (--cap-k). */
+  .rail.side { --k: var(--cap-k, 1); }
+  .rail.side .rail-list { gap: calc(9px * var(--k)); }
+  .rail.side .cap { grid-template-columns: calc(22px * var(--k)) minmax(0, 1fr); column-gap: calc(9px * var(--k)); font-size: calc(14px * var(--k)); }
+  .rail.side .cap .n { width: calc(22px * var(--k)); height: calc(22px * var(--k)); font-size: calc(12px * var(--k)); line-height: calc(20px * var(--k)); }
+  /* Labels follow the stage's own width: a stage 600px or narrower (phones, or a narrow window or divider beside the text) gets the small labels. */
+  .stage { container-type: inline-size; }
+  @container (max-width: 600px) {
+    .tag { font-size: 11px; padding: 2px 5px; }
+    .tag.big { font-size: 12px; padding: 3px 6px; }
+    .tag.badge { width: 19px; height: 19px; font-size: 11px; padding: 0; }
+  }
+  /* Verification instant mode: no CSS transitions either. */
+  body.instant *, body.instant *::before, body.instant *::after { transition: none !important; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<main class="layout">
+  <article class="text">
+
+    <header class="intro" data-scene="plan">
+      <h1>해시 조인과 SIP</h1>
+      <p class="lead">분석용 데이터베이스는 큰 테이블과 작은 테이블을 조인할 때 해시 조인을 자주 씁니다. Vertica는 여기에 SIP라는 최적화를 더해, 짝이 없을 행을 조인에 닿기 전에 미리 걸러 냅니다. 이 페이지는 실행 계획을 읽는 법에서 시작해 해시 조인이 짝을 찾는 순서, SIP가 거름망을 넘기는 방법, 그리고 거름망이 쓰이지 못하는 경우를 모형으로 보여 줍니다.</p>
+      <p class="lead">SIP에 관한 설명은 Vertica 엔지니어들이 2012년과 2013년에 발표한 논문 두 편이 설명한 설계를 따릅니다. 지금 버전의 Vertica는 이와 다르게 동작할 수 있습니다.</p>
+      <p class="note"><span class="wide" data-ui="noteWide">장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.</span><span class="narrow" data-ui="noteNarrow" hidden>장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.</span></p>
+    </header>
+
+    <section class="chapter" data-scene="plan">
+      <h2><span class="n">1</span><span>실행 계획 한눈에 보기</span></h2>
+      <p>데이터베이스는 질의를 받으면 먼저 실행 계획을 세웁니다. 실행 계획은 연산자를 나무 모양으로 이은 것입니다. 맨 아래의 스캔 연산자가 테이블에서 행을 읽어 위로 넘기면, 위의 연산자가 그 행을 받아 가공한 뒤 다시 위로 넘깁니다. 모형의 각 칸 아래 줄은 그 연산자가 읽거나 넘긴 행 수입니다.</p>
+      <p>이 페이지의 예는 주문 테이블과 VIP 회원 테이블을 회원 번호로 조인합니다. 주문은 큰 테이블이고 VIP 회원은 작은 테이블입니다. 조인 연산자는 입력 두 개를 받는데, 먼저 읽는 쪽을 <strong>안쪽(inner)</strong>, 나중에 읽으며 짝을 찾는 쪽을 <strong>바깥쪽(outer)</strong>이라고 부릅니다. 최적화기는 보통 작은 쪽을 안쪽에 둡니다.</p>
+      <p>아직 거름망이 없는 계획에서는 바깥쪽 스캔이 주문 6행을 모두 읽어 조인으로 넘깁니다. 조인은 6행을 다 받은 뒤 짝이 있는 2행만 결과로 내보냅니다.</p>
+      <pre class="code"><code>SELECT o.*
+FROM orders o                 <span class="c">-- 큰 테이블: 바깥쪽</span>
+JOIN vip_customers v          <span class="c">-- 작은 테이블: 안쪽</span>
+  ON o.customer_id = v.customer_id;</code></pre>
+      <ol class="steps">
+        <li>안쪽 스캔이 VIP 회원 2행을 읽어 조인으로 넘깁니다.</li>
+        <li>바깥쪽 스캔이 주문 6행을 모두 읽어 조인으로 넘깁니다.</li>
+        <li>조인이 짝이 있는 2행만 결과로 내보냅니다.</li>
+      </ol>
+      <p class="gist">실행 계획은 아래에서 위로 행을 넘기는 연산자의 나무이고, 거름망이 없으면 조인은 바깥쪽 행을 모두 받습니다.</p>
+      <div class="act"><button type="button" disabled data-run="plan">행의 흐름 보기</button></div>
+    </section>
+
+    <section class="chapter" data-scene="build">
+      <h2><span class="n">2</span><span>해시 조인: 먼저 만들고, 그다음 찾는다</span></h2>
+      <p>해시 조인은 두 단계로 일합니다. 먼저 안쪽 입력을 모두 읽어 해시 테이블을 만들고(build), 그다음 바깥쪽 행을 하나씩 읽어 해시 테이블에서 같은 키를 찾습니다(probe). 해시 테이블은 키를 해시 함수에 넣어 나온 값으로 칸(버킷)을 정해 두는 찾아보기 표입니다. 같은 키는 늘 같은 버킷으로 가므로, 찾을 때도 버킷 하나만 보면 됩니다.</p>
+      <p>이 모형에서는 키를 4로 나눈 나머지를 해시 값으로 씁니다. 안쪽 키 17과 42는 버킷 1과 버킷 2에 들어갑니다. 바깥쪽 행 8은 버킷 0을 찾아보지만 비어 있어 짝이 없고, 17은 버킷 1에서 같은 키를 찾아 짝이 됩니다.</p>
+      <p>이 방식에는 낭비가 있습니다. 바깥쪽 행은 짝이 있든 없든 모두 읽혀 조인까지 옮겨진 뒤에야 버려집니다. 바깥쪽 6행 가운데 짝이 있는 것은 2행뿐인데, 조인은 6행을 모두 받습니다.</p>
+      <pre class="code"><code>키 mod 4 (버킷)
+안쪽:   17 → 1   42 → 2
+바깥쪽:  8 → 0   17 → 1   23 → 3
+        31 → 3   42 → 2   56 → 0</code></pre>
+      <ol class="steps">
+        <li>안쪽 키를 읽어 해시 테이블을 만듭니다.</li>
+        <li>바깥쪽 6행을 읽어 모두 조인으로 보냅니다.</li>
+        <li>조인이 행마다 버킷을 찾아보고, 짝이 있는 행만 남깁니다.</li>
+      </ol>
+      <p class="gist">해시 조인은 안쪽으로 찾아보기 표를 만들고, 바깥쪽 행을 모두 그 표에 대 봅니다.</p>
+      <div class="act"><button type="button" disabled data-run="build">해시 조인 실행</button></div>
+    </section>
+
+    <section class="chapter" data-scene="sip">
+      <h2><span class="n">3</span><span>SIP: 거름망을 옆으로 넘기기</span></h2>
+      <p>SIP(sideways information passing, 옆으로 정보 넘기기)는 2장의 낭비를 줄이는 최적화입니다. 해시 테이블을 만든 뒤 조인은 그 키 정보를 바깥쪽 스캔에 넘기고, 스캔은 그것을 거름망(필터)으로 씁니다. 정보가 실행 순서를 거슬러 조인에서 스캔으로 옆으로 건너가서 이런 이름이 붙었습니다.</p>
+      <p>2013년 논문에 따르면 Vertica는 조인의 해시 테이블 자체를 필터로 다시 씁니다. 조인 키마다 키 집합(해시 집합)도 따로 만드는데, 이 집합은 해시 테이블을 만드는 동안 함께 채워지고 키의 최솟값과 최댓값도 담습니다. 스캔은 행을 읽자마자 필터에 대 보고, 키가 없는 행은 조인으로 보내지 않고 그 자리에서 버립니다.</p>
+      <p>최솟값과 최댓값은 행보다 큰 단위에서도 쓰입니다. 테이블은 블록 단위로 저장되는데, 어떤 블록의 키가 모두 [17, 42] 범위 밖에 있으면 스캔은 그 블록을 아예 읽지 않고 건너뜁니다. 예를 들어 키가 50부터 90까지인 블록은 열어 볼 필요가 없습니다.</p>
+      <pre class="code"><code>SIP 필터 (해시 테이블을 만들며 채움)
+  키 집합   {17, 42}
+  최솟값    17
+  최댓값    42
+스캔:  8 ✕   17 ✓   23 ✕   31 ✕   42 ✓   56 ✕</code></pre>
+      <ol class="steps">
+        <li>안쪽 키로 해시 테이블을 만듭니다.</li>
+        <li>해시 테이블의 키 정보로 필터를 만들어 바깥쪽 스캔 앞에 세웁니다.</li>
+        <li>바깥쪽 행이 필터를 먼저 지나고, 짝이 없는 행은 그 자리에서 버려집니다.</li>
+        <li>조인은 짝이 있는 2행만 받습니다.</li>
+      </ol>
+      <p class="gist">SIP는 조인의 키 정보를 스캔으로 넘겨, 짝이 없는 행을 읽는 단계에서 버리게 합니다.</p>
+      <div class="act"><button type="button" disabled data-run="sip">필터를 넘기고 실행</button></div>
+    </section>
+
+    <section class="chapter" data-scene="compare">
+      <h2><span class="n">4</span><span>같은 질의, 필터 없을 때와 있을 때</span></h2>
+      <p>같은 질의를 필터 없이 실행할 때와 SIP 필터를 켜고 실행할 때를 나란히 놓으면 차이가 분명해집니다. 두 쪽에 똑같은 주문 6행이 들어갑니다.</p>
+      <p>필터가 없으면 조인이 6행을 받아 그중 4행을 버립니다. 필터가 있으면 스캔에서 4행이 먼저 걸러지고 조인은 2행만 받습니다. 결과는 두 쪽 모두 같은 2행입니다. 필터는 짝이 없는 행만 버리므로 결과는 그대로이고, 조인까지 옮기는 행 수만 줄어듭니다.</p>
+      <p>짝이 있는 행이 바깥쪽 전체에서 차지하는 비율이 작을수록 줄어드는 양이 커집니다. 반대로 거의 모든 행이 짝을 찾는다면 필터는 거를 것이 없고 확인하는 일만 늘어납니다. 2013년 논문은 이런 필터를 엔진이 실행 중에 스스로 멈춘다고 설명합니다.</p>
+      <table>
+        <thead><tr><th></th><th>필터 없음</th><th>SIP 필터</th></tr></thead>
+        <tbody>
+          <tr><th>스캔이 읽는 행</th><td>6행</td><td>6행 (블록을 건너뛰면 더 적음)</td></tr>
+          <tr><th>조인이 받는 행</th><td>6행</td><td>2행</td></tr>
+          <tr><th>짝 없는 행을 버리는 곳</th><td>조인</td><td>스캔</td></tr>
+          <tr><th>결과</th><td>2행</td><td>2행</td></tr>
+        </tbody>
+      </table>
+      <p class="gist">SIP는 결과를 바꾸지 않고, 짝 없는 행을 버리는 자리를 조인에서 스캔으로 옮깁니다.</p>
+      <div class="act"><button type="button" disabled data-run="compare">두 쪽에 같은 행 보내기</button></div>
+    </section>
+
+    <section class="chapter" data-scene="nodes">
+      <h2><span class="n">5</span><span>필터가 건너가지 못하는 곳</span></h2>
+      <p>Vertica는 테이블의 행을 여러 노드(서버)에 나눠 저장합니다. 이것을 세그먼트라고 하며, 어느 행이 어느 노드로 갈지는 정해 둔 식(예를 들어 키의 해시)으로 정해집니다. 조인할 두 행이 서로 다른 노드에 있으면, 실행 중에 한쪽 행을 키에 맞는 노드로 다시 보내야 합니다. 이 작업을 리세그먼트라고 하며, 네트워크를 거칩니다.</p>
+      <p>2013년 논문이 설명한 설계에서 SIP 필터는 이런 네트워크 단계를 건너가지 못합니다. 바깥쪽 입력이 조인 전에 리세그먼트되어야 하면 필터는 스캔까지 내려가지 못합니다. 그러면 각 노드의 스캔은 자기 행을 모두 읽어 다른 노드로 보내고, 짝이 없는 행은 네트워크를 건넌 뒤 조인에서야 버려집니다.</p>
+      <p>필터가 쓰이지 않는 경우는 이것만이 아닙니다. 같은 논문에 따르면 바깥쪽 행을 모두 보존해야 하는 조인(LEFT OUTER JOIN, FULL OUTER JOIN)과 안티 조인(NOT IN 같은 조건)에는 필터를 쓰지 않습니다. 거르는 효과가 거의 없는 필터는 4장에서 본 것처럼 엔진이 실행 중에 멈춥니다.</p>
+      <pre class="code"><code>노드 1 스캔:  8, 17, 23
+노드 2 스캔: 31, 42, 56
+조인할 노드: 키가 짝수면 노드 1, 홀수면 노드 2
+  → 17, 23은 노드 2로, 42, 56은 노드 1로 건너감</code></pre>
+      <ol class="steps">
+        <li>두 노드의 스캔이 각자 3행을 모두 읽습니다.</li>
+        <li>행이 키에 맞는 노드로 네트워크를 건너갑니다.</li>
+        <li>조인에서야 짝이 없는 행이 버려집니다.</li>
+      </ol>
+      <p class="gist">2013년 설계에서는 조인과 스캔 사이에 네트워크 단계가 있으면 SIP 필터가 스캔까지 내려가지 못합니다.</p>
+      <div class="act"><button type="button" disabled data-run="nodes">노드 사이로 행 보내기</button></div>
+    </section>
+
+    <section class="chapter terms">
+      <h2 data-ui="terms">용어 정리</h2>
+      <dl class="terms-list">
+        <dt>실행 계획</dt><dd>데이터베이스가 질의를 처리하려고 세운 연산자의 나무입니다. 아래 연산자가 읽은 행을 위 연산자로 넘깁니다.</dd>
+        <dt>스캔</dt><dd>테이블에서 행을 읽는 연산자입니다. 실행 계획의 맨 아래에 있습니다.</dd>
+        <dt>조인</dt><dd>두 테이블에서 같은 키를 가진 행끼리 짝을 짓는 연산입니다.</dd>
+        <dt>안쪽 · 바깥쪽 입력</dt><dd>조인의 두 입력입니다. 안쪽(inner)을 먼저 읽고, 바깥쪽(outer)을 읽으며 짝을 찾습니다. 보통 작은 쪽이 안쪽입니다.</dd>
+        <dt>해시 테이블</dt><dd>키를 해시 함수에 넣은 값으로 칸(버킷)을 정해 두는 찾아보기 표입니다.</dd>
+        <dt>해시 조인</dt><dd>안쪽 입력으로 해시 테이블을 만든 뒤, 바깥쪽 행마다 그 표에서 같은 키를 찾는 조인 방식입니다.</dd>
+        <dt>SIP</dt><dd>sideways information passing. 조인의 키 정보를 바깥쪽 스캔에 넘겨, 짝이 없는 행을 스캔에서 버리게 하는 최적화입니다.</dd>
+        <dt>블록 건너뛰기</dt><dd>필터의 최솟값과 최댓값을 보고, 키가 모두 그 범위 밖인 저장 블록을 읽지 않는 것입니다.</dd>
+        <dt>세그먼트</dt><dd>테이블의 행을 정해 둔 식에 따라 여러 노드에 나눠 저장하는 것입니다.</dd>
+        <dt>리세그먼트</dt><dd>실행 중에 행을 키에 맞는 노드로 다시 보내는 네트워크 작업입니다.</dd>
+        <dt>안티 조인</dt><dd>짝이 <em>없는</em> 행만 남기는 조인입니다. NOT IN 같은 조건이 이렇게 실행됩니다.</dd>
+      </dl>
+      <div class="sources">
+        <h3 data-ui="sources" data-date="2026-11-18">출처 (2026-11-18 확인)</h3>
+        <ul>
+          <li><a href="https://15721.courses.cs.cmu.edu/spring2023/papers/06-execution/shrinivas-icde2013.pdf">Shrinivas et al., "Materialization Strategies in the Vertica Analytic Database: Lessons Learned", ICDE 2013</a></li>
+          <li><a href="https://arxiv.org/pdf/1208.4173">Lamb et al., "The Vertica Analytic Database: C-Store 7 Years Later", VLDB 2012</a></li>
+        </ul>
+      </div>
+    </section>
+
+  </article>
+
+  <!-- data-kits: the stage kits this page uses (default axo; for example "svg" or "axo svg"). They load before SCENES runs, so SCENES can use their parts at the top level. -->
+  <aside class="stage" data-state="loading" data-kits="svg" aria-busy="true" aria-label="해시 조인과 SIP 2D 모형">
+    <div class="canvas-wrap"></div>
+    <div class="hud"><span class="now" aria-live="polite"></span><div class="tools"><button type="button" disabled class="autorun" role="switch" aria-checked="false" aria-label="Auto-play" data-ui-aria="autorun"><span class="track" aria-hidden="true"></span><span aria-hidden="true"><span class="long" data-ui="autorun">Auto-play</span><span class="short" data-ui="autorunShort">Auto</span></span></button><button type="button" disabled class="reset-view" data-ui="resetView">Reset view</button></div></div>
+    <!-- TEXT: legend. Write what the 3 semantic colors mean on this page. -->
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--actor)"></i>짝이 있는 행</span>
+      <span><i style="background:var(--bound)"></i>해시 테이블 · 필터 · 연산자 경계</span>
+      <span><i style="background:var(--matter)"></i>안쪽(VIP 회원) 키</span>
+    </div>
+    <div class="hint" aria-hidden="true" data-ui="hint">Drag to rotate</div>
+    <div class="fallback" role="status" aria-live="polite">
+      <p data-ui="loading">Loading the model… You can read the text while you wait.</p>
+      <button type="button" class="retry-load" data-ui="retry" hidden>Retry</button>
+    </div>
+  </aside>
+</main>
+
+<!-- TEXT: screen text overrides (optional). When the page is in a language outside the built-in ones (en, ko, ja, zh-CN), fill in that language's strings. Key list: references/engine-api.md.
+     If <html lang> is es, the es entry below is used, and any key you leave out falls back to English. Leave this empty for built-in languages. -->
+<script>
+window.UI_OVERRIDES = {
+  // The built-in intro note mentions rotating a 3D model; this page has 2D chapters only.
+  ko: { noteWide: '장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.', noteNarrow: '장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.' },
+};
+</script>
+
+<script type="module">
+/* =====================================================================
+   ENGINE — page shell and stage kits. Everything you need to write scenes is here. Do not edit.
+   The shell owns layout, chapters, HUD, captions, timing and hooks; kits own drawing.
+   API reference: references/engine-api.md
+   ===================================================================== */
+/* ---- Screen text dictionary ----
+   English (en) is the canonical text and the final fallback. <html lang> picks the language: ko* → ko, ja* → ja, zh* → zh-CN, anything else → en.
+   Page-side overrides: in a <script> below the body, override keys or add a new language with window.UI_OVERRIDES = { es: { hint: '...' } }.
+   Lookup order: UI_OVERRIDES[language] → built-in dictionary[language] → en. {date} is replaced with the data-date attribute value. */
+const UI_TEXT = {
+  en: {
+    noteWide: 'Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model.',
+    noteNarrow: 'Swipe the model left or right to rotate it. The button in each chapter makes that event actually happen in the model.',
+    resetView: 'Reset view',
+    autorun: 'Auto-play',
+    autorunShort: 'Auto',
+    hint: 'Drag to rotate',
+    fallback: "This browser can't draw the 3D model. You can still follow the content from the text alone.",
+    loading: 'Loading the model… You can read the text while you wait.',
+    loadError: "Couldn't load the model. Check your connection and try again, or keep reading the text.",
+    retry: 'Retry',
+    stageAria: 'Model',
+    terms: 'Glossary',
+    sources: 'Sources (checked {date})',
+    runError: "Couldn't play the animation. Reload the page and try again.",
+    speed: 'Playback speed',
+    speedSeg: 'Playback speed {v}',
+    railAria: 'Step captions',
+    railShow: 'Show all',
+    railHide: 'Hide',
+    splitX: 'Resize text and model',
+    splitH: 'Resize model height',
+  },
+  ko: {
+    noteWide: '오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
+    noteNarrow: '모형은 좌우로 밀면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
+    resetView: '시점 되돌리기',
+    autorun: '자동 실행',
+    autorunShort: '자동',
+    hint: '드래그해서 돌려 보기',
+    fallback: '이 브라우저에서는 3D 모형을 그릴 수 없습니다. 본문만으로도 내용을 따라갈 수 있습니다.',
+    loading: '모형을 불러오는 중입니다. 기다리는 동안 본문을 읽을 수 있습니다.',
+    loadError: '모형을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도하거나 본문을 계속 읽어 주세요.',
+    retry: '다시 시도',
+    stageAria: '모형',
+    terms: '용어 정리',
+    sources: '출처 ({date} 확인)',
+    runError: '애니메이션을 재생하지 못했습니다. 새로고침한 뒤 다시 눌러 보세요.',
+    speed: '재생 속도',
+    speedSeg: '재생 속도 {v}',
+    railAria: '단계 설명',
+    railShow: '모두 보기',
+    railHide: '접기',
+    splitX: '본문과 모형 너비 조절',
+    splitH: '모형 높이 조절',
+  },
+  ja: {
+    noteWide: '右のモデルはドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
+    noteNarrow: 'モデルは左右にスワイプすると回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
+    resetView: '視点をリセット',
+    autorun: '自動再生',
+    autorunShort: '自動',
+    hint: 'ドラッグで回転',
+    fallback: 'このブラウザでは3Dモデルを表示できません。本文だけでも内容を追えます。',
+    loading: 'モデルを読み込んでいます。待っている間も本文を読めます。',
+    loadError: 'モデルを読み込めませんでした。接続を確認して再試行するか、本文を読み進めてください。',
+    retry: '再試行',
+    stageAria: 'モデル',
+    terms: '用語集',
+    sources: '出典（{date} 確認）',
+    runError: 'アニメーションを再生できませんでした。ページを再読み込みして、もう一度お試しください。',
+    speed: '再生速度',
+    speedSeg: '再生速度 {v}',
+    railAria: '手順の説明',
+    railShow: 'すべて表示',
+    railHide: '閉じる',
+    splitX: '本文とモデルの幅を調整',
+    splitH: 'モデルの高さを調整',
+  },
+  'zh-CN': {
+    noteWide: '拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
+    noteNarrow: '左右滑动模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
+    resetView: '重置视角',
+    autorun: '自动播放',
+    autorunShort: '自动',
+    hint: '拖动旋转',
+    fallback: '此浏览器无法显示 3D 模型。只看正文也能理解内容。',
+    loading: '正在加载模型…等待时可以先阅读正文。',
+    loadError: '无法加载模型。请检查网络连接后重试，或继续阅读正文。',
+    retry: '重试',
+    stageAria: '模型',
+    terms: '术语表',
+    sources: '来源（{date} 核对）',
+    runError: '无法播放动画。请刷新页面后重试。',
+    speed: '播放速度',
+    speedSeg: '播放速度 {v}',
+    railAria: '步骤说明',
+    railShow: '全部',
+    railHide: '收起',
+    splitX: '调整正文与模型的宽度',
+    splitH: '调整模型高度',
+  },
+};
+// Pick the built-in language and the override key from <html lang>. The override key is matched in this order: the full lang (es-MX), its prefix (es), the built-in language name (zh-CN).
+function pickUiLang(tag, overrideKeys) {
+  const t = String(tag || '').trim().toLowerCase();
+  const primary = t.split('-')[0];
+  const builtin = primary === 'ko' ? 'ko' : primary === 'ja' ? 'ja' : primary === 'zh' ? 'zh-CN' : 'en';
+  const find = name => overrideKeys.find(k => k.toLowerCase() === name.toLowerCase());
+  const key = (t && find(t)) || (primary && find(primary)) || find(builtin);
+  return { builtin, key };
+}
+const UI_OVER = (typeof window.UI_OVERRIDES === 'object' && window.UI_OVERRIDES) || {};
+const UI_PICK = pickUiLang(document.documentElement.lang, Object.keys(UI_OVER));
+const UI_LANG = UI_PICK.key || UI_PICK.builtin;
+const UI_STR = { ...UI_TEXT.en, ...UI_TEXT[UI_PICK.builtin], ...(UI_PICK.key ? UI_OVER[UI_PICK.key] : {}) };
+// If an override gives only the long text, use the same text for the short one (so English "Auto" does not get mixed in).
+if (UI_PICK.key && UI_OVER[UI_PICK.key].autorun && !UI_OVER[UI_PICK.key].autorunShort) UI_STR.autorunShort = UI_OVER[UI_PICK.key].autorun;
+const uiStr = key => UI_STR[key] ?? '';
+function applyUiText() {
+  document.querySelectorAll('[data-ui]').forEach(el => {
+    const key = el.dataset.ui;
+    if (!(key in UI_STR)) { console.warn('[plz] unknown data-ui key:', key); return; }
+    el.textContent = uiStr(key).replace('{date}', el.dataset.date ?? '');
+  });
+  document.querySelectorAll('[data-ui-aria]').forEach(el => {
+    const key = el.dataset.uiAria;
+    if (!(key in UI_STR)) { console.warn('[plz] unknown data-ui-aria key:', key); return; }
+    el.setAttribute('aria-label', uiStr(key));
+  });
+}
+applyUiText(); // This module has no static CDN imports, so notices are translated before any kit loads its libraries.
+
+const $ = selector => document.querySelector(selector);
+const clamp = (lo, v, hi) => Math.max(lo, Math.min(hi, v));
+// localStorage can be blocked (private windows, blocked site data). Then settings last for this visit only.
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* a failed save does not affect the feature */ } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { /* same */ } },
+};
+const el = (tag, props = {}, parent = null) => {
+  const node = Object.assign(document.createElement(tag), props);
+  if (parent) parent.append(node);
+  return node;
+};
+
+const stageEl = $('.stage');
+const wrap = $('.canvas-wrap');
+const hudEl = $('.hud');
+const hudNow = $('.hud .now');
+const legendEl = $('.legend');
+const hintEl = $('.hint');
+const layoutEl = $('.layout');
+const stageControls = document.querySelectorAll('[data-run], .autorun, .reset-view');
+const retryBtn = $('.retry-load');
+function setStageState(state, message = 'loading') {
+  stageEl.dataset.state = state;
+  stageEl.setAttribute('aria-busy', String(state === 'loading'));
+  stageControls.forEach(button => { button.disabled = state !== 'ready'; });
+  const notice = stageEl.querySelector('.fallback p');
+  notice.dataset.ui = message;
+  notice.textContent = uiStr(message);
+  retryBtn.hidden = state !== 'failed';
+}
+retryBtn.addEventListener('click', () => location.reload());
+setStageState('loading');
+
+// Layout queries shared by the CSS: stacked = stage pinned above the text (portrait phone); sideBySide = text beside the stage.
+const stackedQ = matchMedia('(max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px)');
+const sideQ = matchMedia('(min-width: 861px), (orientation: landscape) and (max-height: 520px)');
+const landQ = matchMedia('(orientation: landscape) and (max-height: 520px)');
+const barredQ = matchMedia('(max-width: 860px), (orientation: landscape) and (max-height: 520px)'); // stage split into title bar / model / legend bar
+
+/* ---- Director: one timing contract for every kit ----
+   Speed (0.5, 1, 1.5, 2) scales every duration and wait, and a change applies live to animations and waits in flight.
+   Instant mode (verification) makes every duration 0. Reduced motion is separate: it keeps the step order and the dwell,
+   and replaces movement with a cut (the step still takes its time, so captions arrive one by one). Color and opacity still animate. */
+const CANCEL = Symbol('cancel');
+const SPEEDS = [0.5, 1, 1.5, 2];
+const SPEED_KEY = 'plz-explain:speed';
+let speed = SPEEDS.includes(parseFloat(store.get(SPEED_KEY))) ? parseFloat(store.get(SPEED_KEY)) : 1;
+let INSTANT = false;
+const reduceQ = matchMedia('(prefers-reduced-motion: reduce)');
+let REDUCE = reduceQ.matches;
+reduceQ.addEventListener?.('change', e => { REDUCE = e.matches; });
+const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+let runToken = 0;
+const pendingJobs = new Set(); // waits and tweens in flight: { token, cancel(), rescale() }
+// A new run or a chapter change invalidates the running action: everything it awaits rejects with CANCEL right away.
+function bumpRun() {
+  runToken += 1;
+  for (const job of [...pendingJobs]) if (job.token !== runToken) job.cancel();
+  return runToken;
+}
+function rescaleJobs() { for (const job of [...pendingJobs]) job.rescale(); }
+// The run's own timeline, for checks that must not depend on machine load: `base` is the time every wait and tween asked for
+// at 1×; `scaled` is the time they were scheduled for at the speeds in effect (0 in instant mode). Parallel steps add up.
+const timeline = { token: 0, base: 0, scaled: 0 };
+function account(token, base, scaled) {
+  if (timeline.token !== token) Object.assign(timeline, { token, base: 0, scaled: 0 });
+  timeline.base += base; timeline.scaled += scaled;
+}
+function director(token) {
+  const live = () => token === runToken;
+  function wait(ms) {
+    if (!live()) return Promise.reject(CANCEL);
+    if (INSTANT || !(ms > 0)) { account(token, Math.max(0, ms || 0), 0); return Promise.resolve(); }
+    return new Promise((resolve, reject) => {
+      const job = { token, left: ms, since: performance.now(), rate: speed, timer: 0 };
+      const arm = () => {
+        job.timer = setTimeout(() => {
+          pendingJobs.delete(job);
+          account(token, Math.max(0, job.left), Math.max(0, job.left) / job.rate); // the rest, at the rate it was scheduled for
+          if (live()) resolve(); else reject(CANCEL);
+        }, Math.max(0, job.left) / job.rate);
+      };
+      job.rescale = () => { // re-arm the rest of the wait at the current speed
+        const now = performance.now();
+        const used = Math.min(Math.max(0, job.left), (now - job.since) * job.rate);
+        account(token, used, used / job.rate);
+        job.left -= used;
+        job.since = now; job.rate = speed;
+        if (INSTANT) job.left = 0;
+        clearTimeout(job.timer); arm();
+      };
+      job.cancel = () => { clearTimeout(job.timer); pendingJobs.delete(job); reject(CANCEL); };
+      pendingJobs.add(job);
+      arm();
+    });
+  }
+  // fn receives eased progress 0→1. motion: true for movement (cut under reduced motion), false for color or opacity.
+  function tween(ms, fn, { motion = true, ease = easeInOutCubic } = {}) {
+    if (!live()) return Promise.reject(CANCEL);
+    if (INSTANT || !(ms > 0)) { fn(1); account(token, Math.max(0, ms || 0), 0); return Promise.resolve(); }
+    if (motion && REDUCE) { fn(1); return wait(ms); }
+    return new Promise((resolve, reject) => {
+      let p = 0, last = performance.now();
+      const job = { token, rescale() { /* progress is integrated per frame at the current speed */ } };
+      job.cancel = () => { pendingJobs.delete(job); reject(CANCEL); };
+      pendingJobs.add(job);
+      const frame = now => {
+        if (!pendingJobs.has(job)) return;
+        if (!live()) { job.cancel(); return; }
+        const next = INSTANT ? 1 : Math.min(1, p + Math.max(0, now - last) * speed / ms);
+        account(token, (next - p) * ms, INSTANT ? 0 : (next - p) * ms / speed);
+        p = next;
+        last = Math.max(last, now);
+        fn(ease(p));
+        if (p < 1) requestAnimationFrame(frame);
+        else { pendingJobs.delete(job); resolve(); }
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+  return { live, wait, tween, speed: () => speed, reduced: () => REDUCE, instant: () => INSTANT };
+}
+const speedSubs = new Set();
+function setSpeed(v) {
+  if (!SPEEDS.includes(v)) return speed;
+  speed = v;
+  store.set(SPEED_KEY, String(v));
+  rescaleJobs();
+  speedSubs.forEach(fn => fn(v));
+  return speed;
+}
+function setInstant(on) {
+  INSTANT = Boolean(on);
+  document.body.classList.toggle('instant', INSTANT);
+  rescaleJobs();
+  return INSTANT;
+}
+
+/* ---- Speed control: each chapter's run button becomes a split button [run][1× ▾]; the segment opens a menu (0.5×–2×). One shared, persisted value. ---- */
+(function speedControl() {
+  const segs = [];
+  let openSeg = null;
+  const menu = el('div', { className: 'speed-menu', hidden: true }, document.body);
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', uiStr('speed'));
+  const items = SPEEDS.map(v => {
+    const item = el('button', { type: 'button', className: 'speed-item' }, menu);
+    item.setAttribute('role', 'menuitemradio');
+    item.dataset.v = String(v);
+    el('span', { className: 'ck', textContent: '✓' }, item).setAttribute('aria-hidden', 'true');
+    el('span', { textContent: `${v}×` }, item);
+    return item;
+  });
+  const refresh = () => {
+    segs.forEach(seg => { seg.querySelector('.val').textContent = `${speed}×`; seg.setAttribute('aria-label', uiStr('speedSeg').replace('{v}', `${speed}×`)); });
+    items.forEach(item => item.setAttribute('aria-checked', String(parseFloat(item.dataset.v) === speed)));
+  };
+  function place(seg) { // under the segment; above it when there is no room below; always inside the viewport
+    menu.hidden = false; menu.style.visibility = 'hidden';
+    const r = seg.getBoundingClientRect(), w = menu.offsetWidth, h = menu.offsetHeight;
+    let top = r.bottom + 4;
+    if (top + h > innerHeight - 8 && r.top - 4 - h >= 8) top = r.top - 4 - h;
+    menu.style.top = `${clamp(8, top, innerHeight - 8 - h)}px`;
+    menu.style.left = `${clamp(8, r.right - w, innerWidth - 8 - w)}px`;
+    menu.style.visibility = '';
+  }
+  function open(seg) {
+    if (openSeg) close(false);
+    openSeg = seg; seg.setAttribute('aria-expanded', 'true');
+    refresh(); place(seg);
+    items[Math.max(0, SPEEDS.indexOf(speed))].focus();
+  }
+  function close(refocus) {
+    if (!openSeg) return;
+    const seg = openSeg; openSeg = null;
+    menu.hidden = true; seg.setAttribute('aria-expanded', 'false');
+    if (refocus) seg.focus();
+  }
+  items.forEach((item, i) => {
+    item.addEventListener('click', () => { setSpeed(parseFloat(item.dataset.v)); close(true); });
+    item.addEventListener('keydown', e => {
+      const move = d => { e.preventDefault(); items[(i + d + items.length) % items.length].focus(); };
+      if (e.key === 'ArrowDown') move(1);
+      else if (e.key === 'ArrowUp') move(-1);
+      else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+      else if (e.key === 'End') { e.preventDefault(); items.at(-1).focus(); }
+      else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+      else if (e.key === 'Tab') close(true);
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.click(); }
+    });
+  });
+  document.addEventListener('pointerdown', e => { if (openSeg && !menu.contains(e.target) && !openSeg.contains(e.target)) close(false); }, true);
+  addEventListener('resize', () => close(false));
+  addEventListener('scroll', () => close(false), { passive: true });
+  document.querySelectorAll('.act [data-run]').forEach(run => {
+    const box = el('div', { className: 'splitbtn' });
+    run.replaceWith(box); box.append(run);
+    const seg = el('button', { type: 'button', className: 'speed-seg' }, box);
+    seg.setAttribute('aria-haspopup', 'menu'); seg.setAttribute('aria-expanded', 'false');
+    el('span', { className: 'val' }, seg);
+    el('span', { className: 'caret' }, seg).setAttribute('aria-hidden', 'true');
+    seg.addEventListener('click', () => (openSeg === seg ? close(true) : open(seg)));
+    seg.addEventListener('keydown', e => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); open(seg); } });
+    segs.push(seg);
+  });
+  speedSubs.add(refresh);
+  refresh();
+})();
+
+/* ---- Caption rail: say() appends here, on the stage. "N. text" is step N: steps accumulate (newest emphasized, earlier dimmed),
+   and a caption with the same number as the newest one updates that step in place. Text without a number is its own entry. ---- */
+const railEl = el('div', { className: 'rail' }, wrap);
+railEl.setAttribute('aria-live', 'polite');
+railEl.setAttribute('aria-label', uiStr('railAria'));
+const railList = el('ol', { className: 'rail-list' }, railEl);
+const railBar = el('div', { className: 'rail-bar' }, railEl);
+const railCount = el('span', { className: 'rail-count' }, railBar);
+const railBtn = el('button', { type: 'button', className: 'rail-toggle' }, railBar);
+el('span', { className: 'chev' }, railBtn).setAttribute('aria-hidden', 'true');
+railCount.setAttribute('aria-hidden', 'true');
+railBtn.setAttribute('aria-expanded', 'false');
+let captions = [];       // { n, text, li }
+let lastCaption = '';
+let railOpen = false;
+const sceneTotals = {};  // captions in the last completed run of each scene: the "n" of "k / n"
+let badgeRemovers = new Map(); // step number → removes the badge a kit placed for it
+function clearCaptions() {
+  captions = [];
+  lastCaption = '';
+  railList.replaceChildren();
+  badgeRemovers.forEach(remove => remove());
+  badgeRemovers = new Map();
+  renderRailMeta();
+}
+function addCaption(text, { anchor = null } = {}, kit = null) {
+  const str = String(text);
+  const m = /^(\d+)\.\s+([\s\S]*)$/.exec(str); // "2. text" is step 2; "2.5 GB" and "10.0.0.5" are plain text
+  const n = m ? m[1] : '', body = m ? m[2] : str;
+  const top = captions.at(-1);
+  let entry;
+  if (n && top && top.n === n) {
+    entry = top;
+    entry.li.querySelector('.t').textContent = body;
+    entry.text = str;
+  } else {
+    top?.li.classList.remove('new');
+    const li = el('li', { className: 'cap' }, railList);
+    el('span', { className: 'n', textContent: n }, li);
+    el('span', { className: 't', textContent: body }, li);
+    entry = { n, text: str, li };
+    captions = [...captions, entry];
+  }
+  entry.li.classList.add('new');
+  lastCaption = str;
+  if (anchor && n && kit?.badge) {
+    badgeRemovers.get(n)?.();
+    badgeRemovers.set(n, kit.badge(anchor, n));
+  }
+  renderRailMeta();
+  if (railEl.classList.contains('side')) railEl.scrollTop = railEl.scrollHeight;
+  else if (railOpen) railList.scrollTop = railList.scrollHeight;
+}
+function renderRailMeta() {
+  const k = captions.length, total = Math.max(k, sceneTotals[current] ?? 0);
+  railCount.textContent = `${k} / ${total}`;
+  railBtn.setAttribute('aria-label', uiStr(railOpen ? 'railHide' : 'railShow'));
+  railBtn.setAttribute('aria-expanded', String(railOpen));
+}
+function setRailOpen(on) {
+  railOpen = Boolean(on);
+  renderRailMeta();
+  layoutStage();
+  if (railOpen) railList.scrollTop = railList.scrollHeight; // open on the newest caption
+  return railOpen;
+}
+railBtn.addEventListener('click', () => setRailOpen(!railOpen));
+
+/* ---- Stage layout: where the rail goes and the rectangle the model must fit in (the kit fits its camera to it) ---- */
+const RAIL_SIDE_MIN = 720; // stage width (px) from which the rail sits beside the model
+let modelRect = { x: 0, y: 0, w: 1, h: 1 };
+function layoutStage() {
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (!W || !H) return;
+  const wr = wrap.getBoundingClientRect();
+  const barred = barredQ.matches;
+  // Desktop: the HUD, legend and hint lie over the stage. Keep the rail clear of them.
+  const topInset = barred ? 0 : Math.max(0, hudEl.getBoundingClientRect().bottom - wr.top) + 14;
+  const bands = barred ? [] : [legendEl, hintEl].filter(n => n.offsetParent).map(n => n.getBoundingClientRect().top - wr.top);
+  const bottomEdge = Math.min(H, ...bands);
+  const side = !barred && W >= RAIL_SIDE_MIN;
+  const kit = activeKit();
+  // A kit may arrange its drawing and the caption column itself (place); null means "use the default".
+  const placed = side && kit?.place ? kit.place({ W, H, top: topInset, bottom: bottomEdge }) : null;
+  railEl.classList.toggle('side', side);
+  railEl.classList.toggle('compact', !side);
+  railEl.classList.toggle('open', !side && railOpen);
+  const pad = 16;
+  Object.assign(railEl.style, { left: '', right: '', top: '', bottom: '', width: '', height: '', maxHeight: '' });
+  railEl.style.removeProperty('--cap-k');
+  if (placed) {
+    const r = placed.rail;
+    Object.assign(railEl.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, maxHeight: `${Math.max(80, r.h)}px` });
+    railEl.style.setProperty('--cap-k', String(+placed.scale.toFixed(4)));
+    modelRect = placed.model;
+  } else if (side) {
+    const railW = Math.round(clamp(240, W * 0.3, 340));
+    Object.assign(railEl.style, { right: `${pad}px`, top: `${topInset}px`, width: `${railW}px`, maxHeight: `${Math.max(80, bottomEdge - 12 - topInset)}px` });
+    modelRect = { x: 0, y: 0, w: W - railW - pad - 8, h: H };
+  } else {
+    const inset = barred ? 0 : 20;
+    const barBottom = barred ? 0 : H - bottomEdge + 8;
+    Object.assign(railEl.style, { left: `${inset}px`, right: `${inset}px`, bottom: `${barBottom}px` });
+    if (railOpen) railEl.style.top = `${barred ? 0 : topInset}px`;
+    const barH = railOpen ? railBarHeight() : railEl.offsetHeight; // the model keeps the closed-bar fit while the sheet is open
+    modelRect = { x: 0, y: 0, w: W, h: Math.max(40, H - barBottom - barH - 6) };
+  }
+  // The HUD chapter title grows gently with the stage (up to 1.25×) where the HUD lies over a large stage.
+  hudNow.style.fontSize = barred ? '' : `${(1.05 * clamp(1, Math.min(W / 760, H / 820), 1.25)).toFixed(3)}rem`;
+  if (!placed && kit?.fit) kit.fit(modelRect, W, H, { top: barred ? 0 : topInset, bottom: barred ? H : bottomEdge });
+}
+// Height of the closed bar (the fixed --bar-h), so the model does not jump when the sheet opens. Measured once; re-measured after a resize.
+let barHeight = 0;
+function railBarHeight() {
+  if (!barHeight) {
+    const probe = el('div', { className: 'rail compact' }, wrap);
+    probe.style.visibility = 'hidden';
+    barHeight = probe.offsetHeight; // 0 while the stage is not ready yet: measured again next time
+    probe.remove();
+  }
+  return barHeight;
+}
+addEventListener('resize', () => { barHeight = 0; });
+
+/* ---- Center split: a divider between text and stage (side by side), or a stage-height handle (stacked phones) ---- */
+let current = null;
+let readingEl = null; // the [data-scene] element on the reading line
+const SPLIT_X_KEY = 'plz-explain:split-x', SPLIT_H_KEY = 'plz-explain:split-h';
+const TEXT_MIN_W = 360, STAGE_MIN_W = 560; // narrowest text column and stage (px) where the window allows both
+let splitDragging = false;
+const Split = (() => {
+  const root = document.documentElement;
+  const mkHandle = (cls, orient, label, parent) => {
+    const h = el('div', { className: cls, tabIndex: 0 }, parent);
+    h.setAttribute('role', 'separator'); h.setAttribute('aria-orientation', orient); h.setAttribute('aria-label', label);
+    return h;
+  };
+  const hv = mkHandle('split-v', 'vertical', uiStr('splitX'), layoutEl);
+  const hh = mkHandle('split-h', 'horizontal', uiStr('splitH'), stageEl);
+  const load = k => { const n = parseFloat(store.get(k)); return Number.isFinite(n) ? n : null; };
+  let px = load(SPLIT_X_KEY), ph = load(SPLIT_H_KEY);
+  const api = { minStage: () => 0 };
+  // Text column as % of the viewport: 32–68, text ≥ TEXT_MIN_W and stage ≥ STAGE_MIN_W. In windows too narrow for both plus room to move
+  // (below about 1083px), both minimums shrink in proportion so they take 85% of the window: the divider always keeps about 15% to move in.
+  // Stage height on phones: 30–75svh, never below the stage's minimum.
+  const limX = () => {
+    const w = innerWidth, f = Math.min(1, 0.85 * w / (TEXT_MIN_W + STAGE_MIN_W));
+    return { min: Math.max(32, TEXT_MIN_W * f / w * 100), max: Math.min(68, (w - STAGE_MIN_W * f) / w * 100) };
+  };
+  const defX = () => (landQ.matches ? 100 * 5 / 11 : 38 * parseFloat(getComputedStyle(root).fontSize) / innerWidth * 100);
+  const limH = () => { const m = api.minStage() / innerHeight * 100; return { min: Math.max(30, m), max: Math.max(75, m) }; };
+  function apply() {
+    // Keep the chapter being read where it is while the text column reflows, so the reading line stays on it.
+    const anchor = readingEl && sideQ.matches ? readingEl.getBoundingClientRect().top : null;
+    if (sideQ.matches) {
+      const { min, max } = limX(), pct = clamp(min, px ?? defX(), max), w = pct / 100 * innerWidth;
+      root.style.setProperty('--text-w', `${w}px`); root.style.setProperty('--split-x', `${w}px`);
+      root.style.removeProperty('--stage-h');
+      hv.setAttribute('aria-valuemin', String(Math.round(min))); hv.setAttribute('aria-valuemax', String(Math.round(max))); hv.setAttribute('aria-valuenow', String(Math.round(pct)));
+    } else {
+      root.style.removeProperty('--text-w');
+      if (stackedQ.matches) {
+        // No saved height: the CSS default (44svh + caption bar), raised to the active chapter's minimum when that is larger.
+        // The minimum depends on the chapter's drawing, so activate() applies the split again on every chapter change.
+        const { min, max } = limH(), unit = CSS.supports('height', '1svh') ? 'svh' : 'vh';
+        root.style.removeProperty('--stage-h');
+        if (ph !== null) root.style.setProperty('--stage-h', `${clamp(min, ph, max)}${unit}`);
+        else if (stageEl.getBoundingClientRect().height / innerHeight * 100 < min) root.style.setProperty('--stage-h', `${min}${unit}`);
+        const pct = ph === null ? stageEl.getBoundingClientRect().height / innerHeight * 100 : clamp(min, ph, max);
+        hh.setAttribute('aria-valuemin', String(Math.floor(min))); hh.setAttribute('aria-valuemax', String(Math.ceil(max))); hh.setAttribute('aria-valuenow', String(Math.round(pct)));
+      }
+    }
+    if (anchor !== null && readingEl) {
+      const shift = readingEl.getBoundingClientRect().top - anchor;
+      if (Math.abs(shift) > 1) scrollTo({ top: scrollY + shift, behavior: 'instant' });
+    }
+  }
+  const saveX = () => { if (px !== null) store.set(SPLIT_X_KEY, String(px)); };
+  const saveH = () => { if (ph !== null) store.set(SPLIT_H_KEY, String(ph)); };
+  const setX = v => { px = v; saveX(); apply(); };
+  const setH = v => { ph = v; saveH(); apply(); };
+  // Pointer capture; dragging never cancels a run. One layout per frame while moving; saved once on release.
+  function drag(h, fromEvent, onMove, save) {
+    h.addEventListener('pointerdown', e => {
+      h.setPointerCapture(e.pointerId); h.classList.add('drag'); e.preventDefault();
+      splitDragging = true;
+      let frame = 0, pending = null;
+      const flush = () => { frame = 0; if (pending !== null) { onMove(pending); pending = null; apply(); } };
+      const move = ev => { pending = fromEvent(ev); if (!frame) frame = requestAnimationFrame(flush); };
+      const up = () => {
+        cancelAnimationFrame(frame); flush();
+        h.classList.remove('drag'); splitDragging = false;
+        h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up);
+        save();
+        api.onDragEnd?.();
+      };
+      h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+    });
+  }
+  drag(hv, e => { const { min, max } = limX(); return clamp(min, e.clientX / innerWidth * 100, max); }, v => { px = v; }, saveX);
+  drag(hh, e => { const { min, max } = limH(); return clamp(min, e.clientY / innerHeight * 100, max); }, v => { ph = v; }, saveH);
+  const keys = (h, set, lim, dec, inc) => h.addEventListener('keydown', e => {
+    const { min, max } = lim(), cur = parseFloat(h.getAttribute('aria-valuenow'));
+    const next = e.key === dec ? cur - 2 : e.key === inc ? cur + 2 : e.key === 'Home' ? min : e.key === 'End' ? max : null;
+    if (next === null) return;
+    e.preventDefault(); set(clamp(min, next, max));
+  });
+  keys(hv, setX, limX, 'ArrowLeft', 'ArrowRight');
+  keys(hh, setH, limH, 'ArrowUp', 'ArrowDown');
+  hv.addEventListener('dblclick', () => { px = null; store.del(SPLIT_X_KEY); apply(); });
+  hh.addEventListener('dblclick', () => { ph = null; store.del(SPLIT_H_KEY); apply(); });
+  addEventListener('resize', apply);
+  sideQ.addEventListener('change', apply);
+  return Object.assign(api, { apply });
+})();
+// Title bar + legend + caption bar + the active kit's smallest drawing (+ the 6px gap under the model).
+Split.minStage = () => (stackedQ.matches ? hudEl.offsetHeight + legendEl.offsetHeight + railBarHeight() + (activeKit()?.minHeight?.() ?? 150) + 6 : 0);
+Split.apply(); // the saved split holds while kits load, and after a load failure
+
+/* ---- Kits and scenes ----
+   defineKit(name, kit) registers a stage kit. Methods (all but load/build optional):
+     rotatable            true shows the drag hint and Reset view
+     load(host)           once, before the kit's first scene is built. host = { layer, wrap, relayout }. Throw an error with .uiKey to pick the failure notice
+     build(def)           turns a defineScene definition into the kit's scene object; it must have reset() and run(a, say)
+     show(scene, prev)    the scene became the active one (prev may be null or belong to another kit)
+     hide(scene)          the scene stopped being active; drop its temporary objects
+     reset(scene)         restore what the engine owns (colors) before the scene's own reset()
+     clear(scene)         drop temporary objects after a failed run
+     animator(dir, scene) the `a` passed to run(); defaults to the director { wait, tween, live }
+     fit(rect, W, H, chrome) fit the drawing to rect (px inside the layer W × H); the rest is under the caption rail.
+                          chrome = { top, bottom }: the band between the HUD and the legend, for kits that must stay clear of them
+     place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom };
+                          return { rail: { x, y, w, h }, scale, model } (scale also sizes the captions), or null for the default
+     minHeight()          optional: the smallest model height (px) for the stage-height handle on phones
+     frame(dt)            every animation frame
+     labels()             label elements currently visible, for overlaps() and clipped()
+     badge(anchor, n)     put step number n next to anchor; returns a function that removes it
+     resetView(), info()  optional: Reset view button; { resources, azimuth } for the hooks
+     settled()            optional: false while the drawing is still easing toward its end state (run() waits for it) */
+const kits = {};
+function defineKit(name, kit) {
+  if (kits[name]) throw new Error(`[plz] kit already defined: ${name}`);
+  kits[name] = kit;
+  return kit;
+}
+const scenes = {};
+// defineScene(name, { kit = 'axo', title, build, ...kit options }). The kit builds it when the page starts.
+function defineScene(name, def) {
+  if (scenes[name]) throw new Error(`[plz] scene already defined: ${name}`);
+  scenes[name] = { name, kit: 'axo', ...def, def, built: null };
+}
+function loadKit(name) {
+  const kit = kits[name];
+  if (!kit) return Promise.reject(new Error(`[plz] unknown kit: ${name}`));
+  if (!kit.loading) {
+    kit.layer = el('div', { className: 'kit-layer', hidden: true }, wrap);
+    kit.layer.dataset.kit = name;
+    wrap.append(railEl); // the rail stays above every kit layer
+    kit.loading = Promise.resolve(kit.load({ layer: kit.layer, wrap, relayout: layoutStage }));
+  }
+  return kit.loading;
+}
+// A hoisted function: the split calls it at startup, before any chapter (and before kits/scenes exist).
+function activeKit() { return current ? kits[scenes[current].kit] : null; }
+
+/* ---- Kit "axo": three.js axonometric block model (white massing model, ink outlines). three.js is imported only in its load(). ---- */
+const COLOR = {
+  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
+  actor: 0xD2364A, actorEdge: 0x7A1422,
+  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
+  matter: 0xC4921F, matterEdge: 0x6B4B0E,
+};
+// Filled by the axo kit's load(). Scenes use them as globals, as before.
+let THREE = null, OrbitControls = null, CSS2DRenderer = null, CSS2DObject = null;
+let renderer = null, labelRenderer = null, scene = null, camera = null, controls = null;
+let HOME_DIR = null, SCREEN_RIGHT = null, base = null;
+const DIST = 60;
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+function mat(color, opacity = 1) {
+  const m = new THREE.MeshLambertMaterial({ color, transparent: true, opacity, depthWrite: opacity >= 0.99 });
+  m.userData.base = opacity;
+  m.userData.color = new THREE.Color(color);
+  return m;
+}
+function lineMat(color = COLOR.ink, opacity = 0.85, dashed = false) {
+  const m = dashed
+    ? new THREE.LineDashedMaterial({ color, transparent: true, opacity, dashSize: 0.2, gapSize: 0.14 })
+    : new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+  m.userData.base = opacity;
+  return m;
+}
+// Cuboid. The y of pos is the "floor height" (after creation, group.position is the center).
+function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.ink, edgeOpacity = 0.85, dashed = false, cast = true } = {}) {
+  const g = new THREE.Group();
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, mat(color, opacity));
+  mesh.castShadow = cast && opacity > 0.6;
+  mesh.receiveShadow = opacity > 0.6;
+  g.add(mesh);
+  if (edge !== null) {
+    const lines = new THREE.LineSegments(new THREE.EdgesGeometry(geo), lineMat(edge, edgeOpacity, dashed));
+    if (dashed) lines.computeLineDistances();
+    g.add(lines);
+  }
+  g.position.set(pos[0], pos[1] + h / 2, pos[2]);
+  g.userData.mesh = mesh;
+  g.userData.h = h;
+  return g;
+}
+const allTags = new Set();
+// On-screen label. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
+function tag(text, pos, kind = '') {
+  const el = document.createElement('div');
+  el.className = 'tag' + (kind ? ' ' + kind : '');
+  el.textContent = text;
+  const o = new CSS2DObject(el);
+  o.position.set(pos[0], pos[1], pos[2]);
+  allTags.add(o);
+  return o;
+}
+// Temporary groups contain one-shot objects created during playback. Shared resources stay externally owned.
+const temporaryGroups = new WeakMap();
+function temporaryGroup(sharedResources = []) {
+  const group = new THREE.Group();
+  temporaryGroups.set(group, new Set(sharedResources));
+  return group;
+}
+// Release an owned subtree. Keep externally owned geometry/materials in sharedResources or its temporary group's list.
+function disposeObject(root, sharedResources = []) {
+  disposeObjects([root], sharedResources);
+}
+function disposeObjects(roots, sharedResources = []) {
+  const shared = new Set(sharedResources), resources = new Set();
+  for (const root of roots) {
+    for (let node = root; node; node = node.parent) {
+      for (const resource of temporaryGroups.get(node) || []) shared.add(resource);
+    }
+    root.traverse(o => {
+      for (const resource of temporaryGroups.get(o) || []) shared.add(resource);
+      if (o.isCSS2DObject) {
+        allTags.delete(o);
+        labelState.delete(o);
+        o.element.remove();
+      }
+      if (o.geometry) resources.add(o.geometry);
+      for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (material) resources.add(material);
+      }
+    });
+    root.removeFromParent();
+  }
+  for (const resource of resources) if (!shared.has(resource)) resource.dispose();
+}
+function clearGroup(group) {
+  disposeObjects([...group.children]);
+}
+function clearTemporary(root) {
+  if (temporaryGroups.has(root)) { clearGroup(root); return; }
+  for (const child of root.children) clearTemporary(child);
+}
+// Actor cube (0.6). Pass label as null for no label.
+function actorCube(pos, label = '__actor__') {
+  const c = block(0.6, 0.6, 0.6, pos, { color: COLOR.actor, edge: COLOR.actorEdge });
+  if (label) c.add(tag(label, [0, 0.72, 0], 'actor'));
+  return c;
+}
+function matterBlock(pos, h = 0.9, w = 0.75) {
+  return block(w, h, w, pos, { color: COLOR.matter, edge: COLOR.matterEdge });
+}
+// Glass room (boundary). Opacity between 0.08 and 0.13 stays clear even when layers overlap.
+function glass(w, h, d, pos, opts = {}) {
+  return block(w, h, d, pos, { color: COLOR.bound, opacity: 0.08, edge: COLOR.bound, edgeOpacity: 0.95, cast: false, ...opts });
+}
+function line(points, color = COLOR.ink, opacity = 0.6, dashed = false) {
+  const geo = new THREE.BufferGeometry().setFromPoints(points.map(p => V(...p)));
+  const l = new THREE.Line(geo, lineMat(color, opacity, dashed));
+  if (dashed) l.computeLineDistances();
+  return l;
+}
+function tube(from, to, r = 0.1, color = COLOR.ink) {
+  const a = V(...from), b = V(...to);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 14), mat(color));
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(V(0, 1, 0), b.clone().sub(a).normalize());
+  m.castShadow = true;
+  return m;
+}
+function arrow(from, to, color = COLOR.ink) {
+  const g = new THREE.Group();
+  g.add(line([from, to], color, 0.85));
+  const dir = V(...to).sub(V(...from)).normalize();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.45, 18), mat(color));
+  cone.position.set(...to);
+  cone.quaternion.setFromUnitVectors(V(0, 1, 0), dir);
+  g.add(cone);
+  return g;
+}
+// Moving ball (request, signal). Put it in a temporaryGroup() and disposeObject() when done.
+function packet(color, pos, r = 0.2) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
+  m.position.set(...pos);
+  m.castShadow = true;
+  m.userData.mesh = m;
+  return m;
+}
+function setFade(root, k) {
+  root.visible = k > 0.001;
+  root.traverse(o => {
+    const m = o.material;
+    if (m && m.userData.base !== undefined) m.opacity = m.userData.base * k;
+    if (o.isCSS2DObject) o.element.style.opacity = k;
+  });
+}
+function resetLook(root) {
+  root.traverse(o => {
+    const m = o.material;
+    if (m && m.userData.color) { m.color.copy(m.userData.color); m.opacity = m.userData.base; }
+  });
+}
+// CSS2DRenderer draws labels even when the parent is hidden. Every frame, check ancestor visibility and scale, and hide the label.
+// Even after a parent is detached from the scene, the child label's DOM stays at its last position. Hide it when it is not attached to the scene.
+function syncTags() {
+  for (const o of allTags) {
+    let vis = true, node = o;
+    while (node.parent) {
+      node = node.parent;
+      if (!node.visible || node.scale.x < 0.3 || node.scale.y < 0.3) vis = false;
+    }
+    if (node !== scene) { o.element.style.display = 'none'; continue; }
+    o.visible = vis;
+  }
+}
+
+// On a narrow model area (phone, or beside the caption rail) the model shrinks but label text does not, so labels overlap each other and get clipped at the edges.
+// In screen coordinates, pull labels toward the inside of the model area, and when they overlap, shift them to the nearest free spot (CSS translate, capped at DECLUTTER_MAX).
+// On a wide model area this does nothing.
+const DECLUTTER_BELOW = 700, DECLUTTER_MAX = 56, DECLUTTER_EDGE = 3, DECLUTTER_GAP = 2;
+const labelState = new Map();
+let labelVec = null;
+const labelShown = o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5;
+const boxHit = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+function clampBox(b, R) {
+  const dx = Math.max(R.x + DECLUTTER_EDGE - b.l, 0) + Math.min(R.x + R.w - DECLUTTER_EDGE - b.r, 0);
+  const dy = Math.max(R.y + DECLUTTER_EDGE - b.t, 0) + Math.min(R.y + R.h - DECLUTTER_EDGE - b.b, 0);
+  return { l: b.l + dx, r: b.r + dx, t: b.t + dy, b: b.b + dy, dx, dy };
+}
+function placeLabel(box, placed, R) {
+  let cur = clampBox(box, R);
+  for (let i = 0; i < 6; i++) {
+    const hit = placed.find(p => boxHit(cur, p));
+    if (!hit) break;
+    const g = DECLUTTER_GAP;
+    const pushes = [
+      { dx: 0, dy: hit.t - cur.b - g }, { dx: 0, dy: hit.b - cur.t + g },
+      { dx: hit.l - cur.r - g, dy: 0 }, { dx: hit.r - cur.l + g, dy: 0 },
+    ].map(d => {
+      const moved = clampBox({ l: cur.l + d.dx, r: cur.r + d.dx, t: cur.t + d.dy, b: cur.b + d.dy }, R);
+      return { moved, clear: !placed.some(p => boxHit(moved, p)), cost: Math.hypot(d.dx, d.dy) };
+    }).sort((a, b) => (b.clear - a.clear) || (a.cost - b.cost));
+    cur = pushes[0].moved;
+  }
+  const total = Math.hypot(cur.l - box.l, cur.t - box.t);
+  return total <= DECLUTTER_MAX ? cur : clampBox(box, R);
+}
+function declutter() {
+  const W = wrap.clientWidth, H = wrap.clientHeight, R = modelRect;
+  const on = R.w > 0 && R.w < DECLUTTER_BELOW;
+  const placed = [];
+  let moving = false;
+  for (const o of allTags) {
+    const el = o.element;
+    const st = labelState.get(o) || { x: 0, y: 0 };
+    labelState.set(o, st);
+    let tx = 0, ty = 0;
+    if (on && labelShown(o)) {
+      labelVec.setFromMatrixPosition(o.matrixWorld).project(camera);
+      const w = el.offsetWidth, h = el.offsetHeight;
+      const cx = (labelVec.x + 1) / 2 * W, cy = (1 - labelVec.y) / 2 * H;
+      if (w && h) {
+        const box = { l: cx - w / 2, r: cx + w / 2, t: cy - h / 2, b: cy + h / 2 };
+        const fin = placeLabel(box, placed, R);
+        tx = fin.l - box.l; ty = fin.t - box.t;
+        placed.push(fin);
+      }
+    }
+    if (INSTANT || REDUCE) { st.x = tx; st.y = ty; } // no easing: the end state is exact at once
+    st.x += (tx - st.x) * 0.5; st.y += (ty - st.y) * 0.5;
+    if (Math.abs(tx - st.x) < 0.3) st.x = tx;
+    if (Math.abs(ty - st.y) < 0.3) st.y = ty;
+    if (st.x !== tx || st.y !== ty) moving = true;
+    const css = st.x || st.y ? `${st.x.toFixed(1)}px ${st.y.toFixed(1)}px` : '';
+    if (el.style.translate !== css) el.style.translate = css;
+  }
+  return moving;
+}
+
+// The animator `a` that axo scenes receive. Every duration and wait goes through the director (speed, instant, reduced motion, CANCEL).
+function axoAnimator(dir) {
+  return {
+    live: dir.live,
+    tween: (ms, fn, opts) => dir.tween(ms, fn, opts), // opts: { motion = true, ease }
+    wait: ms => dir.wait(ms),
+    // Move the center of obj to `to`. With lift, it goes over in an arc. About 1 s per tracked move.
+    move(obj, to, ms = 1000, lift = 0) {
+      const from = obj.position.clone();
+      const target = Array.isArray(to) ? V(...to) : to.clone();
+      return dir.tween(ms, t => {
+        obj.position.lerpVectors(from, target, t);
+        if (lift) obj.position.y += Math.sin(Math.PI * t) * lift;
+      });
+    },
+    // The color changes briefly and comes back. With hold=true it stays changed (resetLook restores it in reset). Color is not movement, so it plays under reduced motion too.
+    async flash(obj, color, ms = 700, hold = false) {
+      const m = (obj.userData.mesh || obj).material;
+      const c0 = m.userData.color, c1 = new THREE.Color(color);
+      const o0 = m.userData.base, peak = Math.min(1, o0 + 0.45);
+      await dir.tween(ms * 0.35, t => { m.color.lerpColors(c0, c1, t); m.opacity = o0 + (peak - o0) * t; }, { motion: false });
+      if (hold) return;
+      await dir.tween(ms * 0.65, t => { m.color.lerpColors(c1, c0, t); m.opacity = peak + (o0 - peak) * t; }, { motion: false });
+    },
+    // Change the size. To create: scale 0.001 → 1. To remove: 1 → 0.001, then visible=false.
+    scaleTo(obj, to, ms = 500) {
+      obj.visible = true;
+      const from = obj.scale.clone();
+      const target = typeof to === 'number' ? V(to, to, to) : V(...to);
+      return dir.tween(ms, t => obj.scale.lerpVectors(from, target, t));
+    },
+  };
+}
+
+defineKit('axo', {
+  rotatable: true,
+  fitSize: { w: 17, h: 11.5 },
+  camGoal: null,
+  baseState: null,
+  scenes: new Set(),
+  badges: new Map(), // badge label → { holder, anchor, local }
+  async load(host) {
+    const [three, orbit, css2d] = await Promise.all([
+      import('three'),
+      import('three/addons/controls/OrbitControls.js'),
+      import('three/addons/renderers/CSS2DRenderer.js'),
+    ]);
+    THREE = three; OrbitControls = orbit.OrbitControls;
+    CSS2DRenderer = css2d.CSS2DRenderer; CSS2DObject = css2d.CSS2DObject;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      throw Object.assign(new Error('WebGL is not available', { cause: e }), { uiKey: 'fallback' });
+    }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    host.layer.appendChild(renderer.domElement);
+    labelRenderer = new CSS2DRenderer();
+    labelRenderer.domElement.className = 'labels';
+    host.layer.appendChild(labelRenderer.domElement);
+    labelVec = V(0, 0, 0);
+    scene = new THREE.Scene();
+    camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 300);
+    // Camera direction (axonometric view). The screen-right vector is SCREEN_RIGHT — use it to place two things side by side.
+    HOME_DIR = V(1, 1.15, 1.22).normalize();
+    SCREEN_RIGHT = V(HOME_DIR.z, 0, -HOME_DIR.x).normalize();
+    controls = new OrbitControls(camera, labelRenderer.domElement);
+    controls.enablePan = false;
+    controls.enableZoom = false; // Enabling wheel zoom would block page scrolling over the stage.
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minPolarAngle = 0.2;
+    controls.maxPolarAngle = 1.38;
+    // Touch: a vertical swipe lets the browser scroll the page (pan-y); only a horizontal drag rotates the model.
+    // OrbitControls sets touch-action:none by default, so a swipe on the stage would swallow page scrolling. Override it after construction.
+    labelRenderer.domElement.style.touchAction = 'pan-y';
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: undefined };
+    controls.addEventListener('start', () => { this.camGoal = null; });
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xc9d0ca, 2.1));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.7);
+    sun.position.set(-7, 20, 11);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 70 });
+    sun.shadow.bias = -0.0006;
+    scene.add(sun);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.ShadowMaterial({ opacity: 0.1 }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    // The floor shared by all axo scenes (shown when the scene option is base:true). Fill it in SCENES.
+    base = new THREE.Group();
+    scene.add(base);
+    this.badgeRoot = new THREE.Group(); // step badges live here, not under their anchors (see badge())
+    scene.add(this.badgeRoot);
+    this.baseState = { group: base, k: 1, target: 1 };
+    this.clock = new THREE.Clock();
+  },
+  build(def) {
+    const built = { base: true, zoom: 1, target: [0.3, 1.1, 0], fitW: 17, fitH: 11.5, ...def, ...def.build(), k: 0, targetK: 0 };
+    scene.add(built.group);
+    setFade(built.group, 0);
+    this.scenes.add(built);
+    return built;
+  },
+  reset(built) { resetLook(base); resetLook(built.group); },
+  show(built) {
+    for (const other of this.scenes) other.targetK = other === built ? 1 : 0;
+    this.baseState.target = built.base ? 1 : 0;
+    setFade(base, this.baseState.k);
+    setFade(built.group, built.k);
+    this.fitSize = { w: built.fitW, h: built.fitH }; // applied by the shell's layout right after show()
+    this.camGoal = { zoom: built.zoom, target: V(...built.target) };
+    this.current = built;
+    if (REDUCE || INSTANT) this.settleCamera();
+  },
+  hide(built) {
+    clearTemporary(built.group);
+    built.targetK = 0;
+    this.baseState.target = 0; // show() turns the floor back on when the next scene is an axo scene with base:true
+  },
+  clear(built) { clearTemporary(built.group); },
+  animator: dir => axoAnimator(dir),
+  settleCamera() {
+    if (!this.camGoal) return;
+    camera.zoom = this.camGoal.zoom;
+    controls.target.copy(this.camGoal.target);
+    camera.updateProjectionMatrix();
+    this.camGoal = null;
+  },
+  home(built) {
+    controls.target.set(...built.target);
+    camera.position.copy(HOME_DIR).multiplyScalar(DIST).add(controls.target);
+    camera.lookAt(controls.target);
+  },
+  // Fit the orthographic camera so the scene's fitW × fitH (world units) fills rect, with the look-at point at the rect's center.
+  fit(rect, W, H) {
+    if (!renderer) return;
+    renderer.setSize(W, H);
+    labelRenderer.setSize(W, H);
+    const v = Math.max(this.fitSize.h, this.fitSize.w / (rect.w / rect.h));
+    const upp = v / rect.h, cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+    camera.left = -cx * upp; camera.right = (W - cx) * upp;
+    camera.top = cy * upp; camera.bottom = -(H - cy) * upp;
+    camera.updateProjectionMatrix();
+  },
+  stepFade(st, target, dt) {
+    if (st.k === target) return;
+    const step = REDUCE || INSTANT ? 1 : dt / 0.45;
+    st.k = st.k < target ? Math.min(target, st.k + step) : Math.max(target, st.k - step);
+    setFade(st.group, st.k);
+  },
+  frame() {
+    const dt = Math.min(this.clock.getDelta(), 0.05);
+    for (const s of this.scenes) this.stepFade(s, s.targetK, dt);
+    this.stepFade(this.baseState, this.baseState.target, dt);
+    if (this.camGoal) {
+      if (INSTANT || REDUCE) this.settleCamera();
+      else {
+        const k = Math.min(1, dt * 5);
+        camera.zoom += (this.camGoal.zoom - camera.zoom) * k;
+        controls.target.lerp(this.camGoal.target, k);
+        camera.updateProjectionMatrix();
+        if (Math.abs(camera.zoom - this.camGoal.zoom) < 0.002 && controls.target.distanceTo(this.camGoal.target) < 0.01) this.camGoal = null;
+      }
+    }
+    controls.update();
+    this.followBadges();
+    syncTags();
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
+    this.easing = declutter() || Boolean(this.camGoal); // labels or the camera are still moving toward their end state
+  },
+  settled() { return !this.easing; },
+  labels() { return [...allTags].filter(labelShown).map(o => o.element); },
+  // A step badge (CSS2D label) at the top corner of the object that faces screen-right. It follows the object and hides with it.
+  // If the object is disposed during the run, the badge stays at its last position until the scene resets.
+  badge(anchor, n) {
+    anchor.updateWorldMatrix(true, true);
+    const box = new THREE.Box3().setFromObject(anchor);
+    const world = box.isEmpty() ? anchor.getWorldPosition(V(0, 0, 0)) : V(box.max.x, box.max.y + 0.3, box.min.z);
+    const local = anchor.worldToLocal(world.clone());
+    const holder = new THREE.Group();
+    holder.position.copy(world);
+    const b = tag(String(n), [0, 0, 0], 'badge');
+    holder.add(b);
+    this.badgeRoot.add(holder);
+    this.badges.set(b, { holder, anchor, local });
+    return () => { this.badges.delete(b); disposeObject(holder); };
+  },
+  followBadges() {
+    for (const { holder, anchor, local } of this.badges.values()) {
+      let node = anchor, shown = true;
+      for (; node.parent; node = node.parent) if (!node.visible || node.scale.x < 0.3 || node.scale.y < 0.3) shown = false;
+      if (node !== scene) continue; // the anchor left the scene: keep the last position
+      holder.position.copy(anchor.localToWorld(local.clone()));
+      holder.visible = shown;
+    }
+  },
+  resetView() {
+    const s = this.current;
+    if (!s) return;
+    this.home(s);
+    camera.zoom = s.zoom;
+    camera.updateProjectionMatrix();
+  },
+  // Badges are excluded from the counts: they are removed on every reset, and leak checks compare scene labels.
+  info() {
+    return {
+      resources: { labels: allTags.size - this.badges.size, labelStates: [...labelState.keys()].filter(o => !this.badges.has(o)).length, geometries: renderer.info.memory.geometries },
+      azimuth: controls.getAzimuthalAngle(),
+    };
+  },
+});
+
+/* ---- Kit "svg": 2D step diagrams in native SVG. No library. ----
+   A scene's build(d) makes parts with the builder `d` (table, buckets, box, gate, tree, columns, link, token) and arranges them
+   with d.grid / d.panels / d.stack. The kit computes the layout for the stage: natural size on desktop scaled by k (1 to 1.6),
+   compressed columns and adaptive row heights on narrow stages and phones. Parts expose points (functions returning [x, y]
+   in diagram units); links, tokens and badges are drawn from those points, so they follow every relayout, also mid-run.
+   Movement goes through the director (speed, instant, reduced motion, CANCEL). Reset restores every part to its built state. */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgNode(tag, attrs = {}, parent = null, text = null) {
+  const n = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (text !== null) n.textContent = String(text);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+const svgSet = (n, attrs) => { for (const k in attrs) n.setAttribute(k, typeof attrs[k] === 'number' ? +attrs[k].toFixed(2) : attrs[k]); };
+const toneClass = tone => (tone ? ` t-${tone}` : '');
+// Natural sizes in px at scale 1. Desktop text is at least 12px. Phones adapt the row height (20 → 15) to the stage; text is at least 11px.
+// Desktop sizes come in three row heights (36, 32, 28) with the same text sizes, for stages that are a little too short.
+function svgMetrics(phone, row = phone ? 20 : 36) {
+  if (!phone) {
+    const t = (36 - row) / 8; // 0 at row 36, 1 at row 28
+    const lerp = (a, b) => Math.round(a + (b - a) * t);
+    return { phone, row, hdr: lerp(28, 24), title: lerp(30, 26), cell: lerp(60, 52), tokW: 50, tokH: row - 8, key: 14.5, text: 13, meta: 12, kw: 64, pad: 16, gapY: lerp(32, 22), gutter: 96, hp: 8,
+      pill: lerp(24, 22), pillW: 116, chipH: lerp(46, 42), nodeW: 132, nodeH: lerp(46, 42), colW: 132, hgap: 16, vgap: lerp(30, 22), panelGap: lerp(40, 28), badge: 9 };
+  }
+  const big = row >= 18;
+  return { phone, row, hdr: big ? 17 : 0, title: big ? 20 : 17, cell: big ? 42 : 34, tokW: 30, tokH: row - 3, key: row < 17 ? 11.5 : 12.5, text: 12, meta: 11, kw: 36, pad: 5,
+    gapY: 6, gutter: 60, hp: 5, pill: 18, pillW: 88, chipH: 20, nodeW: 96, nodeH: 36, colW: 96, hgap: 8, vgap: 16, panelGap: 12, badge: 8 };
+}
+// Width of an SVG text in diagram units: measured when the text is rendered, estimated otherwise (wide for CJK).
+function measureText(node, fontSize) {
+  try { const w = node.getComputedTextLength(); if (w > 0) return { w, measured: true }; } catch (e) { /* not rendered yet: estimate */ }
+  return { w: [...node.textContent].reduce((sum, ch) => sum + fontSize * (ch.codePointAt(0) >= 0x2E80 ? 1 : 0.6), 0), measured: false };
+}
+const textWidth = (node, fontSize) => measureText(node, fontSize).w;
+// Web fonts change text widths when they arrive: cached widths remember the epoch they were measured in.
+let svgFontEpoch = 0;
+document.fonts?.addEventListener?.('loadingdone', () => { svgFontEpoch += 1; });
+document.fonts?.ready.then(() => { svgFontEpoch += 1; });
+// A resting point: where a token sits by its right edge, left edge or centre, the frame it must stay inside, and what it must not cover.
+const rest = (fn, align = 'center', { within = null, avoid = null } = {}) => Object.assign(fn, { align, within, avoid });
+// The token centre for a point, given the token width (points without an alignment are centres).
+function centerOf(p, w) {
+  const [x, y] = pointOf(p), a = typeof p === 'function' ? p.align : null;
+  return a === 'right' ? [x - w / 2, y] : a === 'left' ? [x + w / 2, y] : [x, y];
+}
+// Point helpers: a point is a function returning [x, y] (or a fixed [x, y]).
+const pointOf = p => (typeof p === 'function' ? p() : p);
+function alongPolyline(pts, t) {
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const d = t * cum.at(-1);
+  for (let i = 1; i < pts.length; i++) {
+    if (d <= cum[i] + 1e-6) {
+      const k = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
+      return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * k, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * k];
+    }
+  }
+  return pts.at(-1);
+}
+
+// The builder for one scene. sc holds the scene's SVG layers, its parts, links, tokens and the current metrics (sc.m).
+function svgBuilder(sc) {
+  const P = parent => svgNode('g', {}, parent);
+  const label = (parent, cls, text) => svgNode('text', { class: cls, 'data-lbl': '1' }, parent, text);
+  // Every part: g (its SVG group), box (the framed rectangle after layout), size(m, w) → { w, h, min }, place(m, x, y, w), draw(m).
+  const edgePoint = (part, side, at) => () => {
+    const b = part.box;
+    const along = (lo, len, axis) => (typeof at === 'function' ? at()[axis] : lo + len * (at ?? 0.5));
+    if (side === 'left') return [b.x, along(b.y, b.h, 1)];
+    if (side === 'right') return [b.x + b.w, along(b.y, b.h, 1)];
+    if (side === 'top') return [along(b.x, b.w, 0), b.y];
+    return [along(b.x, b.w, 0), b.y + b.h];
+  };
+  // Default points and methods; a part's own (for example a gate's top()) win.
+  const withEdges = part => {
+    const defaults = {
+      left: at => edgePoint(part, 'left', at), right: at => edgePoint(part, 'right', at),
+      top: at => edgePoint(part, 'top', at), bottom: at => edgePoint(part, 'bottom', at),
+      mid: () => () => [part.box.x + part.box.w / 2, part.box.y + part.box.h / 2],
+      badgeAt: () => [part.box.x + part.box.w - (sc.m.phone ? 4 : 0), part.box.y],
+      mark(cls, on = true) { part.g.classList.toggle(cls, on); },
+    };
+    for (const [k, v] of Object.entries(defaults)) if (!(k in part)) part[k] = v;
+    return part;
+  };
+  const register = part => { sc.parts.push(withEdges(part)); return part; };
+  // Text that must stay inside a frame (pills, chips, lanes, nodes): checked by clipped() through the kit's overflowing().
+  const framed = (text, frame) => sc.framed.push({ text, frame });
+
+  // Table: a title, a header row, and rows that carry a key (mono) and a faint payload. Row states: hit, gone, active.
+  // payload: false draws a key-only table (no faint payload column): narrower, for compact diagrams such as panels.
+  function table({ title = '', keys = [], tone = '', header = null, payload = true } = {}) {
+    const g = svgNode('g', { class: 'part table' }, sc.layer.parts);
+    const ttl = label(g, 'g' + toneClass(tone), title);
+    const frame = svgNode('rect', { class: 'tbl', rx: 6 }, g);
+    const heads = (header ?? []).map(h => label(g, 'meta', h));
+    const hline = svgNode('line', { class: 'hl' }, g), vline = svgNode('line', { class: 'hl' }, g);
+    const rows = keys.map((k, i) => {
+      const r = svgNode('g', { class: 'row' + (tone === 'matter' ? ' brass' : '') }, g);
+      const n = { g: r, bg: svgNode('rect', { class: 'bg' }, r), bar: svgNode('rect', { class: 'bar' }, r), sep: i ? svgNode('line', { class: 'hl' }, r) : null };
+      n.key = label(r, 'key mono', k);
+      n.skel = payload ? svgNode('rect', { class: 'skel', rx: 3 }, r) : null;
+      const x = svgNode('g', { class: 'x' }, r);
+      n.xc = svgNode('circle', { fill: 'none', stroke: 'var(--ink-soft)', 'stroke-width': 1.2 }, x);
+      n.xp = svgNode('path', { fill: 'none', stroke: 'var(--ink-soft)', 'stroke-width': 1.2 }, x);
+      n.mark = (cls, on = true) => r.classList.toggle(cls, on);
+      return n;
+    });
+    const part = {
+      kind: 'table', g, rows,
+      // A header row only when a header is given (and phone rows are tall enough); a key-only table shows the key title only.
+      hdrH: m => (header ? (m ?? sc.m).hdr : 0),
+      size: m => ({ w: payload ? (m.phone ? 128 : 184) : (m.phone ? 72 : 100), min: payload ? (m.phone ? 104 : 140) : (m.phone ? 64 : 84), h: m.title + part.hdrH(m) + keys.length * m.row + part.below(m) }),
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: part.hdrH(m) + keys.length * m.row }; },
+      rowC: i => part.box.y + part.hdrH() + i * sc.m.row + sc.m.row / 2,
+      row: i => rows[i],
+      out: i => () => [part.box.x + part.box.w, part.rowC(i)],
+      src: i => rest(() => [part.box.x + part.box.w - 8, part.rowC(i)], 'right', { within: frame }), // a token rests by its right edge
+      draw(m) {
+        const { x, y, w, h } = part.box, kw = payload ? Math.min(m.kw, w * 0.35) : w - 28; // key-only: the × mark has the last 28px
+        const hh = part.hdrH(m);
+        svgSet(ttl, { x, y: y - m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x, y, width: w, height: h });
+        heads.forEach((n, i) => svgSet(n, { x: i ? x + kw + 8 : x + 10, y: y + hh / 2, 'font-size': m.meta, opacity: hh && (i === 0 || payload) ? 1 : 0 }));
+        svgSet(hline, { x1: x, x2: x + w, y1: y + hh, y2: y + hh, opacity: hh ? 1 : 0 });
+        svgSet(vline, { x1: x + kw, x2: x + kw, y1: y, y2: y + h, opacity: payload ? 1 : 0 });
+        rows.forEach((n, i) => {
+          const top = y + hh + i * m.row, cy = top + m.row / 2;
+          svgSet(n.bg, { x: x + 1, y: top + 0.5, width: w - 2, height: m.row - 1 });
+          svgSet(n.bar, { x: x + 1, y: top + 0.5, width: 3, height: m.row - 1 });
+          if (n.sep) svgSet(n.sep, { x1: x, x2: x + w, y1: top, y2: top });
+          svgSet(n.key, { x: x + 14, y: cy, 'font-size': m.key });
+          if (n.skel) svgSet(n.skel, { x: x + kw + 8, y: cy - 3, width: Math.max(8, (w - kw - 16) * 0.55), height: 6 });
+          const cx = x + w - 14;
+          svgSet(n.xc, { cx, cy, r: 6 });
+          svgSet(n.xp, { d: `M${cx - 2.5},${cy - 2.5} L${cx + 2.5},${cy + 2.5} M${cx + 2.5},${cy - 2.5} L${cx - 2.5},${cy + 2.5}` });
+        });
+      },
+    };
+    part.below = () => 0;
+    return register(part);
+  }
+
+  // Buckets (hash table): a row of cells with an index label, a "—" while empty, and a slot for a key chip.
+  function buckets({ title = '', count = 4, tone = 'bound', label: lab = b => `${b}`, short = b => `#${b}` } = {}) {
+    const g = svgNode('g', { class: 'part buckets' }, sc.layer.parts);
+    const ttl = label(g, 'g' + toneClass(tone), title);
+    const frame = svgNode('rect', { class: 'box', rx: 6 }, g);
+    const cells = Array.from({ length: count }, (_, b) => {
+      const c = svgNode('g', { class: 'cell' }, g);
+      const n = { g: c, rect: svgNode('rect', { rx: 6 }, c), idx: label(c, 'meta', ''), dash: label(c, 'meta', '—') };
+      framed(n.idx, n.rect);
+      n.mark = (cls, on = true) => c.classList.toggle(cls, on);
+      return n;
+    });
+    const geo = () => {
+      const m = sc.m, b = part.box, cw = (b.w - 2 * m.hp - (count - 1) * 4) / count;
+      return { cw, cx: i => b.x + m.hp + i * (cw + 4), cy: b.y + m.hp };
+    };
+    const part = {
+      kind: 'buckets', g, cells, frame,
+      size: m => ({ w: m.phone ? 184 : 248, min: m.phone ? 150 : 200, h: m.title + 2 * m.hp + m.cell }),
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: 2 * m.hp + m.cell }; },
+      cell: b => cells[b],
+      slot: b => rest(() => { const { cw, cx, cy } = geo(); return [cx(b) + cw / 2, cy + sc.m.cell - sc.m.tokH / 2 - (sc.m.phone ? 3 : 6)]; }, 'center', { within: cells[b].rect }),
+      fill(b, on = true) { cells[b].dash.style.opacity = on ? 0 : ''; },
+      draw(m) {
+        const { x, y, w, h } = part.box, { cw, cx, cy } = geo();
+        svgSet(ttl, { x, y: y - m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x, y, width: w, height: h });
+        cells.forEach((n, i) => {
+          svgSet(n.rect, { x: cx(i), y: cy, width: cw, height: m.cell });
+          n.idx.textContent = !m.phone && cw >= 52 ? lab(i) : short(i);
+          svgSet(n.idx, { x: cx(i) + 5, y: cy + (m.phone ? 8 : 10), 'font-size': m.meta });
+          svgSet(n.dash, { x: cx(i) + cw / 2, y: cy + m.cell - m.tokH / 2 - (m.phone ? 3 : 6), 'text-anchor': 'middle', 'font-size': m.key });
+        });
+      },
+    };
+    return register(part);
+  }
+
+  // A pill with a counter text; "{n}" in the template is replaced by the number.
+  const pill = (g, cls) => {
+    const p = svgNode('g', { class: 'pill ' + cls }, g), out = { g: p, rect: svgNode('rect', {}, p), text: label(p, 'g', '') };
+    framed(out.text, out.rect);
+    return out;
+  };
+  // Size a pill around its text, right-aligned at x (or centered when center is true).
+  const fitPill = (pl, m, x, cy, { minW = 0, center = false } = {}) => {
+    const fs = m.meta + 0.5, h = m.pill;
+    svgSet(pl.text, { 'font-size': fs });
+    const w = Math.max(minW, textWidth(pl.text, fs) + (m.phone ? 16 : 24));
+    const left = center ? x - w / 2 : x - w;
+    svgSet(pl.rect, { x: left, y: cy - h / 2, width: w, height: h, rx: h / 2 });
+    svgSet(pl.text, { x: left + w / 2, y: cy + 0.5, 'text-anchor': 'middle' });
+  };
+
+  // Operator box: a title with a counter pill, lanes (aligned with a table of the same row count in the same grid row),
+  // per-lane result text, and an optional tally pill under the box (hidden until first set).
+  // narrow: true for a box that only receives tokens (no lane text), for compact diagrams such as panels.
+  function box({ title = '', lanes = 0, tone = 'bound', header = null, counter = null, tally = null, narrow = false } = {}) {
+    const g = svgNode('g', { class: 'part opbox' }, sc.layer.parts);
+    const ttl = label(g, 'g' + toneClass(tone), title);
+    const frame = svgNode('rect', { class: 'box', rx: 6 }, g);
+    const heads = (header ?? []).map(h => label(g, 'meta', h));
+    const seps = Array.from({ length: lanes + (header ? 1 : 0) }, () => svgNode('line', { class: 'hl' }, g));
+    const laneTexts = Array.from({ length: lanes }, () => { const t = label(g, 'meta', ''); t.style.opacity = 0; framed(t, frame); return { g: t, full: '', short: '' }; });
+    const cnt = counter ? pill(g, 'counter') : null;
+    const tal = tally ? pill(g, 'tally') : null;
+    if (cnt) cnt.text.textContent = counter.replace('{n}', 0);
+    if (tal) { tal.text.textContent = tally.replace('{n}', 0); tal.g.style.opacity = 0; }
+    const hasHdr = () => (header ? sc.m.hdr : 0);
+    const part = {
+      kind: 'box', g, frame, counterNode: cnt?.g ?? null, tallyNode: tal?.g ?? null,
+      size: m => ({ w: narrow ? (m.phone ? 96 : 140) : (m.phone ? 184 : 248), min: narrow ? (m.phone ? 80 : 112) : (m.phone ? 150 : 200), h: m.title + (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row + (tally ? m.pill + 8 : 0) }),
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row }; },
+      laneC: i => part.box.y + hasHdr() + i * sc.m.row + sc.m.row / 2,
+      in: i => () => [part.box.x, part.laneC(i)],
+      chip: i => rest(() => [part.box.x + 8, part.laneC(i)], 'left', { within: frame }), // a token rests by its left edge
+      lane: i => laneTexts[i],
+      laneText(i, text, { short = text, tone: t = '' } = {}) {
+        Object.assign(laneTexts[i], { full: text, short });
+        laneTexts[i].g.setAttribute('class', 'meta' + toneClass(t));
+        laneTexts[i].g.textContent = sc.m.phone ? short : text;
+      },
+      count(n) { if (cnt) cnt.text.textContent = counter.replace('{n}', n); },
+      tally(n) { if (tal) { tal.text.textContent = tally.replace('{n}', n); tal.g.style.opacity = 1; } },
+      restore() { laneTexts.forEach(t => { t.full = ''; t.short = ''; }); }, // reset: forget the previous run's lane text
+      draw(m) {
+        const { x, y, w, h } = part.box, hh = hasHdr();
+        svgSet(ttl, { x, y: y - m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x, y, width: w, height: h });
+        heads.forEach((n, i) => svgSet(n, { x: i ? x + 8 + m.tokW + 8 : x + 8, y: y + hh / 2, 'font-size': m.meta, opacity: hh ? 1 : 0 }));
+        seps.forEach((n, i) => { const yy = y + hh + i * m.row; svgSet(n, { x1: x, x2: x + w, y1: yy, y2: yy, opacity: i || hh ? 1 : 0 }); });
+        laneTexts.forEach((t, i) => { if (t.full) t.g.textContent = m.phone ? t.short : t.full; svgSet(t.g, { x: x + 8 + m.tokW + 8, y: part.laneC(i), 'font-size': m.meta }); });
+        if (cnt) fitPill(cnt, m, x + w, y - m.title / 2, { minW: m.pillW });
+        if (tal) fitPill(tal, m, x + w, y + h + 6 + m.pill / 2, { minW: m.pillW });
+      },
+    };
+    return register(part);
+  }
+
+  // Gate (filter) in the gutter right of a table, spanning its rows, with a chip below listing what passes.
+  function gate(tbl, { label: name = '', pass = '', tone = 'bound', hidden = false } = {}) {
+    const g = svgNode('g', { class: 'part gate' }, sc.layer.parts);
+    const barrier = svgNode('rect', { class: 'barrier', rx: 2 }, g);
+    const posts = [svgNode('rect', { class: 'post', rx: 3 }, g), svgNode('rect', { class: 'post', rx: 3 }, g)];
+    const ticks = tbl.rows.map(() => svgNode('line', { class: 'tick' }, g));
+    // The chip under the gate lists what passes. A gate with neither label nor pass has no chip (and needs no room for one).
+    const hasChip = Boolean(name || pass);
+    const chip = hasChip ? svgNode('rect', { class: 'chip', rx: 6 }, g) : null;
+    const t1 = hasChip ? label(g, 'g' + toneClass(tone), name) : null, t2 = hasChip ? label(g, 'mono' + toneClass(tone), pass) : null;
+    if (hasChip) { framed(t1, chip); framed(t2, chip); }
+    if (hidden) g.style.opacity = 0;
+    // The gate stands in the gutter between its table's grid column and the next one.
+    const slot = () => {
+      if (!tbl.gridSlot?.right) throw new Error('[plz] d.gate(table): the table must be in a d.grid cell with another column to its right; the gate stands in the gutter between them');
+      return tbl.gridSlot;
+    };
+    const cx = () => tbl.box.x + tbl.box.w + slot().gutter / 2;
+    const chipBox = () => {
+      const m = sc.m, b = tbl.box;
+      svgSet(t1, { 'font-size': m.text }); svgSet(t2, { 'font-size': m.meta + 0.5 });
+      const w = Math.max(m.phone ? 94 : 104, (m.phone ? 0 : textWidth(t1, m.text)) + 16, textWidth(t2, m.meta + 0.5) + 16);
+      return { x: cx() - w / 2, y: b.y + b.h + (m.phone ? 6 : 18), w, h: m.chipH };
+    };
+    const rows0 = () => tbl.box.y + tbl.hdrH(), rowsB = () => tbl.box.y + tbl.box.h;
+    const chipShown = m => hasChip && (Boolean(pass) || (!m.phone && Boolean(name))); // phones hide the label: a label-only chip would be empty
+    // Under the table: the chip, or at least the bottom post (it reaches 14px below the rows). The grid row makes room for it.
+    tbl.below = m => (chipShown(m) ? (m.phone ? 6 : 18) + m.chipH : 14);
+    const part = {
+      kind: 'gate', g, layoutless: true,
+      size: () => ({ w: 0, h: 0, min: 0 }),
+      place() { const c = cx(); part.box = { x: c - 6, y: rows0() - 14, w: 12, h: rowsB() - rows0() + 28 }; },
+      top: () => () => [cx(), rows0() - 14],
+      in: i => () => [cx() - 15, tbl.rowC(i)],   // barrier edges, for connectors
+      out: i => () => [cx() + 15, tbl.rowC(i)],
+      before: i => rest(() => [cx() - 12, tbl.rowC(i)], 'right', { avoid: barrier }), // a token stops in front of the barrier
+      after: i => rest(() => [cx() + 15, tbl.rowC(i)], 'left'),
+      badgeAt: () => [cx() + 16, rows0() - 14],
+      draw(m) {
+        const c = cx(), r0 = rows0(), rb = rowsB();
+        svgSet(barrier, { x: c - (m.phone ? 5 : 6), y: r0 - 4, width: m.phone ? 10 : 12, height: rb - r0 + 8 });
+        svgSet(posts[0], { x: c - 15, y: r0 - 14, width: 30, height: 10 });
+        svgSet(posts[1], { x: c - 15, y: rb + 4, width: 30, height: 10 });
+        ticks.forEach((t, i) => svgSet(t, { x1: c - 13, x2: c + 13, y1: tbl.rowC(i), y2: tbl.rowC(i) }));
+        for (const n of [chip, t1, t2]) if (n) n.style.display = chipShown(m) ? '' : 'none';
+        if (!chipShown(m)) return;
+        const b = chipBox();
+        svgSet(chip, { x: b.x, y: b.y, width: b.w, height: b.h });
+        svgSet(t1, { x: c, y: b.y + b.h * 0.27, 'text-anchor': 'middle', 'font-size': m.text, opacity: m.phone ? 0 : 1 });
+        svgSet(t2, { x: c, y: b.y + b.h * (m.phone ? 0.52 : 0.74), 'text-anchor': 'middle', 'font-size': m.meta + 0.5 });
+      },
+    };
+    return register(part);
+  }
+
+  // Operator tree: nodes with a label and a metric line; edges carry data up from children to parents. tree.node(id) is highlightable.
+  function tree(spec) {
+    const g = svgNode('g', { class: 'part tree' }, sc.layer.parts);
+    const nodes = [], byId = {};
+    const walk = (s, depth, parent) => {
+      const ng = svgNode('g', { class: 'tnode' }, g);
+      const n = { spec: s, depth, parent, g: ng, rect: svgNode('rect', { rx: 6 }, ng), name: label(ng, 'g', s.label), met: label(ng, 'meta', s.metric ?? ''), kids: [] };
+      framed(n.name, n.rect); framed(n.met, n.rect);
+      n.mark = (cls, on = true) => ng.classList.toggle(cls, on);
+      n.metric = text => { n.met.textContent = text; };
+      n.badgeAt = () => [n.x + n.w, n.y];
+      n.top = () => () => [n.x + n.w / 2, n.y];
+      n.bottom = () => () => [n.x + n.w / 2, n.y + n.h];
+      // The drawn edge from this node up to its parent, as points (for a.along): top, elbow, elbow, parent's bottom.
+      n.up = () => {
+        if (!n.parent) throw new Error(`[plz] tree.edge(${s.id}): the root has no edge`);
+        const mid = () => n.parent.y + n.parent.h + sc.m.vgap / 2;
+        return [n.top(), () => [n.x + n.w / 2, mid()], () => [n.parent.x + n.parent.w / 2, mid()], n.parent.bottom()];
+      };
+      nodes.push(n); if (s.id) byId[s.id] = n;
+      n.kids = (s.children ?? []).map(c => walk(c, depth + 1, n));
+      if (parent) n.edge = svgNode('path', { class: 'flow', 'marker-end': 'url(#plz-arr)' }, sc.layer.flows);
+      return n;
+    };
+    const rootN = walk(spec, 0, null);
+    const leaves = nodes.filter(n => !n.kids.length);
+    const depth = Math.max(...nodes.map(n => n.depth)) + 1;
+    const part = {
+      kind: 'tree', g, nodes,
+      node: id => { if (!byId[id]) throw new Error(`[plz] tree.node(${id}): no node with that id`); return byId[id]; },
+      edge: id => { if (!byId[id]) throw new Error(`[plz] tree.edge(${id}): no node with that id`); return byId[id].up(); },
+      size: m => ({ w: leaves.length * m.nodeW + (leaves.length - 1) * m.hgap, min: leaves.length * (m.phone ? 70 : 90) + (leaves.length - 1) * m.hgap, h: depth * m.nodeH + (depth - 1) * m.vgap }),
+      place(m, x, y, w) {
+        const nw = Math.min(m.nodeW, (w - (leaves.length - 1) * m.hgap) / leaves.length);
+        leaves.forEach((n, i) => { n.x = x + i * (nw + m.hgap); });
+        const setX = n => { if (n.kids.length) { n.kids.forEach(setX); n.x = (n.kids[0].x + n.kids.at(-1).x) / 2; } };
+        setX(rootN);
+        nodes.forEach(n => Object.assign(n, { w: nw, h: m.nodeH, y: y + n.depth * (m.nodeH + m.vgap) }));
+        part.box = { x, y, w: leaves.length * nw + (leaves.length - 1) * m.hgap, h: depth * m.nodeH + (depth - 1) * m.vgap };
+      },
+      draw(m) {
+        nodes.forEach(n => {
+          svgSet(n.rect, { x: n.x, y: n.y, width: n.w, height: n.h });
+          svgSet(n.name, { x: n.x + n.w / 2, y: n.y + n.h * 0.34, 'text-anchor': 'middle', 'font-size': m.text });
+          svgSet(n.met, { x: n.x + n.w / 2, y: n.y + n.h * 0.72, 'text-anchor': 'middle', 'font-size': m.meta });
+          if (n.edge) {
+            const cx = n.x + n.w / 2, px = n.parent.x + n.parent.w / 2, top = n.y, mid = n.parent.y + n.parent.h + m.vgap / 2;
+            svgSet(n.edge, { d: `M${cx},${top} V${mid} H${px} V${n.parent.y + n.parent.h + 1}` });
+          }
+        });
+      },
+    };
+    return register(part);
+  }
+
+  // Columns: several nodes or servers side by side, each with slots that rows (tokens) move between.
+  function columns(names, { slots = 3, tone = 'bound' } = {}) {
+    const g = svgNode('g', { class: 'part columns' }, sc.layer.parts);
+    const cols = names.map(name => {
+      const cg = svgNode('g', { class: 'col' }, g);
+      const c = { g: cg, ttl: label(cg, 'g' + toneClass(tone), name), rect: svgNode('rect', { class: 'box', rx: 6 }, cg), lines: Array.from({ length: slots - 1 }, () => svgNode('line', { class: 'hl' }, cg)) };
+      c.mark = (cls, on = true) => cg.classList.toggle(cls, on);
+      c.slot = j => rest(() => [c.x + c.w / 2, c.y + 4 + j * sc.m.row + sc.m.row / 2], 'center', { within: c.rect });
+      c.top = () => () => [c.x + c.w / 2, c.y];
+      c.bottom = () => () => [c.x + c.w / 2, c.y + c.h];
+      c.badgeAt = () => [c.x + c.w, c.y];
+      return c;
+    });
+    const part = {
+      kind: 'columns', g, cols,
+      col: i => cols[i],
+      size: m => ({ w: names.length * m.colW + (names.length - 1) * m.hgap, min: names.length * (m.tokW + 20) + (names.length - 1) * m.hgap, h: m.title + slots * m.row + 8 }),
+      place(m, x, y, w) {
+        const cw = Math.min(m.colW, (w - (names.length - 1) * m.hgap) / names.length);
+        cols.forEach((c, i) => Object.assign(c, { x: x + i * (cw + m.hgap), y: y + m.title, w: cw, h: slots * m.row + 8 }));
+        part.box = { x, y: y + m.title, w: names.length * cw + (names.length - 1) * m.hgap, h: slots * m.row + 8 };
+      },
+      draw(m) {
+        cols.forEach(c => {
+          svgSet(c.ttl, { x: c.x + c.w / 2, y: c.y - m.title / 2, 'text-anchor': 'middle', 'font-size': m.text });
+          svgSet(c.rect, { x: c.x, y: c.y, width: c.w, height: c.h });
+          c.lines.forEach((l, j) => { const yy = c.y + 4 + (j + 1) * m.row; svgSet(l, { x1: c.x + 6, x2: c.x + c.w - 6, y1: yy, y2: yy }); });
+        });
+      },
+    };
+    return register(part);
+  }
+
+  // Connector through points, with an arrowhead. dashed + label for a passed signal (for example a filter handed sideways).
+  function link(points, { dashed = false, tone = '', label: name = null, labelAt = null, arrow = true, hidden = false, opacity = null } = {}) {
+    if (!Array.isArray(points) || points.length < 2) throw new Error('[plz] d.link(points): a link needs at least two points');
+    const g = svgNode('g', { class: 'link' }, sc.layer.flows);
+    const path = svgNode('path', { class: 'flow' + (dashed ? ' dashed' : '') + toneClass(tone) }, g);
+    if (arrow) path.setAttribute('marker-end', `url(#plz-arr${tone === 'bound' ? '-b' : ''})`);
+    const lp = name ? pill(g, 'linklabel' + toneClass(tone)) : null;
+    if (lp) lp.text.textContent = name;
+    if (hidden) g.style.opacity = 0;
+    else if (opacity !== null) g.style.opacity = opacity;
+    const l = {
+      g, points,
+      draw(m) {
+        const pts = points.map(pointOf);
+        const end = pts.at(-1), prev = pts.at(-2), len = Math.hypot(end[0] - prev[0], end[1] - prev[1]) || 1;
+        const e = [end[0] - (end[0] - prev[0]) / len, end[1] - (end[1] - prev[1]) / len]; // stop 1px short so the arrowhead touches the edge
+        path.setAttribute('d', 'M' + [...pts.slice(0, -1), e].map(p => `${+p[0].toFixed(2)},${+p[1].toFixed(2)}`).join(' L'));
+        if (lp) {
+          const at = labelAt ? pointOf(labelAt) : [pts.at(-1)[0], pts.at(-1)[1] - (m.phone ? 12 : 16)];
+          svgSet(lp.text, { 'font-size': m.meta });
+          const w = Math.max(34, textWidth(lp.text, m.meta) + 12), h = m.phone ? 16 : 18;
+          svgSet(lp.rect, { x: at[0] - w / 2, y: at[1] - h / 2, width: w, height: h, rx: h / 2 });
+          svgSet(lp.text, { x: at[0], y: at[1] + 0.5, 'text-anchor': 'middle' });
+        }
+      },
+    };
+    sc.links.push(l);
+    return l;
+  }
+
+  // Token: a chip with a key that travels along points with a.along(). `at` is where it rests.
+  function token(text, at, { tone = '', w = null } = {}) {
+    const g = svgNode('g', { class: 'tok' + (tone ? ' ' + tone : '') }, sc.layer.toks);
+    const t = { g, at: typeof at === 'function' ? at : () => at, w, pos: null, halo: svgNode('rect', { class: 'halo' }, g), body: svgNode('rect', { class: 'b' }, g), text: label(g, 'mono', text) };
+    framed(t.text, t.body);
+    t.mark = (cls, on = true) => g.classList.toggle(cls, on);
+    sc.tokens.add(t);
+    drawToken(sc, t);
+    return t;
+  }
+
+  // Containers. grid: rows of cells (parts or null) with a gutter between columns for connectors and gates.
+  // panels: the same kind of diagram side by side (stacked on phones), each with a title. stack: a plain row or column.
+  function grid(rows, { gutter = null } = {}) {
+    const ncol = Math.max(...rows.map(r => r.length));
+    const colSizes = m => Array.from({ length: ncol }, (_, c) => {
+      const s = rows.map(r => r[c]).filter(Boolean).map(p => p.size(m));
+      return { w: Math.max(0, ...s.map(x => x.w)), min: Math.max(0, ...s.map(x => x.min)) };
+    });
+    const gut = m => gutter ?? m.gutter;
+    const node = {
+      size(m) {
+        const cs = colSizes(m), gw = gut(m) * (ncol - 1);
+        const h = rows.reduce((sum, r) => sum + Math.max(0, ...r.filter(Boolean).map(p => p.size(m).h)), 0) + m.gapY * (rows.length - 1);
+        return { w: cs.reduce((s, c) => s + c.w, 0) + gw, min: cs.reduce((s, c) => s + c.min, 0) + gw, h };
+      },
+      place(m, x, y, w) {
+        const cs = colSizes(m), gw = gut(m) * (ncol - 1), nat = cs.reduce((s, c) => s + c.w, 0);
+        const f = Math.min(1, (w - gw) / nat);
+        const widths = cs.map(c => Math.max(c.min, c.w * f));
+        let yy = y;
+        rows.forEach(r => {
+          let xx = x;
+          r.forEach((p, c) => {
+            if (p) { p.gridSlot = { gutter: gut(m), right: c < ncol - 1 }; p.place(m, xx, yy, widths[c]); }
+            xx += widths[c] + gut(m);
+          });
+          yy += Math.max(0, ...r.filter(Boolean).map(p => p.size(m).h)) + m.gapY;
+        });
+        return node.size(m).h;
+      },
+    };
+    return node;
+  }
+  function stack(items, { dir = 'row', gap = null } = {}) {
+    const gp = m => (typeof gap === 'function' ? gap(m) : gap) ?? (dir === 'row' ? m.panelGap : m.gapY); // gap: px, or a function of the sizes (m.phone)
+    const node = {
+      size(m, w) {
+        const s = items.map(p => p.size(m, dir === 'col' ? w : undefined)); // a column passes its width down (panels inside pick by it)
+        if (dir === 'row') return { w: s.reduce((a, b) => a + b.w, 0) + gp(m) * (s.length - 1), min: s.reduce((a, b) => a + b.min, 0) + gp(m) * (s.length - 1), h: Math.max(...s.map(x => x.h)) };
+        return { w: Math.max(...s.map(x => x.w)), min: Math.max(...s.map(x => x.min)), h: s.reduce((a, b) => a + b.h, 0) + gp(m) * (s.length - 1) };
+      },
+      place(m, x, y, w) {
+        const s = items.map(p => p.size(m));
+        if (dir === 'row') {
+          const nat = s.reduce((a, b) => a + b.w, 0), f = Math.min(1, (w - gp(m) * (s.length - 1)) / nat);
+          let xx = x;
+          items.forEach((p, i) => { const ww = Math.max(s[i].min, s[i].w * f); p.gridSlot = null; p.place(m, xx, y, ww); xx += ww + gp(m); });
+        } else {
+          let yy = y;
+          items.forEach((p, i) => { p.gridSlot = null; const si = p.size(m, w); p.place(m, x, yy, Math.min(w, si.w)); yy += si.h + gp(m); });
+        }
+        return node.size(m, w).h;
+      },
+    };
+    return node;
+  }
+  function panels(list) {
+    const titled = list.map(({ title, body }) => {
+      const t = label(sc.layer.parts, 'g panel-title', title);
+      return {
+        size: m => { const s = body.size(m); return { w: s.w, min: s.min, h: s.h + m.title + 4 }; },
+        place(m, x, y, w) { svgSet(t, { x, y: y + m.title / 2, 'font-size': m.text + 1 }); body.place(m, x, y + m.title + 4, w); },
+      };
+    });
+    const row = stack(titled, { dir: 'row' }), col = stack(titled, { dir: 'col' });
+    // Side by side whenever the row fits (phones included, for example a landscape phone); stacked otherwise.
+    const pick = (m, w) => (w < row.size(m).min ? col : row);
+    return {
+      // The size of the arrangement place() will use for this width (no width: side by side).
+      size: (m, w = Infinity) => ({ ...pick(m, w).size(m), min: col.size(m).min }),
+      place: (m, x, y, w) => pick(m, w).place(m, x, y, w),
+    };
+  }
+  return {
+    table, buckets, box, gate, tree, columns, link, token, grid, stack, panels,
+    corner: (a, b) => () => [pointOf(b)[0], pointOf(a)[1]],
+    phone: () => sc.m.phone,
+  };
+}
+// Place a token at its point (moving: sc-computed pos; resting: its `at` point), sized from the current metrics.
+// A token is as wide as its text (at least the standard width). Measured again when the text size, the text, or the
+// fonts change, and as long as the last width was only an estimate (the text was not rendered yet).
+function tokenWidth(sc, t) {
+  const m = sc.m, text = t.text.textContent, f = t.fit;
+  if (!f || f.key !== m.key || f.text !== text || f.epoch !== svgFontEpoch || !f.measured) {
+    svgSet(t.text, { 'font-size': m.key });
+    const { w, measured } = measureText(t.text, m.key);
+    t.fit = { key: m.key, text, epoch: svgFontEpoch, measured, w: Math.max(m.tokW, w + (m.phone ? 10 : 14)) };
+  }
+  return t.w ?? t.fit.w;
+}
+function drawToken(sc, t) {
+  const m = sc.m, h = m.tokH, w = tokenWidth(sc, t), [x, y] = t.pos ?? centerOf(t.at, w);
+  t.g.setAttribute('transform', `translate(${+(x - w / 2).toFixed(2)} ${+(y - h / 2).toFixed(2)})`);
+  svgSet(t.halo, { x: -4, y: -4, width: w + 8, height: h + 8, rx: 10 });
+  svgSet(t.body, { x: 0, y: 0, width: w, height: h, rx: 6 });
+  svgSet(t.text, { x: w / 2, y: h / 2, 'text-anchor': 'middle', 'font-size': m.key });
+}
+
+// Reset support: remember class, inline opacity and text of every element a scene built, and put them back.
+function svgSnapshot(root) {
+  return [...root.querySelectorAll('*')].map(n => ({ n, cls: n.getAttribute('class'), op: n.style.opacity, text: n.tagName === 'text' ? n.textContent : null }));
+}
+function svgRestore(snap) {
+  for (const s of snap) {
+    if (s.cls === null) s.n.removeAttribute('class'); else s.n.setAttribute('class', s.cls);
+    s.n.style.opacity = s.op;
+    if (s.text !== null) s.n.textContent = s.text;
+  }
+}
+// The animator `a` that svg scenes receive. Every duration goes through the director.
+function svgAnimator(dir, sc) {
+  const nodeOf = target => target?.g ?? target;
+  const fade = (target, to, ms = 250) => {
+    const n = nodeOf(target), from = n.style.opacity === '' ? 1 : parseFloat(n.style.opacity);
+    return dir.tween(ms, t => { n.style.opacity = String(+(from + (to - from) * t).toFixed(3)); }, { motion: false, ease: t => t });
+  };
+  return {
+    live: dir.live,
+    wait: ms => dir.wait(ms),
+    tween: (ms, fn, opts) => dir.tween(ms, fn, opts),
+    fade,
+    // Move a token along points (functions returning [x, y]); it rests at the last one. About 1 s per tracked move.
+    // Points are read every frame, so a relayout during the move continues on the new path.
+    // Reduced motion: the token cuts to the end and fades in there; the step keeps its time.
+    async along(tok, points, ms = 1000) {
+      const last = points.at(-1);
+      if (dir.reduced() && !dir.instant() && ms > 0) {
+        const keep = tok.g.style.opacity === '' ? 1 : parseFloat(tok.g.style.opacity); // a dimmed token stays dimmed
+        tok.pos = null; tok.at = typeof last === 'function' ? last : () => last; drawToken(sc, tok);
+        tok.g.style.opacity = 0;
+        await fade(tok, keep, Math.min(200, ms));
+        await dir.wait(Math.max(0, ms - 200));
+        return;
+      }
+      try {
+        await dir.tween(ms, t => { const w = tokenWidth(sc, tok); tok.pos = alongPolyline(points.map(p => centerOf(p, w)), t); drawToken(sc, tok); });
+      } finally {
+        tok.pos = null; tok.at = typeof last === 'function' ? last : () => last;
+        if (tok.g.isConnected) drawToken(sc, tok);
+      }
+    },
+    // A brief emphasis: add a class (default 'on', an ink outline) for ms, then remove it.
+    async flash(target, cls = 'on', ms = 200) {
+      const n = nodeOf(target);
+      n.classList.add(cls);
+      try { await dir.wait(ms); } finally { n.classList.remove(cls); }
+    },
+    // A small pulse on a counter after its number changed. Not awaited; skipped under reduced motion and in instant mode.
+    tick(target) {
+      const n = nodeOf(target);
+      if (!n || dir.reduced() || dir.instant()) return;
+      const anim = n.animate([{ transform: 'scale(1.14)' }, { transform: 'scale(1)' }], { duration: 160, easing: 'ease-out' });
+      anim.playbackRate = dir.speed();
+    },
+    // Run fn(item, i) for items in groups (default 3, at most 4) that move together, with a pause between groups.
+    // People track 3–4 moving things at once, so this is the easy way to move many rows.
+    async groups(items, fn, { size = 3, pause = 400 } = {}) {
+      const n = Math.max(1, Math.min(4, size));
+      for (let i = 0; i < items.length; i += n) {
+        if (i) await dir.wait(pause);
+        await Promise.all(items.slice(i, i + n).map((item, j) => fn(item, i + j)));
+      }
+    },
+  };
+}
+
+defineKit('svg', {
+  rotatable: false,
+  scenes: new Set(),
+  current: null,
+  load(host) {
+    this.svg = svgNode('svg', { class: 'svg-stage', 'aria-hidden': 'true' }, host.layer);
+    const defs = svgNode('defs', {}, this.svg);
+    for (const [id, color, op] of [['plz-arr', 'var(--ink-soft)', 0.7], ['plz-arr-b', 'var(--bound)', 1]]) {
+      const mk = svgNode('marker', { id, viewBox: '0 0 8 8', refX: 7, refY: 4, markerUnits: 'userSpaceOnUse', markerWidth: 9, markerHeight: 9, orient: 'auto' }, defs);
+      svgNode('path', { d: 'M0,0 L8,4 L0,8 Z', style: `fill:${color}`, 'fill-opacity': op }, mk);
+    }
+  },
+  build(def) {
+    const root = svgNode('g', { class: 'svg-scene' }, this.svg);
+    root.style.display = 'none';
+    const layer = {};
+    for (const name of ['flows', 'parts', 'toks', 'badges']) layer[name] = svgNode('g', { class: name }, root);
+    const sc = { def, root, layer, parts: [], links: [], framed: [], tokens: new Set(), badges: new Set(), m: svgMetrics(false), k: 1, info: { scale: 1, arrangement: 'natural', row: 36 } };
+    const d = svgBuilder(sc);
+    const out = def.build(d) ?? {};
+    if (!out.diagram || typeof out.run !== 'function') throw new Error(`[plz] svg scene ${def.name}: build(d) must return { diagram, run }`);
+    sc.diagram = out.diagram;
+    this.layoutAt(sc, svgMetrics(false), Infinity);
+    sc.snap = svgSnapshot(root);
+    const built = { sc, run: out.run, reset: out.reset ?? (() => {}) };
+    this.scenes.add(built);
+    return built;
+  },
+  // Lay the diagram out with metrics m in at most availW (diagram units). Computes boxes only (no DOM work). Returns the size.
+  arrange(sc, m, availW) {
+    sc.m = m;
+    const nat = sc.diagram.size(m, availW);
+    const w = Math.max(nat.min, Math.min(nat.w, availW));
+    const placed = sc.diagram.place(m, 0, 0, w); // containers return their height; a single part as the diagram does not
+    for (const p of sc.parts) if (p.layoutless) p.place(m);
+    return { w, h: typeof placed === 'number' ? placed : sc.diagram.size(m).h };
+  },
+  // Draw every part, link, token and badge from the arranged boxes.
+  paint(sc) {
+    for (const p of sc.parts) p.draw(sc.m);
+    for (const l of sc.links) l.draw(sc.m);
+    for (const t of sc.tokens) drawToken(sc, t);
+    this.drawBadges(sc);
+  },
+  layoutAt(sc, m, availW) { const size = this.arrange(sc, m, availW); this.paint(sc); return size; },
+  transform(sc, x, y, k) {
+    sc.k = k;
+    sc.root.setAttribute('transform', `translate(${+x.toFixed(2)} ${+y.toFixed(2)}) scale(${+k.toFixed(4)})`);
+  },
+  // Wide stages (rail as a column): the diagram and the rail form one block laid out at natural size, then scaled by k (1 to 1.6).
+  // Two arrangements compete, rail right and rail below; below wins only when its k is 1.3 times larger. Returns null when
+  // neither fits at k = 1 (the shell then uses its default rail and fit()).
+  place(g) {
+    const sc = this.current?.sc;
+    if (!sc) return null;
+    const m = svgMetrics(false), nat = sc.diagram.size(m);
+    const PAD = 16, GAP = 24, RAIL_MIN = 248, KMAX = 1.6, BELOW = 12;
+    const aw = g.W - 2 * PAD, ah = g.bottom - g.top - PAD;
+    const railBelow = 150; // room reserved for the captions under the diagram (they scroll inside it if longer)
+    const kr = Math.min(aw / (nat.w + GAP + RAIL_MIN), ah / nat.h);
+    const kb = Math.min(aw / nat.w, ah / (nat.h + BELOW + railBelow));
+    if (kr < 0.999 && kb < 0.999) return null;
+    const below = kb >= 0.999 && (kr < 0.999 || Math.min(KMAX, kb) > Math.min(KMAX, kr) * 1.3);
+    const k = Math.min(KMAX, below ? kb : kr);
+    const size = this.layoutAt(sc, m, Infinity);
+    const railN = below ? size.w : clamp(RAIL_MIN, aw / k - size.w - GAP, 420);
+    const bw = (below ? size.w : size.w + GAP + railN) * k, bh = (below ? size.h + BELOW + railBelow : size.h) * k;
+    const ox = (g.W - bw) / 2, oy = g.top + Math.max(0, (g.bottom - g.top - bh) * 0.4);
+    this.transform(sc, ox, oy, k);
+    sc.info = { scale: k, arrangement: below ? 'below' : 'right', row: m.row };
+    const rail = below
+      ? { x: ox, y: oy + (size.h + BELOW) * k, w: size.w * k, h: g.bottom - (oy + (size.h + BELOW) * k) - 8 }
+      : { x: ox + (size.w + GAP) * k, y: oy, w: railN * k, h: g.bottom - oy - 8 };
+    const model = below ? { x: 0, y: 0, w: g.W, h: rail.y - 4 } : { x: 0, y: 0, w: rail.x - 4, h: g.H };
+    return { rail, scale: k, model };
+  },
+  // Every other stage: fit the diagram into rect. Desktop metrics with compressed columns first (scaled up when there is room);
+  // if the height does not fit, phone metrics with the largest row height (20 → 15) that fits.
+  fit(model, W, H, chrome = { top: 0, bottom: H }) {
+    const sc = this.current?.sc;
+    if (!sc || !model.w || !model.h) return;
+    // Stay clear of the HUD and the legend where they lie over the stage.
+    const y0 = Math.max(model.y, chrome.top), rect = { x: model.x, y: y0, w: model.w, h: Math.min(model.y + model.h, chrome.bottom) - y0 };
+    // Desktop sizes first (row 36, then 32 and 28: text stays at its desktop size), then phone sizes (row 20 down to 15).
+    const tries = [...(barredQ.matches ? [] : [36, 32, 28].map(r => svgMetrics(false, r))), ...[20, 19, 18, 17, 16, 15].map(r => svgMetrics(true, r))];
+    let size = null, m = null;
+    for (const cand of tries) { // pick the sizes with the boxes only, then draw once
+      m = cand;
+      if (m.phone) this.availW = rect.w - 2 * m.pad;
+      size = this.arrange(sc, m, rect.w - 2 * m.pad);
+      if (size.h + 2 * m.pad <= rect.h && size.w + 2 * m.pad <= rect.w + 0.5) break;
+    }
+    this.paint(sc);
+    const k = m.phone ? 1 : clamp(1, Math.min((rect.w - 2 * m.pad) / size.w, (rect.h - 2 * m.pad) / size.h), 1.6);
+    const ox = rect.x + Math.max(m.pad, (rect.w - size.w * k) / 2);
+    const oy = rect.y + (m.phone ? m.pad : Math.max(m.pad, (rect.h - size.h * k) * 0.4));
+    this.transform(sc, ox, oy, k);
+    sc.info = { scale: k, arrangement: m.phone ? 'phone' : 'fit', row: m.row };
+  },
+  // The smallest model height at which the active diagram still fits with the smallest rows (phones), for the stage-height handle.
+  minHeight() {
+    const sc = this.current?.sc;
+    if (!sc) return 150;
+    const m = svgMetrics(true, 15);
+    return Math.max(150, sc.diagram.size(m, this.availW ?? Infinity).h + 2 * m.pad); // at the width the diagram was last fitted to
+  },
+  reset(built) {
+    const { sc } = built;
+    for (const t of sc.tokens) t.g.remove();
+    sc.tokens.clear();
+    svgRestore(sc.snap);
+    for (const p of sc.parts) p.restore?.(); // state a part keeps in JS (lane text)
+    this.paint(sc);
+  },
+  show(built) {
+    for (const b of this.scenes) b.sc.root.style.display = b === built ? '' : 'none';
+    this.current = built;
+  },
+  hide(built) {
+    for (const t of built.sc.tokens) t.g.remove();
+    built.sc.tokens.clear();
+  },
+  clear(built) { this.hide(built); },
+  animator: (dir, built) => svgAnimator(dir, built.sc),
+  // A numbered badge on a part (its top-right corner, or its own badgeAt) or at a point function. It follows relayouts.
+  badge(anchor, n) {
+    const sc = this.current?.sc;
+    if (!sc) return () => {};
+    const g = svgNode('g', { class: 'sb' }, sc.layer.badges);
+    const node = anchor?.g ?? anchor;
+    const at = typeof anchor === 'function' ? anchor
+      : Array.isArray(anchor) ? () => anchor // a fixed [x, y] in diagram units
+      : anchor?.badgeAt ? () => anchor.badgeAt()
+      : () => { const r = node.getBBox(); return [r.x + r.width, r.y]; }; // any SVG node (or { g }): its top-right corner
+    const b = { g, at, c: svgNode('circle', {}, g), t: svgNode('text', { 'data-lbl': '1' }, g, n) };
+    sc.badges.add(b);
+    this.drawBadges(sc);
+    return () => { sc.badges.delete(b); g.remove(); };
+  },
+  drawBadges(sc) {
+    for (const b of sc.badges) {
+      const [x, y] = b.at(), r = sc.m.badge;
+      svgSet(b.c, { cx: x, cy: y, r });
+      svgSet(b.t, { x, y: y + 0.5, 'text-anchor': 'middle', 'font-size': sc.m.phone ? 11 : 12 });
+    }
+  },
+  // Visible labels: SVG text with content in the active scene, skipping anything hidden or faded out.
+  labels() {
+    const sc = this.current?.sc;
+    if (!sc) return [];
+    const shown = n => { for (let e = n; e && e !== this.svg; e = e.parentNode) { const cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.05) return false; } return true; };
+    return [...sc.root.querySelectorAll('text')].filter(n => n.textContent.trim() && shown(n));
+  },
+  // In the active scene, reported by clipped():
+  //  - text wider than its frame, or taller (its font size is larger than the frame, or its centre lies outside it):
+  //    pills, chips, tokens, lane text, tree nodes, bucket labels. The font size is used rather than the text box, whose
+  //    line height is taller than the glyphs;
+  //  - text covered by another pill or chip;
+  //  - a resting token outside the frame it belongs in (a bucket, a lane box, a table) or over what it must not cover (a gate).
+  overflowing() {
+    const sc = this.current?.sc;
+    if (!sc) return [];
+    const shown = new Set(this.labels());
+    const visible = sc.framed.filter(({ text }) => shown.has(text));
+    const covers = visible.filter(({ frame }) => frame.closest('.pill') || frame.classList.contains('chip')).map(({ frame }) => frame);
+    const meet = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+    const out = visible.filter(({ text, frame }) => {
+      const a = text.getBoundingClientRect(), b = frame.getBoundingClientRect();
+      if (!a.width) return false;
+      if (a.left < b.left - 0.5 || a.right > b.right + 0.5) return true;
+      const fs = parseFloat(getComputedStyle(text).fontSize) * sc.k, cy = (a.top + a.bottom) / 2;
+      if (fs > b.height + 1 || cy < b.top || cy > b.bottom) return true;
+      return covers.some(c => c !== frame && meet(a, c.getBoundingClientRect()));
+    }).map(({ text }) => text.textContent);
+    for (const t of sc.tokens) {
+      if (t.pos || !shown.has(t.text)) continue; // moving, or faded out
+      const body = t.body.getBoundingClientRect(), { within, avoid } = t.at;
+      if (within) { const w = within.getBoundingClientRect(); if (body.left < w.left - 0.5 || body.right > w.right + 0.5 || body.top < w.top - 0.5 || body.bottom > w.bottom + 0.5) out.push(t.text.textContent); }
+      if (avoid && meet(body, avoid.getBoundingClientRect())) out.push(t.text.textContent);
+    }
+    return [...new Set(out)];
+  },
+  info() { return this.current ? { ...this.current.sc.info } : null; },
+});
+
+// Load the kits this page declares (data-kits on the stage, default axo) before SCENES runs. Kits defined in SCENES load when the page starts.
+const DECLARED_KITS = (stageEl.dataset.kits ?? 'axo').split(/[\s,]+/).filter(Boolean);
+try {
+for (const name of DECLARED_KITS) if (kits[name]) await loadKit(name);
+
+/* =====================================================================
+   SCENES — the part you change for your topic. The three scenes below are pattern examples (s1, s2: axo kit; s3: svg kit).
+   Pattern catalog: references/scene-patterns.md, finished example: assets/example-agent-sandbox.html
+   ===================================================================== */
+// 해시 조인과 SIP: 다섯 장 모두 svg 키트(2D 단계 도식)로 그린다. 장 순서는 본문이 정한다.
+const INNER = [17, 42], OUTER = [8, 17, 23, 31, 42, 56], NB = 4;
+const HIT = OUTER.map(k => INNER.includes(k));
+const T = { dwell: 900, pause: 400, lag: 60, probe: 280 };
+
+// 2장과 3장이 함께 쓰는 단계 도식: 안쪽 테이블 → 해시 테이블, 바깥쪽 테이블 → (필터) → 조인.
+function joinDiagram(d, withFilter) {
+  const inner = d.table({ title: '안쪽: VIP 회원', keys: INNER, tone: 'matter', header: ['키', '나머지 열'] });
+  const outer = d.table({ title: '바깥쪽: 주문', keys: OUTER, header: ['키', '나머지 열'] });
+  const hash = d.buckets({ title: '해시 테이블 (키 mod 4)', count: NB, label: b => `버킷 ${b}`, short: b => `#${b}` });
+  const join = d.box({ title: '조인', lanes: OUTER.length, header: ['받은 행', '해시 조회'], counter: '조인 입력 {n}행', tally: '버려진 행 {n}' });
+  const filter = withFilter ? d.gate(outer, { label: 'SIP 필터', pass: '통과: 17 · 42', hidden: true }) : null;
+  d.link([inner.right(hash.mid()), hash.left()]);
+  const post = OUTER.map((k, i) => {
+    if (!filter) { d.link([outer.out(i), join.in(i)]); return null; }
+    d.link([outer.out(i), filter.in(i)]);
+    return d.link([filter.out(i), join.in(i)]);
+  });
+  const sip = filter ? d.link([hash.left(0.15), d.corner(hash.left(0.15), filter.top()), filter.top()], {
+    dashed: true, tone: 'bound', label: 'SIP', opacity: 0.45,
+    labelAt: () => { const [x, y] = filter.top()(); return [x, y - (d.phone() ? 16 : 21)]; },
+  }) : null;
+  return { inner, outer, hash, join, filter, post, sip, dropped: 0, diagram: d.grid([[inner, hash], [outer, join]]) };
+}
+// 안쪽 키가 버킷으로 들어가 해시 테이블이 된다.
+async function buildHash(a, d, s) {
+  const keys = INNER.map((k, i) => d.token(k, s.inner.src(i), { tone: 'matter' }));
+  await Promise.all(keys.map((t, i) => a.along(t, [s.inner.src(i), s.inner.right(s.hash.mid()), d.corner(s.hash.mid(), s.hash.slot(INNER[i] % NB)), s.hash.slot(INNER[i] % NB)])));
+  INNER.forEach(k => s.hash.fill(k % NB));
+  await a.flash(s.hash);
+}
+// 버려지는 행은 따로 한 단계로 나간다: 짧은 페이드, 카운터, 줄 그은 행이 흔적으로 남는다.
+async function leave(a, s, rows, idx, stagger) {
+  await Promise.all(idx.map(async (i, j) => {
+    await a.wait(j * stagger);
+    s.join.tally(++s.dropped); a.tick(s.join.tallyNode);
+    s.outer.row(i).mark('gone');
+    await Promise.all([s.post[i] ? a.fade(s.post[i], 0.12) : null, a.fade(rows[i], 0), a.fade(s.join.lane(i), 0)]);
+  }));
+}
+
+// 1. 실행 계획: 연산자 나무. 행 수를 담은 칩이 간선을 따라 위로 올라간다.
+defineScene('plan', {
+  kit: 'svg',
+  title: '1  실행 계획',
+  build(d) {
+    const plan = d.tree({ id: 'result', label: '결과', metric: '', children: [
+      { id: 'join', label: '해시 조인', metric: '', children: [
+        { id: 'outer', label: '스캔: 주문', metric: '큰 테이블' },
+        { id: 'inner', label: '스캔: VIP', metric: '작은 테이블' },
+      ] },
+    ] });
+    // 칩이 그려진 간선을 따라 부모 노드까지 올라간 뒤 사라지고, 행 수는 노드에 남는다.
+    const up = async (a, id, text, tone) => {
+      const t = d.token(text, plan.edge(id)[0], { tone });
+      await a.along(t, plan.edge(id));
+      await a.fade(t, 0, 180);
+    };
+    return {
+      diagram: plan,
+      async run(a, say) {
+        plan.node('inner').mark('active');
+        plan.node('inner').metric('2행 읽음');
+        await up(a, 'inner', '2행', 'matter');
+        plan.node('inner').mark('active', false);
+        say('1. 안쪽 스캔이 VIP 회원 2행을 읽어 조인으로 넘겼습니다.', { anchor: plan.node('inner') });
+        await a.wait(T.dwell);
+        plan.node('outer').mark('active');
+        plan.node('outer').metric('6행 읽음');
+        await up(a, 'outer', '6행');
+        plan.node('outer').mark('active', false);
+        plan.node('join').metric('6행 받음');
+        say('2. 바깥쪽 스캔이 주문 6행을 모두 읽어 조인으로 넘겼습니다.', { anchor: plan.node('outer') });
+        await a.wait(T.dwell);
+        plan.node('join').mark('active');
+        await up(a, 'join', '2행', 'hit');
+        plan.node('join').mark('active', false);
+        plan.node('join').metric('6행 중 2행');
+        plan.node('result').metric('2행');
+        say('3. 조인은 6행을 받아 짝이 있는 2행만 결과로 내보냈습니다.', { anchor: plan.node('join') });
+      },
+    };
+  },
+});
+
+// 2. 해시 조인: 만들기 다음 찾기. 바깥쪽 6행은 3개씩 두 묶음으로 간다.
+defineScene('build', {
+  kit: 'svg',
+  title: '2  해시 조인',
+  build(d) {
+    const s = joinDiagram(d, false);
+    return {
+      diagram: s.diagram,
+      reset() { s.dropped = 0; },
+      async run(a, say) {
+        await buildHash(a, d, s);
+        say('1. 안쪽 키를 읽어 해시 테이블을 만들었습니다.', { anchor: s.hash });
+        await a.wait(T.dwell);
+        const rows = [];
+        let received = 0;
+        await a.groups([[0, 1, 2], [3, 4, 5]], async grp => {
+          grp.forEach(i => { rows[i] = d.token(OUTER[i], s.outer.src(i)); });
+          await Promise.all(grp.map(i => a.along(rows[i], [s.outer.src(i), s.join.chip(i)])));
+          s.join.count(received += grp.length); a.tick(s.join.counterNode);
+        }, { size: 1, pause: T.pause });
+        say('2. 바깥쪽 6행을 읽어 모두 조인으로 보냈습니다.', { anchor: s.join.right(0.3) });
+        await a.wait(T.dwell);
+        for (let i = 0; i < OUTER.length; i++) {
+          const b = OUTER[i] % NB;
+          rows[i].mark('active'); s.hash.cell(b).mark('active');
+          await a.wait(T.probe);
+          rows[i].mark('active', false); s.hash.cell(b).mark('active', false);
+          if (HIT[i]) { rows[i].mark('hit'); s.outer.row(i).mark('hit'); }
+          s.join.laneText(i, HIT[i] ? `버킷 ${b} ✓ 짝 있음` : `버킷 ${b} ✕ 짝 없음`, { short: `#${b} ${HIT[i] ? '✓' : '✕'}`, tone: HIT[i] ? 'actor' : '' });
+          await a.fade(s.join.lane(i), 1, 150);
+          await a.wait(120);
+        }
+        await a.wait(T.pause);
+        await leave(a, s, rows, OUTER.map((k, i) => i).filter(i => !HIT[i]), 140);
+        await a.wait(T.pause);
+        say('3. 조인은 6행을 모두 받은 뒤에야 짝이 있는 2행(빨강)만 남겼습니다.', { anchor: s.join.right(0.65) });
+      },
+    };
+  },
+});
+
+// 3. SIP: 키 정보가 점선을 따라 스캔 앞으로 건너가 필터가 된다.
+defineScene('sip', {
+  kit: 'svg',
+  title: '3  SIP 필터',
+  build(d) {
+    const s = joinDiagram(d, true);
+    return {
+      diagram: s.diagram,
+      reset() { s.dropped = 0; },
+      async run(a, say) {
+        await buildHash(a, d, s);
+        say('1. 안쪽 키로 해시 테이블을 만들었습니다.', { anchor: s.hash });
+        await a.wait(T.dwell);
+        // 해시 테이블의 키가 SIP 점선을 따라 이동하고, 닿는 순간 필터가 나타난다.
+        const keys = d.token(INNER.join('·'), s.hash.left(0.15), { tone: 'bound' });
+        const gateTop = () => { const [x, y] = s.filter.top()(); return [x, y - 6 - (d.phone() ? 8 : 14)]; };
+        await a.along(keys, [s.hash.left(0.15), d.corner(s.hash.left(0.15), s.filter.top()), gateTop]);
+        await Promise.all([a.fade(s.filter, 1), a.fade(s.sip, 1), a.fade(keys, 0, 180)]);
+        say('2. 해시 테이블의 키 정보를 옆으로 넘겨 스캔 앞에 필터를 세웠습니다.', { anchor: s.filter });
+        await a.wait(T.dwell);
+        const rows = [];
+        await a.groups([[0, 1, 2], [3, 4, 5]], async grp => {
+          grp.forEach(i => { rows[i] = d.token(OUTER[i], s.outer.src(i)); });
+          await Promise.all(grp.map(i => a.along(rows[i], [s.outer.src(i), s.filter.before(i)])));
+          await a.wait(T.lag); // 닿은 직후(약 100ms 안)에 효과: 필터가 행을 버린 원인이다.
+          await Promise.all([a.flash(s.filter, 'hot', 280), leave(a, s, rows, grp.filter(i => !HIT[i]), 0)]);
+        }, { size: 1, pause: T.pause });
+        say('3. 바깥쪽 행이 필터를 먼저 지났고, 짝이 없는 4행은 그 자리에서 버려졌습니다.', { anchor: s.join.tallyNode });
+        await a.wait(T.dwell);
+        const pass = OUTER.map((k, i) => i).filter(i => HIT[i]);
+        await Promise.all(pass.map(i => a.along(rows[i], [s.filter.before(i), s.join.chip(i)])));
+        s.join.count(pass.length); a.tick(s.join.counterNode);
+        pass.forEach(i => { rows[i].mark('hit'); s.outer.row(i).mark('hit'); });
+        await a.flash(s.join, 'on', 300);
+        say('4. 조인은 짝이 있는 2행만 받았습니다.', { anchor: s.join.counterNode });
+      },
+    };
+  },
+});
+
+// 4. 같은 질의, 필터 없음과 있음: 한 번의 실행이 두 패널을 함께 움직인다.
+defineScene('compare', {
+  kit: 'svg',
+  title: '4  필터 없음과 있음',
+  build(d) {
+    const side = withFilter => {
+      const t = d.table({ title: '바깥쪽: 주문', keys: OUTER, payload: false });
+      // A compact box: its counter ("join input …") names it, so it has no title of its own.
+      const b = d.box({ title: '', lanes: OUTER.length, counter: '조인 입력 {n}행', tally: withFilter ? '스캔에서 버림 {n}' : '조인에서 버림 {n}', narrow: true });
+      const g = withFilter ? d.gate(t, {}) : null; // no chip: the panel title names the filter
+      const post = OUTER.map((k, i) => {
+        if (!g) { d.link([t.out(i), b.in(i)]); return null; }
+        d.link([t.out(i), g.in(i)]);
+        return d.link([g.out(i), b.in(i)]);
+      });
+      return { t, b, g, post, rows: [], n: 0, dropped: 0, grid: d.grid([[t, b]]) };
+    };
+    const off = side(false), on = side(true);
+    const drop = async (a, s, i) => {
+      if (s.g) s.t.row(i).mark('gone'); // struck through where the scan dropped it; without a filter the scan handed it on
+      s.b.tally(++s.dropped); a.tick(s.b.tallyNode);
+      await Promise.all([a.fade(s.rows[i], 0), s.post[i] ? a.fade(s.post[i], 0.12) : null]);
+    };
+    // 한쪽 패널의 재생. 필터가 있는 쪽은 스캔에서 버리고, 없는 쪽은 조인까지 보낸다.
+    const play = async (a, s) => {
+      await a.groups([[0, 1, 2], [3, 4, 5]], async grp => {
+        grp.forEach(i => { s.rows[i] = d.token(OUTER[i], s.t.src(i)); });
+        if (!s.g) {
+          await Promise.all(grp.map(i => a.along(s.rows[i], [s.t.src(i), s.b.chip(i)])));
+          s.b.count(s.n += grp.length); a.tick(s.b.counterNode);
+          return;
+        }
+        await Promise.all(grp.map(i => a.along(s.rows[i], [s.t.src(i), s.g.before(i)])));
+        await a.wait(T.lag);
+        await Promise.all([a.flash(s.g, 'hot', 280), ...grp.filter(i => !HIT[i]).map(i => drop(a, s, i))]);
+        const pass = grp.filter(i => HIT[i]);
+        await Promise.all(pass.map(i => a.along(s.rows[i], [s.g.before(i), s.b.chip(i)])));
+        s.b.count(s.n += pass.length); a.tick(s.b.counterNode);
+      }, { size: 1, pause: T.pause });
+    };
+    return {
+      diagram: d.panels([{ title: '필터 없음', body: off.grid }, { title: 'SIP 필터', body: on.grid }]),
+      reset() { for (const s of [off, on]) Object.assign(s, { rows: [], n: 0, dropped: 0 }); },
+      async run(a, say) {
+        say('1. 같은 6행이 두 쪽 스캔으로 들어갔습니다.');
+        await Promise.all([play(a, off), play(a, on)]);
+        say('2. 필터가 없는 쪽은 6행이 모두 조인까지 갔고, 필터가 있는 쪽은 2행만 갔습니다.', { anchor: off.b.counterNode });
+        await a.wait(T.dwell);
+        await Promise.all(OUTER.map((k, i) => (HIT[i] ? null : drop(a, off, i))));
+        for (const s of [off, on]) OUTER.forEach((k, i) => { if (HIT[i]) { s.rows[i].mark('hit'); s.t.row(i).mark('hit'); } });
+        say('3. 필터가 없는 쪽은 조인에서야 짝 없는 4행을 버렸습니다.', { anchor: off.b.tallyNode });
+        await a.wait(T.dwell);
+        say('두 쪽 결과는 같은 2행이었습니다. 달라진 것은 조인까지 옮긴 행 수입니다.');
+      },
+    };
+  },
+});
+
+// 5. 네트워크 단계: 노드 사이로 행을 다시 보내야 하면 필터가 스캔까지 내려가지 못한다(2013년 논문의 설계).
+defineScene('nodes', {
+  kit: 'svg',
+  title: '5  네트워크 단계',
+  build(d) {
+    const SRC = [[8, 17, 23], [31, 42, 56]];          // 각 노드의 스캔이 읽는 키
+    const owner = k => (k % 2 === 0 ? 0 : 1);          // 이 모형의 규칙: 짝수 키는 노드 1, 홀수 키는 노드 2에서 조인한다
+    const scans = d.columns(['노드 1: 스캔', '노드 2: 스캔'], { slots: 3 });
+    const joins = d.columns(['노드 1: 조인', '노드 2: 조인'], { slots: 3 });
+    // The network step is the band between the scan nodes and the join nodes: a dashed line labelled as the network.
+    // The SIP signal rises from the joins and stops just under it, so it never reaches the scans.
+    const GAP = m => (m.phone ? 56 : 64);
+    const netY = () => { const s = scans.bottom()()[1], j = joins.top()()[1] - (d.phone() ? 17 : 30); return s + (j - s) * 0.4; };
+    const bandL = () => [scans.left()()[0], netY()], bandR = () => [scans.right()()[0], netY()];
+    d.link([bandL, bandR], { dashed: true, arrow: false, label: '네트워크', labelAt: () => [bandL()[0] + (d.phone() ? 30 : 40), netY()] });
+    const from = () => { const [x, y] = joins.top()(); return [x, y - (d.phone() ? 17 : 30) - 2]; };
+    const stop = () => [from()[0], netY() + 6];
+    d.link([from, stop], { dashed: true, tone: 'bound', label: 'SIP는 여기까지', labelAt: () => { const w = d.phone() ? 52 : 66; return [from()[0] + w, (stop()[1] + from()[1]) / 2]; } });
+    return {
+      diagram: d.stack([scans, joins], { dir: 'col', gap: GAP }),
+      async run(a, say) {
+        const rows = {};
+        await a.groups([0, 1], async n => {
+          scans.col(n).mark('active');
+          const toks = SRC[n].map((k, j) => { const t = d.token(k, scans.col(n).slot(j)); t.g.style.opacity = 0; rows[k] = t; return t; });
+          await Promise.all(toks.map(t => a.fade(t, 1)));
+          await a.wait(300);
+          scans.col(n).mark('active', false);
+        }, { size: 2 });
+        say('1. 두 노드의 스캔이 각자 3행을 모두 읽었습니다. 필터는 스캔까지 오지 못했습니다.', { anchor: scans });
+        await a.wait(T.dwell);
+        const filled = [0, 0];
+        await a.groups([0, 1], async n => {
+          await Promise.all(SRC[n].map(k => {
+            const to = owner(k), slot = filled[to]++, from = scans.col(n).slot(SRC[n].indexOf(k));
+            d.token(k, from).g.style.opacity = 0.3; // a faint copy stays: the scan did read this row
+            return a.along(rows[k], [from, joins.col(to).slot(slot)]);
+          }));
+        }, { size: 1, pause: T.pause });
+        say('2. 행이 키에 맞는 노드로 네트워크를 건너갔습니다.', { anchor: joins.col(0) });
+        await a.wait(T.dwell);
+        await Promise.all(Object.entries(rows).map(([k, t]) => (INNER.includes(+k) ? (t.mark('hit'), null) : a.fade(t, 0.15))));
+        say('3. 조인에서야 짝이 없는 4행이 버려졌습니다.', { anchor: joins.col(1) });
+        await a.wait(T.dwell);
+        say('조인과 스캔 사이에 네트워크 단계가 있어 필터가 스캔까지 내려가지 못했습니다.');
+      },
+    };
+  },
+});
+
+/* =====================================================================
+   ENGINE (continued) — chapter switching, running, auto-play, render loop, verification hooks. Do not edit.
+   ===================================================================== */
+// Show only the active kit's layer; mark the stage rotatable when that kit is.
+function showKitLayer(name) {
+  for (const [kitName, kit] of Object.entries(kits)) if (kit.layer) kit.layer.hidden = kitName !== name;
+  stageEl.toggleAttribute('data-rotatable', Boolean(kits[name]?.rotatable));
+}
+// Bring the scene back to its initial state: engine-owned looks first, then the scene's own reset().
+function restoreScene(s) {
+  kits[s.kit].reset?.(s.built);
+  s.built.reset();
+}
+function activate(name, force = false) {
+  const s = scenes[name];
+  if (!s || (!force && current === name)) return;
+  bumpRun();
+  const prev = current ? scenes[current] : null;
+  if (prev && prev !== s) kits[prev.kit].hide?.(prev.built);
+  current = name;
+  if (!prev || prev.kit !== s.kit) railOpen = false;
+  showKitLayer(s.kit);
+  clearCaptions();
+  restoreScene(s);
+  kits[s.kit].show?.(s.built, prev?.built ?? null);
+  hudNow.textContent = s.title ?? '';
+  document.querySelectorAll('.chapter').forEach(c => c.classList.toggle('is-active', c.dataset.scene === name));
+  layoutStage();
+  if (stackedQ.matches) Split.apply(); // the stage-height minimum follows the chapter's drawing
+}
+let liveRun = 0; // token of the run in flight, 0 when none
+const runInFlight = () => liveRun !== 0 && liveRun === runToken;
+async function runScene(name) {
+  activate(name);
+  const s = scenes[name];
+  if (!s) return;
+  const kit = kits[s.kit];
+  const mine = bumpRun(); // a run or chapter change after this point cancels this run
+  liveRun = mine;
+  Object.assign(timeline, { token: mine, base: 0, scaled: 0 });
+  clearCaptions();
+  restoreScene(s);
+  const dir = director(mine);
+  const a = kit.animator ? kit.animator(dir, s.built) : dir;
+  const say = (text, opts) => { if (dir.live()) addCaption(text, opts, kit); };
+  try {
+    await s.built.run(a, say);
+  } catch (e) {
+    if (mine === runToken) kit.clear?.(s.built);
+    if (e !== CANCEL) { console.error(e); say(uiStr('runError')); }
+    return;
+  } finally {
+    if (liveRun === mine) liveRun = 0;
+  }
+  if (mine !== runToken) return;
+  sceneTotals[name] = captions.length;
+  renderRailMeta();
+  onSceneDone(name, mine); // If auto-play is on, continue the loop.
+}
+// Return the scene to its initial state and clear its captions (used by the auto-play loop).
+function resetScene(name) {
+  const s = scenes[name];
+  if (!s) return;
+  clearCaptions();
+  restoreScene(s);
+}
+document.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => runScene(b.dataset.run)));
+$('.reset-view').addEventListener('click', () => activeKit()?.resetView?.());
+
+// ---- Auto-play. Off by default; when on, it replays the action of the chapter being read in a loop. ----
+//   after entering a chapter, wait AUTORUN_DELAY → run → show the end state and the captions for AUTORUN_HOLD → reset (captions cleared)
+//   → show the initial state for AUTORUN_DELAY → run again → ... When the reader moves to another chapter, the old loop is cut off by CANCEL and a new loop starts from the beginning in the new chapter.
+// Delay and hold scale with the speed, but never below half of their 1× values. It does not run on elements without a button (the intro) or at the very top of the page.
+// It pauses when the tab is hidden and resumes when it is visible again.
+const AUTORUN_KEY = 'plz-explain:autorun';
+const AUTORUN_DELAY = 600; // Time (ms, at 1×) to see the initial state after a scene switch, and again after reset
+const AUTORUN_HOLD = 2800; // Time (ms, at 1×) to read the end state and the captions after the action ends
+const autorunBtn = $('.autorun');
+let autorunOn = store.get(AUTORUN_KEY) === '1';
+let autoEl = null;    // the element that most recently entered the reading line (so the same element does not restart)
+let autoPending = false; // whether the first run of autoEl is not yet scheduled
+const TOP_HOLD = 40;  // Top of the page (px). In the side-by-side layout, chapter 1 just below the intro sits on the reading line, but nothing runs here.
+let autoTimer = 0;    // The auto-play timer is set only through armAuto, so there is always at most one.
+let autoWait = null;  // name of the scene the timer is waiting for
+let autoPaused = null; // name of the scene paused because the tab was hidden
+const runnerOf = node => (node ? node.querySelector('[data-run]') : null);
+const autoMs = base => Math.max(base / 2, base / speed);
+function renderAutorun() { autorunBtn.setAttribute('aria-checked', String(autorunOn)); }
+function armAuto(name, ms, fn) {
+  clearTimeout(autoTimer);
+  autoWait = name;
+  autoTimer = setTimeout(() => {
+    autoTimer = 0; autoWait = null;
+    if (document.hidden) { autoPaused = name; return; }
+    fn();
+  }, ms);
+}
+function stopAuto() { clearTimeout(autoTimer); autoTimer = 0; autoWait = null; autoPaused = null; }
+// Whether this scene should still be looped. If a token is given, no other run (button included) or chapter switch may have happened in between.
+const loopOk = (name, token) => autorunOn && current === name && scrollY > TOP_HOLD && (token === undefined || token === runToken);
+function startCycle(name) { // reset → initial state → run
+  resetScene(name);
+  const t = runToken;
+  armAuto(name, autoMs(AUTORUN_DELAY), () => { if (loopOk(name, t)) runScene(name); });
+}
+function onSceneDone(name, token) { // Called by runScene when the action ran to the end. A run started by the button continues into the loop too.
+  if (!loopOk(name, token)) return;
+  if (document.hidden) { autoPaused = name; return; }
+  armAuto(name, autoMs(AUTORUN_HOLD), () => { if (loopOk(name, token)) startCycle(name); });
+}
+function tryAutorun() { // schedule the first run of the chapter being read
+  const node = autoEl, btn = runnerOf(node);
+  if (!autoPending || !autorunOn || !btn || scrollY <= TOP_HOLD) return;
+  autoPending = false;
+  const name = btn.dataset.run, t = runToken;
+  armAuto(name, autoMs(AUTORUN_DELAY), () => {
+    if (autoEl !== node) return;
+    if (scrollY <= TOP_HOLD) { autoPending = true; return; } // the reader went back to the top in the meantime
+    if (loopOk(name, t)) runScene(name);
+  });
+}
+function scheduleAutorun(node) {
+  if (node === autoEl) return; // When the observer is recreated by a size change, do not start the same chapter again.
+  stopAuto();
+  autoEl = node;
+  autoPending = true;
+  tryAutorun();
+}
+function setAutorun(on) {
+  autorunOn = Boolean(on);
+  store.set(AUTORUN_KEY, autorunOn ? '1' : '0');
+  renderAutorun();
+  stopAuto(); // Turning it off removes the pending loop. An action already running goes to the end and does not continue after it ends.
+  autoPending = false;
+  const btn = runnerOf(readingEl);
+  if (!autorunOn || !btn) return;
+  autoEl = readingEl;
+  if (scrollY > TOP_HOLD) runScene(btn.dataset.run); // run the chapter being read right when it is turned on
+  else autoPending = true;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (autoTimer) { autoPaused = autoWait; clearTimeout(autoTimer); autoTimer = 0; autoWait = null; }
+    return;
+  }
+  const name = autoPaused;
+  autoPaused = null;
+  // When visible again, the loop resumes from the initial state. A run still playing (for example one started with the button)
+  // is left alone: when it ends, onSceneDone continues the loop.
+  if (name && loopOk(name) && !runInFlight()) startCycle(name);
+});
+addEventListener('scroll', tryAutorun, { passive: true });
+autorunBtn.addEventListener('click', () => setAutorun(!autorunOn));
+renderAutorun();
+
+// The "reading line" that decides which chapter is being read. In the stacked layout (stage pinned on top) it is the point 30% down the text area just below the stage;
+// in the side-by-side layout (desktop, landscape) it is a band at 45-50% of the screen height. While the split is dragged, chapter switching waits.
+let io = null;
+function readingMargin() {
+  const vh = innerHeight, st = stageEl.getBoundingClientRect();
+  const stacked = st.width >= innerWidth - 1 && st.height < vh - 1;
+  if (!stacked) return '-45% 0px -50% 0px';
+  const stageBottom = Math.min(st.height, vh);
+  const readLine = Math.round(stageBottom + (vh - stageBottom) * 0.3);
+  return `-${readLine}px 0px -${Math.max(0, vh - readLine - 2)}px 0px`;
+}
+function observe() {
+  if (io) io.disconnect();
+  io = new IntersectionObserver(entries => {
+    if (splitDragging) return;
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      readingEl = e.target;
+      activate(e.target.dataset.scene);
+      scheduleAutorun(e.target);
+    });
+  }, { rootMargin: readingMargin() });
+  document.querySelectorAll('[data-scene]').forEach(node => io.observe(node));
+}
+let observeTimer = 0;
+const reobserve = () => { clearTimeout(observeTimer); observeTimer = setTimeout(observe, 150); };
+Split.onDragEnd = observe;
+let lastSize = '';
+new ResizeObserver(() => {
+  layoutStage(); // live re-fit: the run, its objects and captions keep going
+  const size = `${wrap.clientWidth}x${wrap.clientHeight}`;
+  if (size !== lastSize) { lastSize = size; reobserve(); }
+}).observe(wrap);
+new ResizeObserver(layoutStage).observe(legendEl);
+
+function loop() {
+  for (const kit of Object.values(kits)) if (kit.layer && !kit.layer.hidden) kit.frame?.();
+  requestAnimationFrame(loop);
+}
+
+// Verification hooks: for use from Playwright's browser_evaluate.
+//   await window.__explainer.run('s1')   → waits until that scene's action finishes and returns the final caption
+//   window.__explainer.overlaps()         → pairs of currently visible labels that overlap each other
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const frames = (n = 2) => new Promise(r => { const step = k => (k ? requestAnimationFrame(() => step(k - 1)) : r()); step(n); });
+// Labels that are visible to the reader: the active kit's labels, minus those fully under the open caption sheet.
+function visibleLabels() {
+  const kit = activeKit();
+  const sheet = railEl.classList.contains('open') ? railEl.getBoundingClientRect() : null;
+  const covered = r => sheet && r.left >= sheet.left - 0.5 && r.right <= sheet.right + 0.5 && r.top >= sheet.top - 0.5 && r.bottom <= sheet.bottom + 0.5;
+  return (kit?.labels?.() ?? [])
+    .map(node => ({ text: node.textContent, r: node.getBoundingClientRect() }))
+    .filter(b => b.r.width > 0 && !covered(b.r));
+}
+window.__explainer = {
+  scenes: () => Object.keys(scenes),
+  resources: () => activeKit()?.info?.().resources ?? null,
+  lang: () => UI_LANG,                          // language used for screen text (en | ko | ja | zh-CN | override key)
+  current: () => current,                       // name of the scene the stage is showing now
+  autorun: v => { if (v !== undefined) setAutorun(v); return autorunOn; }, // Reads the auto-play state. If a value is given, changes it (and saves it) and returns the new state
+  speed: v => (v === undefined ? speed : setSpeed(Number(v))), // Reads the speed. If a value (0.5, 1, 1.5, 2) is given, sets it (and saves it)
+  instant: on => (on === undefined ? INSTANT : setInstant(on)), // Verification mode: every duration and wait is 0. Separate from reduced motion
+  rail: v => (v === undefined || Boolean(v) === railOpen ? railOpen : setRailOpen(v)), // The caption sheet on narrow stages (open: true)
+  azimuth: () => activeKit()?.info?.().azimuth ?? null, // for checking whether the model rotated
+  kitInfo: () => activeKit()?.info?.() ?? null,
+  timing: () => ({ base: Math.round(timeline.base), scaled: Math.round(timeline.scaled) }), // the latest run's own timeline (ms; see account())  // the active kit's own state (svg: { scale, arrangement, row })
+  async run(name) {
+    // In the stacked layout, scroll so the chapter's top sits just below the stage (CSS scroll-margin-top); in the side-by-side layout, scroll it to the center.
+    const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
+    // An instant scroll: with a smooth one, other chapters cross the reading line on the way (and, on a slow machine, after the
+    // run has started, which cancels it). Then wait until the reading line has picked this chapter, and let the chapter change
+    // (fade, camera) finish as a reader would see it.
+    document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center', behavior: 'instant' });
+    for (let i = 0; i < 120 && current !== name; i++) await frames(1);
+    if (!INSTANT) await sleep(600);
+    await frames();
+    await runScene(name);
+    await sleep(200);
+    await frames(); // the end state has been drawn before the caller measures it
+    // Labels may still be easing apart (or the camera still gliding): wait until the kit says it has settled, at most 120 frames.
+    for (let i = 0; i < 120 && activeKit()?.settled && !activeKit().settled(); i++) await frames(1);
+    return current === name ? lastCaption : '';
+  },
+  overlaps(minArea = 24) {
+    const boxes = visibleLabels();
+    const out = [];
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i].r, b = boxes[j].r;
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (w > 0 && h > 0 && w * h >= minArea) out.push([boxes[i].text, boxes[j].text, Math.round(w * h)]);
+      }
+    }
+    return out;
+  },
+  // Labels outside the model area (the canvas cell minus the caption rail), text wider than its frame (kits that report it),
+  // and '[legend]' when the legend is not fully inside the stage and the window.
+  clipped() {
+    const w = wrap.getBoundingClientRect();
+    const m = { left: w.left + modelRect.x - 0.5, top: w.top + modelRect.y - 0.5, right: w.left + modelRect.x + modelRect.w + 0.5, bottom: w.top + modelRect.y + modelRect.h + 0.5 };
+    const out = visibleLabels().filter(b => b.r.left < m.left || b.r.right > m.right || b.r.top < m.top || b.r.bottom > m.bottom).map(b => b.text);
+    out.push(...(activeKit()?.overflowing?.() ?? [])); // text wider than its own frame (a pill, a chip, a box)
+    const g = stageEl.getBoundingClientRect(), lg = legendEl.getBoundingClientRect();
+    if (lg.top < g.top - 0.5 || lg.bottom > g.bottom + 0.5 || lg.left < g.left - 0.5 || lg.right > g.right + 0.5 || lg.bottom > innerHeight + 0.5 || lg.right > innerWidth + 0.5) out.push('[legend]');
+    return out;
+  },
+};
+
+// Start: load the kits the scenes use, build every scene, show the first one, render once, then enable the controls.
+const usedKits = [...new Set(Object.values(scenes).map(s => s.kit))];
+for (const name of usedKits) await loadKit(name);
+for (const s of Object.values(scenes)) {
+  const built = kits[s.kit].build(s);
+  if (typeof built?.reset !== 'function' || typeof built?.run !== 'function') throw new Error(`[plz] scene ${s.name}: build must return reset() and run()`);
+  s.built = built;
+}
+const first = Object.keys(scenes)[0];
+Split.apply();
+kits[scenes[first].kit].home?.(scenes[first].built);
+activate(first);
+observe();
+loop();
+setStageState('ready');
+layoutStage();
+Split.apply(); // again now that the caption bar is shown: the stage-height minimum includes it
+document.fonts?.ready.then(() => layoutStage()); // text widths (pills, chips) are measured with the web fonts once they are in
+} catch (error) {
+  delete window.__explainer;
+  setStageState('failed', error?.uiKey ?? 'loadError');
+  console.error('[plz] stage initialization failed:', error);
+}
+</script>
+</body>
+</html>
