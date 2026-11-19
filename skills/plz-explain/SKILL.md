@@ -45,6 +45,7 @@ The page has two layers of engine code. Neither is edited when building a page.
   - `axo`: a three.js axonometric model of white blocks with ink outlines.
   - `svg`: a 2D step diagram (tables of rows with keys, hash buckets, operator boxes with lanes, filters, operator trees, node columns), with no library.
 - The stage lists the kits the page uses in `data-kits` on `aside.stage`: the template has `axo svg`; use `svg` alone when there is no axo chapter, so three.js is never downloaded.
+- Each kit's code and styles sit in their own sections of the template, marked `KIT <kit> css` / `KIT <kit> js` … `END KIT <kit> …`. A page keeps only the sections of the kits it uses (see "Build from the template").
 
 ### Choosing a kit per chapter
 
@@ -102,7 +103,15 @@ This style is an architectural model (white massing model + ink outlines) seen i
 
 ### 3. Build from the template
 
-Copy `assets/template.html` to the output location and fill in only the HTML marked `TEXT` and the `SCENES` section. Do not edit the `ENGINE` sections, which hold the shell, the director, and the axo kit (renderer, camera fitting, label handling, animator). They already contain fixes for bugs we hit.
+Copy `assets/template.html` to the output location and fill in only the HTML marked `TEXT` and the `SCENES` section. Do not edit the `ENGINE` sections, which hold the shell, the director, and the kits (renderer, camera fitting, label handling, animator). They already contain fixes for bugs we hit.
+
+- Decide which kits the page uses (see "Choosing a kit per chapter"). For every kit the page does not use, delete everything that belongs to it:
+  - in the `<style>` block, from the `/* KIT <kit> css — … */` line through `/* END KIT <kit> css */`;
+  - in the script, from `/* KIT <kit> js — … */` through `/* END KIT <kit> js */` (delete those lines exactly; change nothing else in `ENGINE`);
+  - in `SCENES`, that kit's code. Without axo: the `setupKit('axo', …)` block (the shared floor), the `FLOOR` constant, and the scenes `s1` and `s2`. Without svg: the scene `s3`.
+- Set `data-kits` on `aside.stage` to exactly the kits that remain (`axo`, `svg`, or `axo svg`). `data-kits` is the page's list of kits: every listed kit must be used by a scene, and every kit a scene uses must be listed.
+- In `SCENES`, code that uses a kit outside a scene (the axo shared floor, for example) goes inside `setupKit('<kit>', () => { … })`.
+- If something is left over or missing (a scene or `setupKit` for a deleted kit, a kit name used at the top level of `SCENES`, a listed kit no scene uses), the page stops and the stage shows a `[plz]` message that says what to fix.
 
 - Make one scene with `defineScene(name, { title, base, target, fitW, fitH, build })` (`kit: 'axo'` is the default). The `data-scene` in the body and the `data-run` on the button must equal `name`.
 - An svg scene is `defineScene(name, { kit: 'svg', title, build(d) })`: build parts with `d`, arrange them with `d.grid` / `d.panels` / `d.stack`, and return `{ diagram, run }`. The kit sizes the diagram for every stage and restores every part on reset. The template's `s3` is a short example.
@@ -156,7 +165,8 @@ The phone layout is built into the template.
 - Wide stages (720px and wider, side by side) show every caption in a column beside the model; the camera fits the model into the rest. Narrower stages show one caption bar: the newest caption, "k / n", and a toggle that opens all captions as a sheet inside the stage.
 - One line of the stage title bar holds the chapter title, the auto-play switch, and the reset-view button (the chapter title takes up to two lines and is truncated with an ellipsis if longer). At 430px wide and below, the switch text shrinks to a short per-language phrase (English "Auto"; the accessible name stays the long phrase "Auto-play"), and tap targets are 44px or more. Code blocks do not wrap; they scroll horizontally inside the block only.
 - Touch: on the stage, a vertical swipe scrolls the page and a horizontal drag rotates the model. Tilting up and down is not supported.
-- svg chapters: on wide stages the diagram is scaled up to 1.6× with the captions beside or below it; on narrow stages and phones the columns compress and the rows adapt (text stays at least 12px on desktop, 11px on phones). An svg-only page overrides the intro note in `UI_OVERRIDES` (the built-in note mentions rotating a 3D model); see the hash-join example.
+- svg chapters: on wide stages the diagram is scaled up to 1.6× with the captions beside or below it; on narrow stages and phones the columns compress and the rows adapt (text stays at least 12px on desktop, 11px on phones).
+- The intro note follows `data-kits`: an axo-only page says the model can be rotated, an svg-only page says the button plays the event step by step, and a mixed page limits the rotate hint to 3D chapters. For a language outside the built-in ones, write `noteWide`, `noteNarrow`, `noteSteps`, `noteMixedWide`, and `noteMixedNarrow` in `UI_OVERRIDES` (or at least `noteWide` and `noteNarrow`, which the other three fall back to).
 - A stage 600px or narrower (phones, or a narrow stage beside the text) uses smaller labels. When the model area is narrower than 700px, the axo kit also pulls labels toward the inside of the model area and shifts them apart when they overlap. Overlaps beyond the cap (56px) remain.
 - When you build a page, write short labels and do not place two long labels close together.
 

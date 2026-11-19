@@ -34,7 +34,11 @@ defineScene('name', {
 
 - The kit builds every scene when the page starts, after its libraries have loaded. Chapter order does not depend on the order you call `defineScene`; the `data-scene` in the body sets the order.
 - `build()` must return `reset()` and `run()`. The engine calls `reset()` before every run and on every chapter change, after restoring the colors itself.
-- The page lists its kits in `data-kits` on `aside.stage` (the template has `data-kits="axo svg"`; a missing attribute means `axo`). Listed kits load before `SCENES` runs, so `SCENES` can use their parts at the top level (for example `base.add(block(...))`). A page with only svg scenes uses `data-kits="svg"` and never downloads three.js.
+- Each kit's code and styles are in their own template sections: `/* KIT <kit> css — … */` … `/* END KIT <kit> css */` in the `<style>` block and `/* KIT <kit> js — … */` … `/* END KIT <kit> js */` in the script. A page carries the shell plus the sections of the kits it lists; `node scripts/check-templates.mjs` checks that every kit section matches the template, sits where the template has it, and agrees with `data-kits`. A kit that a page defines itself in `SCENES` is listed in `data-kits` but has no sections.
+- The page lists its kits in `data-kits` on `aside.stage` (the template has `data-kits="axo svg"`; a missing attribute means `axo`). This list is authoritative. Listed kits that are on the page load before `SCENES` runs, so `SCENES` can use their parts at the top level (for example `base.add(block(...))` on a page that keeps axo). A page with only svg scenes uses `data-kits="svg"` and never downloads three.js.
+- After `SCENES` runs, the page stops with a `[plz]` message on the stage when the list and the scenes disagree: a scene or `setupKit` uses a kit that is not on the page or not listed, or a listed kit is not on the page or no scene uses it. An undefined name at the top level of `SCENES` (a kit global such as `base` on a page without that kit) gets a `[plz]` message too.
+- `setupKit(kit, fn)`: kit code outside any scene, such as the axo shared floor. `fn` runs once, after the kit has loaded and before the scenes are built. The template wraps its floor in `setupKit('axo', …)`, so a page that deletes the axo kit deletes that block too, and a leftover block is reported by name.
+- The intro note (`.note .wide` / `.narrow` with `data-ui`) follows `data-kits`, decided once before any kit loads: all rotatable → `noteWide` / `noteNarrow`; none → `noteSteps`; both kinds → `noteMixedWide` / `noteMixedNarrow`. A kit defined in `SCENES` counts as not rotatable. A note without `data-ui` is left alone. The text is looked up in this order: `UI_OVERRIDES[language]` for the chosen key, then `UI_OVERRIDES[language]` for the slot's `noteWide` (wide) or `noteNarrow` (narrow), then the built-in dictionary.
 
 ## Step captions: `say(text, { anchor })`
 
@@ -324,6 +328,9 @@ English (`en`) is canonical. A key missing from the chosen language's dictionary
 |---|---|---|---|---|---|
 | `noteWide` | Intro `.note .wide` (desktop) | Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model. | 오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다. | 右のモデルはドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。 | 拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。 |
 | `noteNarrow` | Intro `.note .narrow` (phone) | Swipe the model left or right to rotate it. (the rest of the sentence is the same) | 모형은 좌우로 밀면 돌려 볼 수 있습니다. (뒤 문장은 같음) | モデルは左右にスワイプすると回転できます。(後ろは同じ) | 左右滑动模型即可旋转查看。(后句相同) |
+| `noteSteps` | Intro note on a page whose kits are not rotatable (svg only), wide and narrow | The button in each chapter makes that event happen in the model, step by step. | 장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다. | 各章のボタンを押すと、モデル上でその出来事が一つずつ順に起こります。 | 点击每章中的按钮，模型上就会一步步演示那件事。 |
+| `noteMixedWide` | Intro `.note .wide` on a page with both kinds of kit | In 3D chapters, drag the model on the right to rotate it. (then as `noteSteps`) | 3D로 그린 장에서는 오른쪽 모형을 드래그해 돌려 볼 수 있습니다. (뒤는 `noteSteps`와 같음) | 3Dの章では、右のモデルをドラッグして回転できます。(後ろは `noteSteps` と同じ) | 在 3D 章节中，拖动右侧的模型即可旋转查看。(后句同 `noteSteps`) |
+| `noteMixedNarrow` | Intro `.note .narrow` on a page with both kinds of kit | In 3D chapters, swipe the model left or right to rotate it. (then as `noteSteps`) | 3D로 그린 장에서는 모형을 좌우로 밀어 돌려 볼 수 있습니다. (뒤는 같음) | 3Dの章では、モデルを左右にスワイプすると回転できます。(後ろは同じ) | 在 3D 章节中，左右滑动模型即可旋转查看。(后句相同) |
 | `resetView` | `.reset-view` button | Reset view | 시점 되돌리기 | 視点をリセット | 重置视角 |
 | `autorun` | Long text of the auto-play switch, `aria-label` | Auto-play | 자동 실행 | 自動再生 | 自动播放 |
 | `autorunShort` | Short text of the same switch (width 430px and below) | Auto | 자동 | 自動 | 自动 |
@@ -375,7 +382,7 @@ window.UI_OVERRIDES = {
 ```
 
 - Keys are matched in this order: the full `lang` (`es-MX`), its prefix (`es`), the built-in language name (`zh-CN`). You can also override a key of a built-in language (such as `ko`) to change just one string.
-- Lookup order: `UI_OVERRIDES[language]` → built-in dictionary[language] → `en`. For a new language you may fill in only the keys you want and leave the rest in English, but these are strings the learner sees, so fill in `noteWide`, `noteNarrow`, `fallback`, `loading`, `loadError`, `retry`, `runError`, `speed`, `speedSeg`, `railShow`, and `railHide` too.
+- Lookup order: `UI_OVERRIDES[language]` → built-in dictionary[language] → `en`. For a new language you may fill in only the keys you want and leave the rest in English, but these are strings the learner sees, so fill in `noteWide`, `noteNarrow`, `noteSteps`, `noteMixedWide`, `noteMixedNarrow` (the last three fall back to the page's `noteWide` / `noteNarrow` when left out, never to English), `fallback`, `loading`, `loadError`, `retry`, `runError`, `speed`, `speedSeg`, `railShow`, and `railHide` too.
 - If you give only `autorun` and not `autorunShort`, the short text uses the `autorun` text too (so English "Auto" does not get mixed in).
 - The `:lang(ja)` and `:lang(zh)` font rules do not apply to a page in a non-built-in language. For Latin-script languages (Spanish, French, and so on) the default fonts are enough. For scripts that need their own fonts, such as Arabic or Thai, this template does not cover them (the CSS must stay the same as the demo's, so do not change the engine side; ask the user to decide).
 

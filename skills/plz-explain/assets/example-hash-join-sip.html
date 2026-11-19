@@ -131,16 +131,6 @@
   /* isolation: kits may set z-index on their own elements (CSS2DRenderer does on every label); keep that inside the layer, under the caption rail. */
   .kit-layer { position: absolute; inset: 0; isolation: isolate; z-index: 0; }
   .kit-layer[hidden] { display: none; }
-  .kit-layer canvas { display: block; }
-  .labels { position: absolute; inset: 0; }
-  .tag { font: 500 12.5px/1.3 var(--sans); color: var(--ink); background: rgba(236, 238, 234, 0.9); padding: 3px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
-  .tag.actor { color: var(--actor-ink); }
-  .tag.bound { color: var(--bound); }
-  .tag.matter { color: var(--matter-ink); }
-  .tag.warn { background: var(--ink); color: #fff; }
-  .tag.big { font: 700 14px/1.3 var(--serif); padding: 4px 9px; }
-  /* Step badge next to an object: the same number as the caption on the rail. */
-  .tag.badge { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--ink); color: #fff; font: 600 12px/1 var(--sans); font-variant-numeric: tabular-nums; }
   .hud { position: absolute; top: 1.1rem; left: 1.3rem; right: 1.3rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; pointer-events: none; z-index: 4; }
   .hud .now { font: 700 1.05rem/1.35 var(--serif); }
   .hud .tools { display: flex; align-items: flex-start; gap: 0.5rem; flex: none; }
@@ -190,6 +180,7 @@
   /* Loading and failure notices do not depend on the CDN or a working renderer. */
   .fallback { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 1rem; padding: 2rem; text-align: center; color: var(--ink-soft); }
   .fallback p { margin: 0; max-width: 32rem; }
+  .fallback .fallback-detail { font: 500 0.82rem/1.5 var(--mono); color: var(--actor-ink); overflow-wrap: anywhere; }
   .retry-load { min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 500 0.95rem/1.4 var(--sans); cursor: pointer; }
   .stage[data-state="ready"] .fallback { display: none; }
   .stage:not([data-state="ready"]) :is(.canvas-wrap, .hud, .legend, .hint) { visibility: hidden; }
@@ -217,9 +208,6 @@
     .canvas-wrap { position: relative; inset: auto; flex: 1 1 0; min-height: 0; overflow: hidden; }
     .legend { position: static; flex: none; padding: 0.25rem 1.1rem 0.55rem; gap: 0.1rem 0.9rem; font-size: 0.76rem; line-height: 1.5; }
     .hint { display: none; }
-    .tag { font-size: 11px; padding: 2px 5px; }
-    .tag.big { font-size: 12px; padding: 3px 6px; }
-    .tag.badge { width: 19px; height: 19px; font-size: 11px; padding: 0; }
     .chapter .gist { font-size: 1rem; }
     /* On phones, code blocks do not wrap; they scroll horizontally inside the block only (wrapping breaks URLs mid-word and makes indentation look like blank lines). */
     pre.code { white-space: pre; font-size: 0.74rem; line-height: 1.65; overscroll-behavior-x: contain; tab-size: 4; }
@@ -283,6 +271,7 @@
     .chapter h2 .n { transition: none; }
     .autorun .track, .autorun .track::after { transition: none; }
   }
+  /* KIT svg css — 2D step diagrams. A page without svg chapters deletes this section, up to END KIT svg css. */
   /* Kit "svg": 2D step diagrams. Ink outline for the active element, the 3 semantic colors for meaning, nothing else. */
   :root { --hair: rgba(85, 97, 107, 0.55); }
   .svg-stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
@@ -341,18 +330,14 @@
   .svg-stage .tok.hit text { fill: #fff; }
   .svg-stage .tok.active .halo { opacity: 1; }
   .svg-stage .tok.active .b { stroke: var(--ink); stroke-width: 2; }
+  /* END KIT svg css */
   /* A kit may scale the caption column with its diagram (--cap-k). */
   .rail.side { --k: var(--cap-k, 1); }
   .rail.side .rail-list { gap: calc(9px * var(--k)); }
   .rail.side .cap { grid-template-columns: calc(22px * var(--k)) minmax(0, 1fr); column-gap: calc(9px * var(--k)); font-size: calc(14px * var(--k)); }
   .rail.side .cap .n { width: calc(22px * var(--k)); height: calc(22px * var(--k)); font-size: calc(12px * var(--k)); line-height: calc(20px * var(--k)); }
-  /* Labels follow the stage's own width: a stage 600px or narrower (phones, or a narrow window or divider beside the text) gets the small labels. */
+  /* Kits may size their labels by the stage's own width (a container query on .stage). */
   .stage { container-type: inline-size; }
-  @container (max-width: 600px) {
-    .tag { font-size: 11px; padding: 2px 5px; }
-    .tag.big { font-size: 12px; padding: 3px 6px; }
-    .tag.badge { width: 19px; height: 19px; font-size: 11px; padding: 0; }
-  }
   /* Verification instant mode: no CSS transitions either. */
   body.instant *, body.instant *::before, body.instant *::after { transition: none !important; }
 </style>
@@ -514,8 +499,7 @@ JOIN vip_customers v          <span class="c">-- 작은 테이블: 안쪽</span>
      If <html lang> is es, the es entry below is used, and any key you leave out falls back to English. Leave this empty for built-in languages. -->
 <script>
 window.UI_OVERRIDES = {
-  // The built-in intro note mentions rotating a 3D model; this page has 2D chapters only.
-  ko: { noteWide: '장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.', noteNarrow: '장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.' },
+  // es: { resetView: 'Restablecer vista', autorun: 'Reproducción automática', autorunShort: 'Auto', hint: 'Arrastra para girar' },
 };
 </script>
 
@@ -533,6 +517,9 @@ const UI_TEXT = {
   en: {
     noteWide: 'Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model.',
     noteNarrow: 'Swipe the model left or right to rotate it. The button in each chapter makes that event actually happen in the model.',
+    noteSteps: 'The button in each chapter makes that event happen in the model, step by step.',
+    noteMixedWide: 'In 3D chapters, drag the model on the right to rotate it. The button in each chapter makes that event happen in the model, step by step.',
+    noteMixedNarrow: 'In 3D chapters, swipe the model left or right to rotate it. The button in each chapter makes that event happen in the model, step by step.',
     resetView: 'Reset view',
     autorun: 'Auto-play',
     autorunShort: 'Auto',
@@ -556,6 +543,9 @@ const UI_TEXT = {
   ko: {
     noteWide: '오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
     noteNarrow: '모형은 좌우로 밀면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
+    noteSteps: '장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.',
+    noteMixedWide: '3D로 그린 장에서는 오른쪽 모형을 드래그해 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.',
+    noteMixedNarrow: '3D로 그린 장에서는 모형을 좌우로 밀어 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.',
     resetView: '시점 되돌리기',
     autorun: '자동 실행',
     autorunShort: '자동',
@@ -579,6 +569,9 @@ const UI_TEXT = {
   ja: {
     noteWide: '右のモデルはドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
     noteNarrow: 'モデルは左右にスワイプすると回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
+    noteSteps: '各章のボタンを押すと、モデル上でその出来事が一つずつ順に起こります。',
+    noteMixedWide: '3Dの章では、右のモデルをドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が一つずつ順に起こります。',
+    noteMixedNarrow: '3Dの章では、モデルを左右にスワイプすると回転できます。各章のボタンを押すと、モデル上でその出来事が一つずつ順に起こります。',
     resetView: '視点をリセット',
     autorun: '自動再生',
     autorunShort: '自動',
@@ -602,6 +595,9 @@ const UI_TEXT = {
   'zh-CN': {
     noteWide: '拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
     noteNarrow: '左右滑动模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
+    noteSteps: '点击每章中的按钮，模型上就会一步步演示那件事。',
+    noteMixedWide: '在 3D 章节中，拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会一步步演示那件事。',
+    noteMixedNarrow: '在 3D 章节中，左右滑动模型即可旋转查看。点击每章中的按钮，模型上就会一步步演示那件事。',
     resetView: '重置视角',
     autorun: '自动播放',
     autorunShort: '自动',
@@ -1115,9 +1111,17 @@ function defineScene(name, def) {
   if (scenes[name]) throw new Error(`[plz] scene already defined: ${name}`);
   scenes[name] = { name, kit: 'axo', ...def, def, built: null };
 }
+// setupKit(kit, fn): kit code that is not part of one scene (the axo kit's shared floor, for example). SCENES calls it at the
+// top level; fn runs once, after the kit has loaded and before the scenes are built. Kit globals are used only inside fn,
+// so a page without that kit stops with a [plz] message naming this call instead of failing on an undefined name.
+const kitSetups = [];
+function setupKit(name, fn) {
+  if (typeof fn !== 'function') throw new Error(`[plz] setupKit('${name}', fn): fn must be a function`);
+  kitSetups.push({ name, fn });
+}
 function loadKit(name) {
   const kit = kits[name];
-  if (!kit) return Promise.reject(new Error(`[plz] unknown kit: ${name}`));
+  if (!kit) return Promise.reject(new Error(`[plz] kit "${name}" is not on this page: copy its KIT ${name} sections (css and js) from the template and list "${name}" in data-kits.`));
   if (!kit.loading) {
     kit.layer = el('div', { className: 'kit-layer', hidden: true }, wrap);
     kit.layer.dataset.kit = name;
@@ -1129,454 +1133,8 @@ function loadKit(name) {
 // A hoisted function: the split calls it at startup, before any chapter (and before kits/scenes exist).
 function activeKit() { return current ? kits[scenes[current].kit] : null; }
 
-/* ---- Kit "axo": three.js axonometric block model (white massing model, ink outlines). three.js is imported only in its load(). ---- */
-const COLOR = {
-  model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
-  actor: 0xD2364A, actorEdge: 0x7A1422,
-  bound: 0x2F6FB2, boundSoft: 0xD3E0EE, boundMid: 0x9DBBE0,
-  matter: 0xC4921F, matterEdge: 0x6B4B0E,
-};
-// Filled by the axo kit's load(). Scenes use them as globals, as before.
-let THREE = null, OrbitControls = null, CSS2DRenderer = null, CSS2DObject = null;
-let renderer = null, labelRenderer = null, scene = null, camera = null, controls = null;
-let HOME_DIR = null, SCREEN_RIGHT = null, base = null;
-const DIST = 60;
-const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-function mat(color, opacity = 1) {
-  const m = new THREE.MeshLambertMaterial({ color, transparent: true, opacity, depthWrite: opacity >= 0.99 });
-  m.userData.base = opacity;
-  m.userData.color = new THREE.Color(color);
-  return m;
-}
-function lineMat(color = COLOR.ink, opacity = 0.85, dashed = false) {
-  const m = dashed
-    ? new THREE.LineDashedMaterial({ color, transparent: true, opacity, dashSize: 0.2, gapSize: 0.14 })
-    : new THREE.LineBasicMaterial({ color, transparent: true, opacity });
-  m.userData.base = opacity;
-  return m;
-}
-// Cuboid. The y of pos is the "floor height" (after creation, group.position is the center).
-function block(w, h, d, pos, { color = COLOR.model, opacity = 1, edge = COLOR.ink, edgeOpacity = 0.85, dashed = false, cast = true } = {}) {
-  const g = new THREE.Group();
-  const geo = new THREE.BoxGeometry(w, h, d);
-  const mesh = new THREE.Mesh(geo, mat(color, opacity));
-  mesh.castShadow = cast && opacity > 0.6;
-  mesh.receiveShadow = opacity > 0.6;
-  g.add(mesh);
-  if (edge !== null) {
-    const lines = new THREE.LineSegments(new THREE.EdgesGeometry(geo), lineMat(edge, edgeOpacity, dashed));
-    if (dashed) lines.computeLineDistances();
-    g.add(lines);
-  }
-  g.position.set(pos[0], pos[1] + h / 2, pos[2]);
-  g.userData.mesh = mesh;
-  g.userData.h = h;
-  return g;
-}
-const allTags = new Set();
-// On-screen label. kind: '' | 'actor' | 'bound' | 'matter' | 'warn' | 'big'
-function tag(text, pos, kind = '') {
-  const el = document.createElement('div');
-  el.className = 'tag' + (kind ? ' ' + kind : '');
-  el.textContent = text;
-  const o = new CSS2DObject(el);
-  o.position.set(pos[0], pos[1], pos[2]);
-  allTags.add(o);
-  return o;
-}
-// Temporary groups contain one-shot objects created during playback. Shared resources stay externally owned.
-const temporaryGroups = new WeakMap();
-function temporaryGroup(sharedResources = []) {
-  const group = new THREE.Group();
-  temporaryGroups.set(group, new Set(sharedResources));
-  return group;
-}
-// Release an owned subtree. Keep externally owned geometry/materials in sharedResources or its temporary group's list.
-function disposeObject(root, sharedResources = []) {
-  disposeObjects([root], sharedResources);
-}
-function disposeObjects(roots, sharedResources = []) {
-  const shared = new Set(sharedResources), resources = new Set();
-  for (const root of roots) {
-    for (let node = root; node; node = node.parent) {
-      for (const resource of temporaryGroups.get(node) || []) shared.add(resource);
-    }
-    root.traverse(o => {
-      for (const resource of temporaryGroups.get(o) || []) shared.add(resource);
-      if (o.isCSS2DObject) {
-        allTags.delete(o);
-        labelState.delete(o);
-        o.element.remove();
-      }
-      if (o.geometry) resources.add(o.geometry);
-      for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
-        if (material) resources.add(material);
-      }
-    });
-    root.removeFromParent();
-  }
-  for (const resource of resources) if (!shared.has(resource)) resource.dispose();
-}
-function clearGroup(group) {
-  disposeObjects([...group.children]);
-}
-function clearTemporary(root) {
-  if (temporaryGroups.has(root)) { clearGroup(root); return; }
-  for (const child of root.children) clearTemporary(child);
-}
-// Actor cube (0.6). Pass label as null for no label.
-function actorCube(pos, label = '__actor__') {
-  const c = block(0.6, 0.6, 0.6, pos, { color: COLOR.actor, edge: COLOR.actorEdge });
-  if (label) c.add(tag(label, [0, 0.72, 0], 'actor'));
-  return c;
-}
-function matterBlock(pos, h = 0.9, w = 0.75) {
-  return block(w, h, w, pos, { color: COLOR.matter, edge: COLOR.matterEdge });
-}
-// Glass room (boundary). Opacity between 0.08 and 0.13 stays clear even when layers overlap.
-function glass(w, h, d, pos, opts = {}) {
-  return block(w, h, d, pos, { color: COLOR.bound, opacity: 0.08, edge: COLOR.bound, edgeOpacity: 0.95, cast: false, ...opts });
-}
-function line(points, color = COLOR.ink, opacity = 0.6, dashed = false) {
-  const geo = new THREE.BufferGeometry().setFromPoints(points.map(p => V(...p)));
-  const l = new THREE.Line(geo, lineMat(color, opacity, dashed));
-  if (dashed) l.computeLineDistances();
-  return l;
-}
-function tube(from, to, r = 0.1, color = COLOR.ink) {
-  const a = V(...from), b = V(...to);
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 14), mat(color));
-  m.position.copy(a).add(b).multiplyScalar(0.5);
-  m.quaternion.setFromUnitVectors(V(0, 1, 0), b.clone().sub(a).normalize());
-  m.castShadow = true;
-  return m;
-}
-function arrow(from, to, color = COLOR.ink) {
-  const g = new THREE.Group();
-  g.add(line([from, to], color, 0.85));
-  const dir = V(...to).sub(V(...from)).normalize();
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.45, 18), mat(color));
-  cone.position.set(...to);
-  cone.quaternion.setFromUnitVectors(V(0, 1, 0), dir);
-  g.add(cone);
-  return g;
-}
-// Moving ball (request, signal). Put it in a temporaryGroup() and disposeObject() when done.
-function packet(color, pos, r = 0.2) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat(color));
-  m.position.set(...pos);
-  m.castShadow = true;
-  m.userData.mesh = m;
-  return m;
-}
-function setFade(root, k) {
-  root.visible = k > 0.001;
-  root.traverse(o => {
-    const m = o.material;
-    if (m && m.userData.base !== undefined) m.opacity = m.userData.base * k;
-    if (o.isCSS2DObject) o.element.style.opacity = k;
-  });
-}
-function resetLook(root) {
-  root.traverse(o => {
-    const m = o.material;
-    if (m && m.userData.color) { m.color.copy(m.userData.color); m.opacity = m.userData.base; }
-  });
-}
-// CSS2DRenderer draws labels even when the parent is hidden. Every frame, check ancestor visibility and scale, and hide the label.
-// Even after a parent is detached from the scene, the child label's DOM stays at its last position. Hide it when it is not attached to the scene.
-function syncTags() {
-  for (const o of allTags) {
-    let vis = true, node = o;
-    while (node.parent) {
-      node = node.parent;
-      if (!node.visible || node.scale.x < 0.3 || node.scale.y < 0.3) vis = false;
-    }
-    if (node !== scene) { o.element.style.display = 'none'; continue; }
-    o.visible = vis;
-  }
-}
-
-// On a narrow model area (phone, or beside the caption rail) the model shrinks but label text does not, so labels overlap each other and get clipped at the edges.
-// In screen coordinates, pull labels toward the inside of the model area, and when they overlap, shift them to the nearest free spot (CSS translate, capped at DECLUTTER_MAX).
-// On a wide model area this does nothing.
-const DECLUTTER_BELOW = 700, DECLUTTER_MAX = 56, DECLUTTER_EDGE = 3, DECLUTTER_GAP = 2;
-const labelState = new Map();
-let labelVec = null;
-const labelShown = o => o.visible && o.element.isConnected && o.element.style.display !== 'none' && parseFloat(o.element.style.opacity || '1') > 0.5;
-const boxHit = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
-function clampBox(b, R) {
-  const dx = Math.max(R.x + DECLUTTER_EDGE - b.l, 0) + Math.min(R.x + R.w - DECLUTTER_EDGE - b.r, 0);
-  const dy = Math.max(R.y + DECLUTTER_EDGE - b.t, 0) + Math.min(R.y + R.h - DECLUTTER_EDGE - b.b, 0);
-  return { l: b.l + dx, r: b.r + dx, t: b.t + dy, b: b.b + dy, dx, dy };
-}
-function placeLabel(box, placed, R) {
-  let cur = clampBox(box, R);
-  for (let i = 0; i < 6; i++) {
-    const hit = placed.find(p => boxHit(cur, p));
-    if (!hit) break;
-    const g = DECLUTTER_GAP;
-    const pushes = [
-      { dx: 0, dy: hit.t - cur.b - g }, { dx: 0, dy: hit.b - cur.t + g },
-      { dx: hit.l - cur.r - g, dy: 0 }, { dx: hit.r - cur.l + g, dy: 0 },
-    ].map(d => {
-      const moved = clampBox({ l: cur.l + d.dx, r: cur.r + d.dx, t: cur.t + d.dy, b: cur.b + d.dy }, R);
-      return { moved, clear: !placed.some(p => boxHit(moved, p)), cost: Math.hypot(d.dx, d.dy) };
-    }).sort((a, b) => (b.clear - a.clear) || (a.cost - b.cost));
-    cur = pushes[0].moved;
-  }
-  const total = Math.hypot(cur.l - box.l, cur.t - box.t);
-  return total <= DECLUTTER_MAX ? cur : clampBox(box, R);
-}
-function declutter() {
-  const W = wrap.clientWidth, H = wrap.clientHeight, R = modelRect;
-  const on = R.w > 0 && R.w < DECLUTTER_BELOW;
-  const placed = [];
-  let moving = false;
-  for (const o of allTags) {
-    const el = o.element;
-    const st = labelState.get(o) || { x: 0, y: 0 };
-    labelState.set(o, st);
-    let tx = 0, ty = 0;
-    if (on && labelShown(o)) {
-      labelVec.setFromMatrixPosition(o.matrixWorld).project(camera);
-      const w = el.offsetWidth, h = el.offsetHeight;
-      const cx = (labelVec.x + 1) / 2 * W, cy = (1 - labelVec.y) / 2 * H;
-      if (w && h) {
-        const box = { l: cx - w / 2, r: cx + w / 2, t: cy - h / 2, b: cy + h / 2 };
-        const fin = placeLabel(box, placed, R);
-        tx = fin.l - box.l; ty = fin.t - box.t;
-        placed.push(fin);
-      }
-    }
-    if (INSTANT || REDUCE) { st.x = tx; st.y = ty; } // no easing: the end state is exact at once
-    st.x += (tx - st.x) * 0.5; st.y += (ty - st.y) * 0.5;
-    if (Math.abs(tx - st.x) < 0.3) st.x = tx;
-    if (Math.abs(ty - st.y) < 0.3) st.y = ty;
-    if (st.x !== tx || st.y !== ty) moving = true;
-    const css = st.x || st.y ? `${st.x.toFixed(1)}px ${st.y.toFixed(1)}px` : '';
-    if (el.style.translate !== css) el.style.translate = css;
-  }
-  return moving;
-}
-
-// The animator `a` that axo scenes receive. Every duration and wait goes through the director (speed, instant, reduced motion, CANCEL).
-function axoAnimator(dir) {
-  return {
-    live: dir.live,
-    tween: (ms, fn, opts) => dir.tween(ms, fn, opts), // opts: { motion = true, ease }
-    wait: ms => dir.wait(ms),
-    // Move the center of obj to `to`. With lift, it goes over in an arc. About 1 s per tracked move.
-    move(obj, to, ms = 1000, lift = 0) {
-      const from = obj.position.clone();
-      const target = Array.isArray(to) ? V(...to) : to.clone();
-      return dir.tween(ms, t => {
-        obj.position.lerpVectors(from, target, t);
-        if (lift) obj.position.y += Math.sin(Math.PI * t) * lift;
-      });
-    },
-    // The color changes briefly and comes back. With hold=true it stays changed (resetLook restores it in reset). Color is not movement, so it plays under reduced motion too.
-    async flash(obj, color, ms = 700, hold = false) {
-      const m = (obj.userData.mesh || obj).material;
-      const c0 = m.userData.color, c1 = new THREE.Color(color);
-      const o0 = m.userData.base, peak = Math.min(1, o0 + 0.45);
-      await dir.tween(ms * 0.35, t => { m.color.lerpColors(c0, c1, t); m.opacity = o0 + (peak - o0) * t; }, { motion: false });
-      if (hold) return;
-      await dir.tween(ms * 0.65, t => { m.color.lerpColors(c1, c0, t); m.opacity = peak + (o0 - peak) * t; }, { motion: false });
-    },
-    // Change the size. To create: scale 0.001 → 1. To remove: 1 → 0.001, then visible=false.
-    scaleTo(obj, to, ms = 500) {
-      obj.visible = true;
-      const from = obj.scale.clone();
-      const target = typeof to === 'number' ? V(to, to, to) : V(...to);
-      return dir.tween(ms, t => obj.scale.lerpVectors(from, target, t));
-    },
-  };
-}
-
-defineKit('axo', {
-  rotatable: true,
-  fitSize: { w: 17, h: 11.5 },
-  camGoal: null,
-  baseState: null,
-  scenes: new Set(),
-  badges: new Map(), // badge label → { holder, anchor, local }
-  async load(host) {
-    const [three, orbit, css2d] = await Promise.all([
-      import('three'),
-      import('three/addons/controls/OrbitControls.js'),
-      import('three/addons/renderers/CSS2DRenderer.js'),
-    ]);
-    THREE = three; OrbitControls = orbit.OrbitControls;
-    CSS2DRenderer = css2d.CSS2DRenderer; CSS2DObject = css2d.CSS2DObject;
-    try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    } catch (e) {
-      throw Object.assign(new Error('WebGL is not available', { cause: e }), { uiKey: 'fallback' });
-    }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    host.layer.appendChild(renderer.domElement);
-    labelRenderer = new CSS2DRenderer();
-    labelRenderer.domElement.className = 'labels';
-    host.layer.appendChild(labelRenderer.domElement);
-    labelVec = V(0, 0, 0);
-    scene = new THREE.Scene();
-    camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 300);
-    // Camera direction (axonometric view). The screen-right vector is SCREEN_RIGHT — use it to place two things side by side.
-    HOME_DIR = V(1, 1.15, 1.22).normalize();
-    SCREEN_RIGHT = V(HOME_DIR.z, 0, -HOME_DIR.x).normalize();
-    controls = new OrbitControls(camera, labelRenderer.domElement);
-    controls.enablePan = false;
-    controls.enableZoom = false; // Enabling wheel zoom would block page scrolling over the stage.
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.minPolarAngle = 0.2;
-    controls.maxPolarAngle = 1.38;
-    // Touch: a vertical swipe lets the browser scroll the page (pan-y); only a horizontal drag rotates the model.
-    // OrbitControls sets touch-action:none by default, so a swipe on the stage would swallow page scrolling. Override it after construction.
-    labelRenderer.domElement.style.touchAction = 'pan-y';
-    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: undefined };
-    controls.addEventListener('start', () => { this.camGoal = null; });
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xc9d0ca, 2.1));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.7);
-    sun.position.set(-7, 20, 11);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 70 });
-    sun.shadow.bias = -0.0006;
-    scene.add(sun);
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.ShadowMaterial({ opacity: 0.1 }));
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
-    // The floor shared by all axo scenes (shown when the scene option is base:true). Fill it in SCENES.
-    base = new THREE.Group();
-    scene.add(base);
-    this.badgeRoot = new THREE.Group(); // step badges live here, not under their anchors (see badge())
-    scene.add(this.badgeRoot);
-    this.baseState = { group: base, k: 1, target: 1 };
-    this.clock = new THREE.Clock();
-  },
-  build(def) {
-    const built = { base: true, zoom: 1, target: [0.3, 1.1, 0], fitW: 17, fitH: 11.5, ...def, ...def.build(), k: 0, targetK: 0 };
-    scene.add(built.group);
-    setFade(built.group, 0);
-    this.scenes.add(built);
-    return built;
-  },
-  reset(built) { resetLook(base); resetLook(built.group); },
-  show(built) {
-    for (const other of this.scenes) other.targetK = other === built ? 1 : 0;
-    this.baseState.target = built.base ? 1 : 0;
-    setFade(base, this.baseState.k);
-    setFade(built.group, built.k);
-    this.fitSize = { w: built.fitW, h: built.fitH }; // applied by the shell's layout right after show()
-    this.camGoal = { zoom: built.zoom, target: V(...built.target) };
-    this.current = built;
-    if (REDUCE || INSTANT) this.settleCamera();
-  },
-  hide(built) {
-    clearTemporary(built.group);
-    built.targetK = 0;
-    this.baseState.target = 0; // show() turns the floor back on when the next scene is an axo scene with base:true
-  },
-  clear(built) { clearTemporary(built.group); },
-  animator: dir => axoAnimator(dir),
-  settleCamera() {
-    if (!this.camGoal) return;
-    camera.zoom = this.camGoal.zoom;
-    controls.target.copy(this.camGoal.target);
-    camera.updateProjectionMatrix();
-    this.camGoal = null;
-  },
-  home(built) {
-    controls.target.set(...built.target);
-    camera.position.copy(HOME_DIR).multiplyScalar(DIST).add(controls.target);
-    camera.lookAt(controls.target);
-  },
-  // Fit the orthographic camera so the scene's fitW × fitH (world units) fills rect, with the look-at point at the rect's center.
-  fit(rect, W, H) {
-    if (!renderer) return;
-    renderer.setSize(W, H);
-    labelRenderer.setSize(W, H);
-    const v = Math.max(this.fitSize.h, this.fitSize.w / (rect.w / rect.h));
-    const upp = v / rect.h, cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
-    camera.left = -cx * upp; camera.right = (W - cx) * upp;
-    camera.top = cy * upp; camera.bottom = -(H - cy) * upp;
-    camera.updateProjectionMatrix();
-  },
-  stepFade(st, target, dt) {
-    if (st.k === target) return;
-    const step = REDUCE || INSTANT ? 1 : dt / 0.45;
-    st.k = st.k < target ? Math.min(target, st.k + step) : Math.max(target, st.k - step);
-    setFade(st.group, st.k);
-  },
-  frame() {
-    const dt = Math.min(this.clock.getDelta(), 0.05);
-    for (const s of this.scenes) this.stepFade(s, s.targetK, dt);
-    this.stepFade(this.baseState, this.baseState.target, dt);
-    if (this.camGoal) {
-      if (INSTANT || REDUCE) this.settleCamera();
-      else {
-        const k = Math.min(1, dt * 5);
-        camera.zoom += (this.camGoal.zoom - camera.zoom) * k;
-        controls.target.lerp(this.camGoal.target, k);
-        camera.updateProjectionMatrix();
-        if (Math.abs(camera.zoom - this.camGoal.zoom) < 0.002 && controls.target.distanceTo(this.camGoal.target) < 0.01) this.camGoal = null;
-      }
-    }
-    controls.update();
-    this.followBadges();
-    syncTags();
-    renderer.render(scene, camera);
-    labelRenderer.render(scene, camera);
-    this.easing = declutter() || Boolean(this.camGoal); // labels or the camera are still moving toward their end state
-  },
-  settled() { return !this.easing; },
-  labels() { return [...allTags].filter(labelShown).map(o => o.element); },
-  // A step badge (CSS2D label) at the top corner of the object that faces screen-right. It follows the object and hides with it.
-  // If the object is disposed during the run, the badge stays at its last position until the scene resets.
-  badge(anchor, n) {
-    anchor.updateWorldMatrix(true, true);
-    const box = new THREE.Box3().setFromObject(anchor);
-    const world = box.isEmpty() ? anchor.getWorldPosition(V(0, 0, 0)) : V(box.max.x, box.max.y + 0.3, box.min.z);
-    const local = anchor.worldToLocal(world.clone());
-    const holder = new THREE.Group();
-    holder.position.copy(world);
-    const b = tag(String(n), [0, 0, 0], 'badge');
-    holder.add(b);
-    this.badgeRoot.add(holder);
-    this.badges.set(b, { holder, anchor, local });
-    return () => { this.badges.delete(b); disposeObject(holder); };
-  },
-  followBadges() {
-    for (const { holder, anchor, local } of this.badges.values()) {
-      let node = anchor, shown = true;
-      for (; node.parent; node = node.parent) if (!node.visible || node.scale.x < 0.3 || node.scale.y < 0.3) shown = false;
-      if (node !== scene) continue; // the anchor left the scene: keep the last position
-      holder.position.copy(anchor.localToWorld(local.clone()));
-      holder.visible = shown;
-    }
-  },
-  resetView() {
-    const s = this.current;
-    if (!s) return;
-    this.home(s);
-    camera.zoom = s.zoom;
-    camera.updateProjectionMatrix();
-  },
-  // Badges are excluded from the counts: they are removed on every reset, and leak checks compare scene labels.
-  info() {
-    return {
-      resources: { labels: allTags.size - this.badges.size, labelStates: [...labelState.keys()].filter(o => !this.badges.has(o)).length, geometries: renderer.info.memory.geometries },
-      azimuth: controls.getAzimuthalAngle(),
-    };
-  },
-});
-
+/* KIT svg js — the svg kit. A page without svg chapters deletes this section, up to END KIT svg js (and KIT svg css). */
 /* ---- Kit "svg": 2D step diagrams in native SVG. No library. ----
    A scene's build(d) makes parts with the builder `d` (table, buckets, box, gate, tree, columns, link, token) and arranges them
    with d.grid / d.panels / d.stack. The kit computes the layout for the stage: natural size on desktop scaled by k (1 to 1.6),
@@ -2355,11 +1913,28 @@ defineKit('svg', {
   },
   info() { return this.current ? { ...this.current.sc.info } : null; },
 });
+/* END KIT svg js */
 
-// Load the kits this page declares (data-kits on the stage, default axo) before SCENES runs. Kits defined in SCENES load when the page starts.
+// data-kits on the stage is the page's list of kits (default axo). The listed kits that are on the page load before SCENES runs;
+// after SCENES, checkKits() stops the page when the list and the scenes disagree.
 const DECLARED_KITS = (stageEl.dataset.kits ?? 'axo').split(/[\s,]+/).filter(Boolean);
+// The intro note follows data-kits, decided once before anything loads: all rotatable → the drag hint (noteWide/noteNarrow);
+// none → a step-by-step note (noteSteps); both kinds → the drag hint for 3D chapters only (noteMixedWide/noteMixedNarrow).
+// A kit defined in SCENES is not known yet and counts as not rotatable. A note without data-ui is the author's own and stays.
+// Page strings win: UI_OVERRIDES for the chosen key, then the page's noteWide/noteNarrow for that slot, then the built-in text.
+function applyIntroNote(kitNames) {
+  const rot = kitNames.filter(n => kits[n]?.rotatable).length;
+  const [wide, narrow] = rot === kitNames.length ? ['noteWide', 'noteNarrow'] : rot ? ['noteMixedWide', 'noteMixedNarrow'] : ['noteSteps', 'noteSteps'];
+  const own = UI_PICK.key ? UI_OVER[UI_PICK.key] : {};
+  for (const [sel, key, slot] of [['.intro .note .wide[data-ui]', wide, 'noteWide'], ['.intro .note .narrow[data-ui]', narrow, 'noteNarrow']]) {
+    document.querySelectorAll(sel).forEach(n => { n.dataset.ui = key; n.textContent = own[key] ?? own[slot] ?? uiStr(key); });
+  }
+}
+applyIntroNote(DECLARED_KITS);
+let startPhase = 'kits'; // 'scenes' while SCENES runs: an undefined name there gets a [plz] message (see the catch at the end)
 try {
 for (const name of DECLARED_KITS) if (kits[name]) await loadKit(name);
+startPhase = 'scenes';
 
 /* =====================================================================
    SCENES — the part you change for your topic. The three scenes below are pattern examples (s1, s2: axo kit; s3: svg kit).
@@ -2903,9 +2478,30 @@ window.__explainer = {
   },
 };
 
-// Start: load the kits the scenes use, build every scene, show the first one, render once, then enable the controls.
-const usedKits = [...new Set(Object.values(scenes).map(s => s.kit))];
-for (const name of usedKits) await loadKit(name);
+// data-kits and the scenes must agree: every kit a scene or setupKit uses is on the page and listed, and every listed kit
+// is on the page and used by a scene. A mismatch is an authoring mistake: the page stops and the stage says what to fix.
+function checkKits() {
+  const users = new Map();
+  const use = (kit, what) => users.set(kit, [...(users.get(kit) ?? []), what]);
+  for (const s of Object.values(scenes)) use(s.kit, `scene ${s.name}`);
+  for (const k of kitSetups) use(k.name, `setupKit('${k.name}')`);
+  for (const [kit, what] of users) {
+    const list = what.join(', ');
+    if (!kits[kit]) throw new Error(`[plz] kit "${kit}" is not on this page, but SCENES uses it (${list}): copy its KIT ${kit} sections (css and js) from the template and list "${kit}" in data-kits, or delete ${list} from SCENES.`);
+    if (!DECLARED_KITS.includes(kit)) throw new Error(`[plz] SCENES uses kit "${kit}" (${list}), but data-kits on the stage does not list it: add "${kit}" to data-kits.`);
+  }
+  for (const kit of DECLARED_KITS) {
+    if (!kits[kit]) throw new Error(`[plz] data-kits lists kit "${kit}", which is not on this page: copy its KIT ${kit} sections (css and js) from the template, or remove "${kit}" from data-kits.`);
+    if (!Object.values(scenes).some(s => s.kit === kit)) throw new Error(`[plz] data-kits lists kit "${kit}", but no scene uses it: remove "${kit}" from data-kits and delete its KIT ${kit} sections.`);
+  }
+}
+
+// Start: check the kits, load the ones defined in SCENES, run the kit setups, build every scene, show the first one,
+// render once, then enable the controls.
+startPhase = 'build';
+checkKits();
+for (const name of DECLARED_KITS) await loadKit(name);
+for (const k of kitSetups) k.fn();
 for (const s of Object.values(scenes)) {
   const built = kits[s.kit].build(s);
   if (typeof built?.reset !== 'function' || typeof built?.run !== 'function') throw new Error(`[plz] scene ${s.name}: build must return reset() and run()`);
@@ -2924,7 +2520,14 @@ document.fonts?.ready.then(() => layoutStage()); // text widths (pills, chips) a
 } catch (error) {
   delete window.__explainer;
   setStageState('failed', error?.uiKey ?? 'loadError');
-  console.error('[plz] stage initialization failed:', error);
+  // An undefined name at the top level of SCENES is most often a kit global on a page without that kit.
+  const missing = startPhase === 'scenes' && error instanceof ReferenceError && /^(\S+) is not defined/.exec(error.message)?.[1];
+  const detail = missing
+    ? `[plz] SCENES uses "${missing}" at its top level, but this page does not define it. Code that uses a kit outside a scene goes inside setupKit('<kit>', () => { … }); if that kit's KIT sections were deleted, delete that code too. Kits on this page: ${Object.keys(kits).join(', ') || 'none'}.`
+    : error?.message ?? '';
+  // An authoring mistake (a [plz] error) is shown on the stage too, so the page author sees what to fix.
+  if (/^\[plz\]/.test(detail)) el('p', { className: 'fallback-detail', textContent: detail }, stageEl.querySelector('.fallback'));
+  console.error(missing ? detail : '[plz] stage initialization failed:', error);
 }
 </script>
 </body>

@@ -59,8 +59,8 @@ Run the check that matches what you changed. If a change fits more than one row,
 | Any `README.md` or translation | Run `node scripts/check-readme-translations.mjs` from the repository root. It needs Node.js. CI runs it on Node 22. |
 | `SKILL.md` or `references/` | There is no automated check. A maintainer reviews the change in the pull request, so explain what you changed and why. |
 | `TEXT` or `SCENES` in `assets/template.html` | Follow the validation procedure in the validation section of `SKILL.md`: serve the page from a local server, open it with a browser automation tool, check that `__explainer.overlaps()` and `__explainer.clipped()` return empty arrays for every chapter, check auto-play, and check the layout on a phone-sized screen. |
-| `ENGINE` in `assets/template.html` | Apply the same change to every `assets/example-*.html` of that skill (plz-3d-explain: the Korean and the English example; plz-explain: both example pairs, sandbox and hash join). The two `ENGINE` sections of the template (the block that starts at the `ENGINE` banner comment and ends before the `SCENES` banner, and the block from the `ENGINE (continued)` banner to the end of the file) are copied into each example verbatim. Run `node scripts/check-templates.mjs` from the repository root to confirm they still match; CI runs it too. Then run the validation procedure above on the template and every example. |
-| Anything in `scripts/` | Run `node --test scripts/*.test.mjs` from the repository root, and add or update tests for the behavior you changed. CI runs the same command. |
+| `ENGINE` in `assets/template.html` | Apply the same change to every `assets/example-*.html` of that skill (plz-3d-explain: the Korean and the English example; plz-explain: both example pairs, sandbox and hash join). The two `ENGINE` sections of the template (the block that starts at the `ENGINE` banner comment and ends before the `SCENES` banner, and the block from the `ENGINE (continued)` banner to the end of the file) are copied into each example verbatim. In plz-explain, each kit's code sits between `KIT <kit> css|js` and `END KIT <kit> css|js` banner comments: its CSS in the `<style>` block and its JavaScript inside the first `ENGINE` section. An example keeps only the kit sections of the kits listed in `data-kits` on its stage, each verbatim and in the same place as in the template; the rest of the `ENGINE` sections (the shell) is verbatim in every example, and the template keeps every kit. Run `node scripts/check-templates.mjs` from the repository root to confirm they still match; CI runs it too. Then run the validation procedure above on the template and every example. |
+| Anything in `scripts/` | Run `npm test` from the repository root, and add or update tests for the behavior you changed. CI runs the same command. |
 | A new key in `UI_TEXT` | Add the key to all four languages: `en`, `ko`, `ja`, and `zh-CN`. Run `node scripts/check-templates.mjs` from the repository root; it reports keys that are missing from or extra in a language compared with `en`, and CI runs it too. |
 
 The script tests include Chromium checks for loading, successful initialization, CDN failure, retry, and WebGL initialization failure in the 3D template and both examples. Install their development dependencies and browser first:
@@ -68,8 +68,10 @@ The script tests include Chromium checks for loading, successful initialization,
 ```sh
 npm ci --ignore-scripts
 npx playwright install chromium
-node --test scripts/*.test.mjs
+npm test
 ```
+
+`npm test` runs `node --test --test-concurrency=1 scripts/*.test.mjs`: one test file at a time, because the browser suites each run a software-rendered Chromium and slow each other down when they run together.
 
 On Linux, use `npx playwright install --with-deps chromium` to install the browser's system dependencies too. The browser tests serve three.js from the pinned npm development dependency at the page's CDN URLs, so the tests do not depend on the live CDN. These dependencies are only for verification; generated pages still use a single HTML file with no build step.
 

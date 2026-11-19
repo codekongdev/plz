@@ -99,7 +99,7 @@ const templateSource = () => readFile(join(assets, 'template.html'), 'utf8');
 const variantNoAxo = async () => variantWithScenes(await templateSource(), DOM_KIT_SCENES, 'dom');
 
 before(async () => {
-  const variants = { 'variant-no-axo.html': await variantNoAxo(), 'variant-axo-probe.html': variantWithScenes(await templateSource(), AXO_PROBE_SCENES) };
+  const variants = { 'variant-no-axo.html': await variantNoAxo(), 'variant-axo-probe.html': variantWithScenes(await templateSource(), AXO_PROBE_SCENES, 'axo') };
   server = await startPageServer(path => variants[path] ?? (examples.includes(path) ? readFile(join(assets, path)) : null));
   origin = server.origin;
   browser = await launchBrowser();
@@ -240,7 +240,7 @@ test('split: dragging the divider mid-run keeps the run and its final caption', 
 });
 
 test('caption rail: every step caption accumulates on the stage, newest emphasized, with an anchored badge', async t => {
-  const { page, errors } = await openPage(t, 'template.html');
+  const { page, errors, close } = await openPage(t, 'template.html');
   const text = await page.evaluate(() => window.__explainer.run('s2'));
   const caps = await railCaps(page);
   assert.equal(caps.length, 4, JSON.stringify(caps));
@@ -256,14 +256,16 @@ test('caption rail: every step caption accumulates on the stage, newest emphasiz
   assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
   // the old left-column result line is gone
   assert.equal(await page.locator('.act .result').count(), 0);
+  assert.deepEqual(errors, []);
+  await close();
   // repeated step numbers update the step in place (announcement, then outcome)
-  const { page: ko } = await openPage(t, 'example-agent-sandbox.html');
+  const { page: ko, errors: koErrors } = await openPage(t, 'example-agent-sandbox.html');
   await ko.evaluate(() => window.__explainer.instant(true));
   await ko.evaluate(() => window.__explainer.run('container'));
   const kcaps = await railCaps(ko);
   assert.deepEqual(kcaps.map(c => c.n), ['1', '2', '3']);
   assert.match(kcaps[0].text, /막혔습니다/);
-  assert.deepEqual(errors, []);
+  assert.deepEqual(koErrors, []);
 });
 
 // Model labels that are drawn on top of the open caption sheet (the sheet must cover the model).
@@ -411,6 +413,7 @@ test('the drag-to-rotate hint shows only for a rotatable kit, and a page with no
   const axo = await openPage(t, 'template.html');
   assert.equal(await axo.page.locator('.hint').isVisible(), true);
   assert.ok(axo.threeRequests.length > 0);
+  await axo.close();
   const { page, errors, threeRequests } = await openPage(t, 'variant-no-axo.html');
   assert.equal(await page.evaluate(() => window.__explainer.run('s2')), 'Finished.');
   assert.deepEqual(threeRequests, [], 'three.js was requested by a page without an axo scene');
@@ -418,6 +421,33 @@ test('the drag-to-rotate hint shows only for a rotatable kit, and a page with no
   assert.equal(await page.locator('.reset-view').isVisible(), false);
   assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
   assert.deepEqual(errors, []);
+});
+
+// Model label sizes: phones (media query) and any stage 600px or narrower (container query) get the small labels.
+const tagSizes = page => page.evaluate(() => {
+  const host = document.querySelector('.labels');
+  const probe = cls => {
+    const e = Object.assign(document.createElement('div'), { className: cls, textContent: '1' });
+    host.append(e);
+    const s = getComputedStyle(e), out = [s.fontSize, s.padding, ...(cls.includes('badge') ? [s.width, s.height] : [])].join(' ');
+    e.remove();
+    return out;
+  };
+  return { tag: probe('tag'), big: probe('tag big'), badge: probe('tag badge'), stage: document.querySelector('.stage').getBoundingClientRect().width };
+});
+const LARGE = { tag: '12.5px 3px 7px', big: '14px 4px 9px', badge: '12px 0px 22px 22px' };
+const SMALL = { tag: '11px 2px 5px', big: '12px 3px 6px', badge: '11px 0px 19px 19px' };
+test('model labels are small on phones and on a stage 600px or narrower, full size otherwise', async t => {
+  for (const [label, viewport, key, want] of [['desktop', DESKTOP, null, LARGE], ['desktop, narrow stage', DESKTOP, 'End', SMALL], ['phone', { width: 390, height: 844 }, null, SMALL], ['landscape phone', { width: 844, height: 390 }, null, SMALL]]) {
+    const { page, errors, close } = await openPage(t, 'template.html', { viewport });
+    if (key) { await page.focus('.split-v'); await page.keyboard.press(key); await nextFrames(page); }
+    const { stage, ...sizes } = await tagSizes(page);
+    if (label === 'desktop') assert.ok(stage > 600, `desktop stage ${stage}px`);
+    if (key) assert.ok(stage <= 600, `narrow stage ${stage}px`);
+    assert.deepEqual(sizes, want, `${label} (stage ${stage}px)`);
+    assert.deepEqual(errors, []);
+    await close();
+  }
 });
 
 test('captions: only "N. " starts a numbered step; 2.5 and 10.0.0.5 are ordinary text', async t => {

@@ -29,19 +29,143 @@ export function extractEngineSections(source) {
 
 const show = line => (line === undefined ? '<end of section>' : JSON.stringify(line.length > 120 ? `${line.slice(0, 120)}...` : line));
 
-export function compareEngineSections(templateSource, exampleSource, name) {
-  const template = extractEngineSections(templateSource);
-  const example = extractEngineSections(exampleSource);
-  const errors = [...template.errors.map(e => `template: ${e}`), ...example.errors.map(e => `${name}: ${e}`)];
-  if (errors.length) return errors;
-  return template.sections.flatMap((a, n) => {
-    const b = example.sections[n];
-    const at = Array.from({ length: Math.max(a.lines.length, b.lines.length) }, (_, i) => i)
-      .find(i => a.lines[i] !== b.lines[i]);
-    if (at === undefined) return [];
-    return [`ENGINE section ${n + 1} differs from ${name}: template line ${a.start + at} (${name} line ${b.start + at}): `
-      + `template ${show(a.lines[at])} | ${name} ${show(b.lines[at])}`];
+// Kit sections: `/* KIT <kit> <part> — … */` up to `/* END KIT <kit> <part> */`, part css or js (the text after the part may
+// change language). A page carries the shell plus the sections of the kits it lists in data-kits; without the attribute, axo.
+// The kit rules apply only when the template has kit sections (plz-3d-explain's template has none).
+const KIT_START = /^\/\*\s*KIT\s+([\w-]+)\s+([\w-]+)/;
+const KIT_END = /^\/\*\s*END KIT\s+([\w-]+)\s+([\w-]+)/;
+
+export function extractKitSections(source) {
+  const lines = source.replace(/\r\n?/g, '\n').split('\n');
+  const sections = new Map(), errors = [], inside = new Set();
+  let open = null;
+  lines.forEach((line, i) => {
+    const t = line.trim();
+    let m = KIT_END.exec(t);
+    if (m) {
+      const key = `${m[1]} ${m[2]}`;
+      if (!open || open.key !== key) { errors.push(`END KIT ${key} without a start (line ${i + 1})`); return; }
+      open.lines.push(line); inside.add(i);
+      if (sections.has(key)) errors.push(`KIT ${key} is duplicated (lines ${sections.get(key).start} and ${open.start})`);
+      else sections.set(key, { kit: open.kit, part: open.part, start: open.start, end: i + 1, lines: open.lines });
+      open = null;
+      return;
+    }
+    m = KIT_START.exec(t);
+    if (m) {
+      if (open) errors.push(`KIT ${open.key} is not closed before line ${i + 1}`);
+      if (!['css', 'js'].includes(m[2])) errors.push(`KIT ${m[1]} ${m[2]}: the part must be css or js (line ${i + 1})`);
+      open = { key: `${m[1]} ${m[2]}`, kit: m[1], part: m[2], start: i + 1, lines: [line] };
+      inside.add(i);
+      return;
+    }
+    if (open) { open.lines.push(line); inside.add(i); }
   });
+  if (open) errors.push(`KIT ${open.key} is not closed`);
+  // Where each section sits: the nearest shell (non-kit) line before and after it.
+  const shellLine = (from, step) => { for (let i = from; i >= 0 && i < lines.length; i += step) if (!inside.has(i)) return lines[i]; return null; };
+  for (const sec of sections.values()) sec.anchor = { before: shellLine(sec.start - 2, -1), after: shellLine(sec.end, 1) };
+  return { sections, errors, inside };
+}
+
+// data-kits, read from the <aside class="stage"> start tag only. Double, single or no quotes; no attribute means axo.
+const KIT_NAME = /^[a-z][\w-]*$/i;
+export function readStageKits(source) {
+  const stages = [...source.matchAll(/<aside\b[^>]*>/gi)].map(m => m[0])
+    .filter(tag => /\sclass\s*=\s*(?:"[^"]*\bstage\b[^"]*"|'[^']*\bstage\b[^']*'|stage(?=[\s>]))/i.test(tag));
+  if (stages.length !== 1) return { kits: null, error: stages.length ? `${stages.length} <aside class="stage"> start tags; expected one` : 'no <aside class="stage"> start tag' };
+  const tag = stages[0];
+  if (!/\sdata-kits\b/i.test(tag)) return { kits: ['axo'], error: null };
+  const m = /\sdata-kits\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))(?=[\s/>])/i.exec(tag);
+  const kits = m ? (m[1] ?? m[2] ?? m[3]).split(/[\s,]+/).filter(Boolean) : [];
+  if (!kits.length || !kits.every(k => KIT_NAME.test(k))) return { kits: null, error: `data-kits on the stage is malformed: ${tag}` };
+  return { kits, error: null };
+}
+
+// data-kits and the kit sections a page carries must agree. A listed kit the template defines needs every part the template
+// has; a listed kit the template does not define is the page's own (defined in SCENES) and has no sections.
+function checkKitListing(stage, pageKits, templateKits, prefix) {
+  const templateKitNames = new Set([...templateKits.sections.values()].map(sec => sec.kit));
+  const listed = new Set(stage.kits);
+  const present = new Set([...pageKits.sections.values()].map(sec => sec.kit));
+  const issues = [];
+  for (const kit of listed) {
+    if (!templateKitNames.has(kit)) continue;
+    if (!present.has(kit)) { issues.push(`${prefix}data-kits lists "${kit}" but the page has no KIT ${kit} sections`); continue; }
+    for (const sec of templateKits.sections.values()) {
+      if (sec.kit === kit && !pageKits.sections.has(`${kit} ${sec.part}`)) issues.push(`${prefix}missing KIT ${kit} ${sec.part} section`);
+    }
+  }
+  for (const kit of present) if (!listed.has(kit)) issues.push(`${prefix}KIT ${kit} sections are present but "${kit}" is not in data-kits`);
+  return issues;
+}
+
+// The template, parsed once. errors are the template's own problems, without a file prefix.
+export function parseTemplate(source) {
+  const engine = extractEngineSections(source), kits = extractKitSections(source);
+  const useKits = kits.sections.size > 0 || kits.errors.length > 0;
+  const stage = useKits ? readStageKits(source) : null;
+  const errors = [...kits.errors, ...(stage?.error ? [stage.error] : [])]; // ENGINE banner errors are in engine.errors
+  if (useKits && !kits.errors.length && !stage.error) errors.push(...checkKitListing(stage, kits, kits, ''));
+  return { engine, kits, stage, useKits, ok: !engine.errors.length && !kits.errors.length, errors };
+}
+
+// Lines of a section with their line numbers, without the lines that belong to kit sections.
+const numbered = (section, inside) => section.lines.map((text, i) => ({ text, n: section.start + i })).filter(l => !inside.has(l.n - 1));
+
+function compareShell(t, example, eKits, name) {
+  return t.engine.sections.flatMap((section, n) => {
+    const a = numbered(section, t.useKits ? t.kits.inside : new Set()), b = numbered(example.sections[n], t.useKits ? eKits.inside : new Set());
+    const at = Array.from({ length: Math.max(a.length, b.length) }, (_, i) => i).find(i => a[i]?.text !== b[i]?.text);
+    if (at === undefined) return [];
+    const lineA = a[at]?.n ?? (a.at(-1)?.n ?? section.start) + 1, lineB = b[at]?.n ?? (b.at(-1)?.n ?? example.sections[n].start) + 1;
+    return [`ENGINE section ${n + 1} differs from ${name}: template line ${lineA} (${name} line ${lineB}): `
+      + `template ${show(a[at]?.text)} | ${name} ${show(b[at]?.text)}`];
+  });
+}
+
+// Each kit section of the example: a kit the template has, the same lines, at the same place (same shell lines around it).
+// The place is checked only when the shell matches (a shell difference changes the lines around a section too).
+function compareKitSections(t, eKits, name, checkPlace) {
+  const templateKitNames = new Set([...t.kits.sections.values()].map(sec => sec.kit));
+  const issues = [];
+  for (const [key, sec] of eKits.sections) {
+    if (!templateKitNames.has(sec.kit)) { issues.push(`${name}: unknown kit "${sec.kit}" (KIT ${key}, line ${sec.start}); the template has ${[...templateKitNames].join(', ')}`); continue; }
+    const ts = t.kits.sections.get(key);
+    if (!ts) { issues.push(`${name}: KIT ${key} is not in the template`); continue; }
+    const at = Array.from({ length: Math.max(ts.lines.length, sec.lines.length) }, (_, i) => i).find(i => ts.lines[i] !== sec.lines[i]);
+    if (at !== undefined) {
+      issues.push(`KIT ${key} differs from ${name}: template line ${ts.start + at} (${name} line ${sec.start + at}): template ${show(ts.lines[at])} | ${name} ${show(sec.lines[at])}`);
+    }
+    for (const side of checkPlace ? ['before', 'after'] : []) {
+      if (ts.anchor[side] === sec.anchor[side]) continue;
+      issues.push(`${name}: KIT ${key} is not where the template has it (line ${sec.start}): the shell line ${side} it is ${show(sec.anchor[side] ?? undefined)}, in the template ${show(ts.anchor[side] ?? undefined)}`);
+      break;
+    }
+  }
+  return issues;
+}
+
+// Compares an example with the template: the shell verbatim, each kit section verbatim and in place, and data-kits.
+// `template` is a source (its own errors are then reported with a "template:" prefix) or parseTemplate()'s result
+// (its errors are the caller's to report, once). What can still be checked is checked when one side has errors.
+export function compareEngineSections(template, exampleSource, name) {
+  const standalone = typeof template === 'string';
+  const t = standalone ? parseTemplate(template) : template;
+  const example = extractEngineSections(exampleSource), eKits = extractKitSections(exampleSource);
+  const issues = [...(standalone ? [...t.engine.errors, ...t.errors].map(e => `template: ${e}`) : []), ...example.errors.map(e => `${name}: ${e}`)];
+  if (t.useKits) issues.push(...eKits.errors.map(e => `${name}: ${e}`));
+  const kitsOk = !t.useKits || (t.ok && !eKits.errors.length);
+  const shell = t.ok && !example.errors.length && kitsOk ? compareShell(t, example, eKits, name) : null;
+  if (shell) issues.push(...shell);
+  if (!t.useKits) return issues;
+  const stage = readStageKits(exampleSource);
+  if (stage.error) issues.push(`${name}: ${stage.error}`);
+  if (kitsOk) {
+    issues.push(...compareKitSections(t, eKits, name, shell?.length === 0));
+    if (!stage.error) issues.push(...checkKitListing(stage, eKits, t.kits, `${name}: `));
+  }
+  return issues;
 }
 
 // Skips a string or template literal, or a ${...} block when `end` is "}". Returns the index after it.
@@ -112,8 +236,10 @@ async function inspectSkill(root, skill) {
   if (!entries.some(entry => entry.name === 'template.html')) return null;
   const template = await readFile(join(assets, 'template.html'), 'utf8');
   const names = entries.map(entry => entry.name).filter(name => /^example-.*\.html$/.test(name)).sort();
-  const issues = [];
-  for (const name of names) issues.push(...compareEngineSections(template, await readFile(join(assets, name), 'utf8'), name));
+  const parsed = parseTemplate(template);
+  // The template's own problems, once. Its ENGINE banners matter only when there are examples to compare.
+  const issues = [...(names.length ? parsed.engine.errors : []), ...parsed.errors];
+  for (const name of names) issues.push(...compareEngineSections(parsed, await readFile(join(assets, name), 'utf8'), name));
   issues.push(...compareUiText(parseUiText(template)));
   const label = relative(root, join(assets, 'template.html')).split(sep).join('/');
   return { examples: names.length, issues: [...new Set(issues)].map(issue => `${label}: ${issue}`) };

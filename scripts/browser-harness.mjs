@@ -78,10 +78,20 @@ export function variantWithScenes(templateSource, code, kits = TEMPLATE_KITS) {
 
 // Open a plz-explain page in a fresh context. Phones get a mobile, touch, 3× context. Console errors and page errors are collected.
 // waitReady: false returns while the stage may still be loading; cdn(url) may hold or abort three.js; storage is set before load.
+// One page per test at a time, so loops over viewports do not keep several software-GL pages alive: call the returned
+// close() before opening the next page (opening one while another is open fails). Whatever is still open when the test
+// ends is closed then. Results read from a closed page (errors, requests) stay readable.
+const openContexts = new WeakMap(); // test → its open context, or null once closed
 export async function openExplainPage(browser, origin, t, file, { viewport = { width: 1440, height: 900 }, reducedMotion = 'no-preference', storage = {}, waitReady = true, cdn } = {}) {
+  assert.ok(!openContexts.get(t), `${file}: this test still has a page open; call close() on it first`);
+  if (!openContexts.has(t)) t.after(() => openContexts.get(t)?.close());
   const phone = viewport.width <= 860 || viewport.height <= 520;
   const context = await browser.newContext({ viewport, reducedMotion, ...(phone ? { deviceScaleFactor: 3, isMobile: true, hasTouch: true } : {}) });
-  t.after(() => context.close());
+  openContexts.set(t, context);
+  const close = async () => {
+    if (openContexts.get(t) === context) openContexts.set(t, null);
+    await context.close();
+  };
   if (Object.keys(storage).length) await context.addInitScript(s => { for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v); }, storage);
   const threeRequests = [];
   await routeNetwork(context, origin, { cdn, onThree: url => threeRequests.push(url) });
@@ -92,9 +102,16 @@ export async function openExplainPage(browser, origin, t, file, { viewport = { w
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`${origin}/${file}`, { waitUntil: waitReady ? 'load' : 'commit' });
   if (waitReady) await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'ready');
-  return { page, errors, threeRequests };
+  return { page, errors, threeRequests, close };
 }
 
 export const railTexts = page => page.$$eval('.rail-list .cap', caps => caps.map(c => c.textContent));
 // Resolves after the page has drawn `n` more frames.
 export const nextFrames = (page, n = 2) => page.evaluate(n => new Promise(r => { const step = k => (k ? requestAnimationFrame(() => step(k - 1)) : r()); step(n); }), n);
+
+// A page without one kit: removes that kit's KIT sections (css and js), as a page author does for a kit the page does not use.
+export function withoutKit(source, kit) {
+  const out = source.replace(new RegExp(`^[ \\t]*/\\*\\s*KIT ${kit} (css|js)\\b[\\s\\S]*?^[ \\t]*/\\*\\s*END KIT ${kit} \\1 \\*/\\n`, 'gm'), '');
+  assert.ok(!new RegExp(`KIT ${kit} `).test(out), `the ${kit} sections were removed`);
+  return out;
+}

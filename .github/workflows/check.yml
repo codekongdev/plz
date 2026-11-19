@@ -29,6 +29,7 @@ jobs:
       - name: Check skill templates
         if: ${{ !cancelled() }}
         run: node scripts/check-templates.mjs
+      # One test file at a time: the browser suites each run software-GL Chromium and starve each other when run together.
       - name: Run script tests
         if: ${{ !cancelled() }}
-        run: node --test scripts/*.test.mjs
+        run: npm test

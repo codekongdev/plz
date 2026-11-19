@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
-  compareEngineSections, compareUiText, extractEngineSections, inspectTemplates, parseUiText,
+  compareEngineSections, compareUiText, extractEngineSections, extractKitSections, inspectTemplates, parseUiText,
 } from './check-templates.mjs';
 
 const script = join(dirname(fileURLToPath(import.meta.url)), 'check-templates.mjs');
@@ -248,5 +248,128 @@ test('running through a symbolic link still fails on a bad fixture', async () =>
     const run = await viaSymlink(['--root', root]);
     assert.equal(run.status, 1);
     assert.match(run.stderr, /template line 5/);
+  });
+});
+
+// ---- Kit sections: a page carries the shell plus the KIT sections of the kits it lists in data-kits.
+function kitPage({ kits = ['axo', 'svg'], listed = kits.join(' '), body = {}, shell = 'shell engine', banners = null } = {}) {
+  const section = (k, part) => [`/* KIT ${k} ${part} — ${part === 'css' ? 'styles' : 'code'} */`, body[`${k} ${part}`] ?? `${part} of ${k}`, `/* END KIT ${k} ${part} */`];
+  const css = kits.flatMap(k => section(k, 'css')), js = kits.flatMap(k => section(k, 'js'));
+  const stage = listed === null ? '<aside class="stage">' : `<aside class="stage" data-kits="${listed}">`;
+  return ['<style>', '.shell {}', ...css, '</style>', stage, '/* ====', '   ENGINE - core', '   ==== */', shell, ...(banners ?? js), 'more shell',
+    '/* ====', '   SCENES - yours', '   ==== */', 'scene body', '/* ====', '   ENGINE (continued) - loop', '   ==== */', 'loop', ''].join('\n');
+}
+const fullTemplate = kitPage();
+
+test('kit sections: banners are read with their kit and part', () => {
+  const { sections, errors } = extractKitSections(fullTemplate);
+  assert.deepEqual(errors, []);
+  assert.deepEqual([...sections.keys()], ['axo css', 'svg css', 'axo js', 'svg js']);
+  assert.deepEqual(sections.get('svg js').lines, ['/* KIT svg js — code */', 'js of svg', '/* END KIT svg js */']);
+});
+
+test('kit sections: an example that carries only the kits it lists passes', () => {
+  assert.deepEqual(compareEngineSections(fullTemplate, kitPage({ kits: ['svg'] }), 'example-svg.html'), []);
+  assert.deepEqual(compareEngineSections(fullTemplate, kitPage({ kits: ['axo'] }), 'example-axo.html'), []);
+  assert.deepEqual(compareEngineSections(fullTemplate, fullTemplate, 'example-both.html'), []);
+});
+
+test('kit sections: a kit section that differs from the template is reported with its kit, part and line', () => {
+  const issues = compareEngineSections(fullTemplate, kitPage({ kits: ['svg'], body: { 'svg js': 'js of svg, edited' } }), 'example-svg.html');
+  assert.equal(issues.length, 1);
+  assert.match(issues[0], /KIT svg js differs from example-svg\.html/);
+  assert.match(issues[0], /js of svg, edited/);
+});
+
+test('kit sections: the shell is still compared verbatim, around the kit sections, with the original line numbers', () => {
+  const issues = compareEngineSections(fullTemplate, kitPage({ kits: ['svg'], shell: 'shell engine B' }), 'example-svg.html');
+  assert.equal(issues.length, 1);
+  assert.match(issues[0], /ENGINE section 1 differs/);
+  assert.match(issues[0], /shell engine B/);
+  const line = fullTemplate.split('\n').indexOf('shell engine') + 1;
+  assert.match(issues[0], new RegExp(`template line ${line}\\b`));
+});
+
+test('kit sections: data-kits and the kit sections present must agree', () => {
+  const listedMissing = compareEngineSections(fullTemplate, kitPage({ kits: ['axo'], listed: 'axo svg' }), 'example-a.html').join('\n');
+  assert.match(listedMissing, /data-kits lists "svg" but the page has no KIT svg sections/);
+  const presentUnlisted = compareEngineSections(fullTemplate, kitPage({ kits: ['axo', 'svg'], listed: 'axo' }), 'example-b.html').join('\n');
+  assert.match(presentUnlisted, /KIT svg sections are present but "svg" is not in data-kits/);
+  // No data-kits attribute means axo.
+  assert.deepEqual(compareEngineSections(fullTemplate, kitPage({ kits: ['axo'], listed: null }), 'example-c.html'), []);
+});
+
+test('kit sections: a listed kit needs every part the template has', () => {
+  const page = kitPage({ kits: ['svg'], banners: ['/* KIT svg js — code */', 'js of svg', '/* END KIT svg js */'] }).replace(/\/\* KIT svg css[\s\S]*?END KIT svg css \*\/\n/, '');
+  assert.match(compareEngineSections(fullTemplate, page, 'example-svg.html').join('\n'), /missing KIT svg css/);
+});
+
+test('kit sections: unknown, duplicated, unclosed and stray banners are errors', () => {
+  const unknown = kitPage({ kits: ['svg', 'foo'], listed: 'svg foo' });
+  assert.match(compareEngineSections(fullTemplate, unknown, 'example-u.html').join('\n'), /unknown kit "foo"/);
+  const dup = kitPage({ kits: ['svg'], banners: ['/* KIT svg js — code */', 'js of svg', '/* END KIT svg js */', '/* KIT svg js — again */', 'x', '/* END KIT svg js */'] });
+  assert.match(extractKitSections(dup).errors.join('\n'), /KIT svg js is duplicated/);
+  const unclosed = kitPage({ kits: ['svg'], banners: ['/* KIT svg js — code */', 'js of svg'] });
+  assert.match(extractKitSections(unclosed).errors.join('\n'), /KIT svg js is not closed/);
+  const stray = kitPage({ kits: ['svg'], banners: ['js of svg', '/* END KIT svg js */'] });
+  assert.match(extractKitSections(stray).errors.join('\n'), /END KIT svg js without a start/);
+  const badPart = kitPage({ kits: ['svg'], banners: ['/* KIT svg html — x */', 'x', '/* END KIT svg html */'] });
+  assert.match(extractKitSections(badPart).errors.join('\n'), /part must be css or js/);
+});
+
+test('end to end: a template with kits and examples that carry different kits passes; the template itself must be consistent', async () => {
+  const files = {
+    'skills/k/assets/template.html': fullTemplate + dictionary,
+    'skills/k/assets/example-a.html': kitPage({ kits: ['axo'] }) + dictionary,
+    'skills/k/assets/example-b.html': kitPage({ kits: ['svg'] }) + dictionary,
+  };
+  await withFixture(files, async root => {
+    assert.deepEqual(await inspectTemplates(root), { issues: [], templates: 1, examples: 2 });
+  });
+  await withFixture({ 'skills/k/assets/template.html': kitPage({ listed: 'axo' }) + dictionary }, async root => {
+    const { issues } = await inspectTemplates(root);
+    assert.match(issues.join('\n'), /template\.html: KIT svg sections are present but "svg" is not in data-kits/);
+  });
+});
+
+test('kit sections: only kits the template defines need sections (a kit defined in SCENES may be listed)', () => {
+  assert.deepEqual(compareEngineSections(fullTemplate, kitPage({ kits: ['svg'], listed: 'svg dom' }), 'example-dom.html'), []);
+});
+
+test('kit sections: data-kits is read from the stage tag only, in either quote style, and a malformed value is reported', () => {
+  const svgOnly = kitPage({ kits: ['svg'] });
+  const decoy = svgOnly.replace('<style>', '<!-- data-kits="axo" in a comment -->\n<style>');
+  assert.deepEqual(compareEngineSections(fullTemplate, decoy.replace('data-kits="svg"', 'data-kits="svg"'), 'example-decoy.html'), []);
+  assert.deepEqual(compareEngineSections(fullTemplate, svgOnly.replace('data-kits="svg"', "data-kits='svg'"), 'example-single.html'), []);
+  for (const bad of ['data-kits=', 'data-kits="svg', 'data-kits="svg!"', 'data-kits=""']) {
+    const issues = compareEngineSections(fullTemplate, svgOnly.replace('data-kits="svg"', bad), 'example-bad.html').join('\n');
+    assert.match(issues, /example-bad\.html: data-kits on the stage is malformed/, bad);
+  }
+  const noStage = svgOnly.replace('<aside class="stage" data-kits="svg">', '<aside class="side">');
+  assert.match(compareEngineSections(fullTemplate, noStage, 'example-nostage.html').join('\n'), /no <aside class="stage"> start tag/);
+});
+
+test('kit sections: a kit section must sit where the template has it', () => {
+  const svgOnly = kitPage({ kits: ['svg'] });
+  const js = ['/* KIT svg js — code */', 'js of svg', '/* END KIT svg js */'].join('\n');
+  const inScenes = svgOnly.replace(`${js}\n`, '').replace('scene body', `scene body\n${js}`);
+  assert.match(compareEngineSections(fullTemplate, inScenes, 'example-moved.html').join('\n'), /example-moved\.html: KIT svg js is not where the template has it/);
+  const css = ['/* KIT svg css — styles */', 'css of svg', '/* END KIT svg css */'].join('\n');
+  const outsideStyle = svgOnly.replace(`${css}\n`, '').replace('</style>', `</style>\n${css}`);
+  assert.match(compareEngineSections(fullTemplate, outsideStyle, 'example-css.html').join('\n'), /example-css\.html: KIT svg css is not where the template has it/);
+});
+
+test('end to end: a template banner error is reported once, and examples are still checked', async () => {
+  const brokenTemplate = fullTemplate.replace('/* END KIT svg js */\n', '') + dictionary;
+  const strayExample = kitPage({ kits: ['svg'], banners: ['js of svg', '/* END KIT svg js */'] }) + dictionary;
+  const files = {
+    'skills/k/assets/template.html': brokenTemplate,
+    'skills/k/assets/example-a.html': kitPage({ kits: ['axo'] }) + dictionary,
+    'skills/k/assets/example-b.html': strayExample,
+  };
+  await withFixture(files, async root => {
+    const { issues } = await inspectTemplates(root);
+    assert.equal(issues.filter(i => /KIT svg js is not closed/.test(i)).length, 1, issues.join('\n'));
+    assert.ok(issues.some(i => /example-b\.html: END KIT svg js without a start/.test(i)), issues.join('\n'));
   });
 });

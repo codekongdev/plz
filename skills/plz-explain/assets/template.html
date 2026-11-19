@@ -131,16 +131,6 @@
   /* isolation: kits may set z-index on their own elements (CSS2DRenderer does on every label); keep that inside the layer, under the caption rail. */
   .kit-layer { position: absolute; inset: 0; isolation: isolate; z-index: 0; }
   .kit-layer[hidden] { display: none; }
-  .kit-layer canvas { display: block; }
-  .labels { position: absolute; inset: 0; }
-  .tag { font: 500 12.5px/1.3 var(--sans); color: var(--ink); background: rgba(236, 238, 234, 0.9); padding: 3px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
-  .tag.actor { color: var(--actor-ink); }
-  .tag.bound { color: var(--bound); }
-  .tag.matter { color: var(--matter-ink); }
-  .tag.warn { background: var(--ink); color: #fff; }
-  .tag.big { font: 700 14px/1.3 var(--serif); padding: 4px 9px; }
-  /* Step badge next to an object: the same number as the caption on the rail. */
-  .tag.badge { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--ink); color: #fff; font: 600 12px/1 var(--sans); font-variant-numeric: tabular-nums; }
   .hud { position: absolute; top: 1.1rem; left: 1.3rem; right: 1.3rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; pointer-events: none; z-index: 4; }
   .hud .now { font: 700 1.05rem/1.35 var(--serif); }
   .hud .tools { display: flex; align-items: flex-start; gap: 0.5rem; flex: none; }
@@ -190,6 +180,7 @@
   /* Loading and failure notices do not depend on the CDN or a working renderer. */
   .fallback { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 1rem; padding: 2rem; text-align: center; color: var(--ink-soft); }
   .fallback p { margin: 0; max-width: 32rem; }
+  .fallback .fallback-detail { font: 500 0.82rem/1.5 var(--mono); color: var(--actor-ink); overflow-wrap: anywhere; }
   .retry-load { min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 500 0.95rem/1.4 var(--sans); cursor: pointer; }
   .stage[data-state="ready"] .fallback { display: none; }
   .stage:not([data-state="ready"]) :is(.canvas-wrap, .hud, .legend, .hint) { visibility: hidden; }
@@ -217,9 +208,6 @@
     .canvas-wrap { position: relative; inset: auto; flex: 1 1 0; min-height: 0; overflow: hidden; }
     .legend { position: static; flex: none; padding: 0.25rem 1.1rem 0.55rem; gap: 0.1rem 0.9rem; font-size: 0.76rem; line-height: 1.5; }
     .hint { display: none; }
-    .tag { font-size: 11px; padding: 2px 5px; }
-    .tag.big { font-size: 12px; padding: 3px 6px; }
-    .tag.badge { width: 19px; height: 19px; font-size: 11px; padding: 0; }
     .chapter .gist { font-size: 1rem; }
     /* On phones, code blocks do not wrap; they scroll horizontally inside the block only (wrapping breaks URLs mid-word and makes indentation look like blank lines). */
     pre.code { white-space: pre; font-size: 0.74rem; line-height: 1.65; overscroll-behavior-x: contain; tab-size: 4; }
@@ -283,6 +271,23 @@
     .chapter h2 .n { transition: none; }
     .autorun .track, .autorun .track::after { transition: none; }
   }
+  /* KIT axo css — labels of the 3D model (CSS2D). A page without axo chapters deletes this section, up to END KIT axo css. */
+  .kit-layer canvas { display: block; }
+  .labels { position: absolute; inset: 0; }
+  /* Small labels on phones and on a stage 600px or narrower (phones, or a narrow window or divider beside the text):
+     the two conditions at the end set --small to 1, and every label size below follows it. */
+  .tag { --small: 0; font: 500 calc(12.5px - 1.5px * var(--small))/1.3 var(--sans); color: var(--ink); background: rgba(236, 238, 234, 0.9); padding: calc(3px - 1px * var(--small)) calc(7px - 2px * var(--small)); border-radius: 4px; white-space: nowrap; pointer-events: none; }
+  .tag.actor { color: var(--actor-ink); }
+  .tag.bound { color: var(--bound); }
+  .tag.matter { color: var(--matter-ink); }
+  .tag.warn { background: var(--ink); color: #fff; }
+  .tag.big { font: 700 calc(14px - 2px * var(--small))/1.3 var(--serif); padding: calc(4px - 1px * var(--small)) calc(9px - 3px * var(--small)); }
+  /* Step badge next to an object: the same number as the caption on the rail. */
+  .tag.badge { display: grid; place-items: center; width: calc(22px - 3px * var(--small)); height: calc(22px - 3px * var(--small)); padding: 0; border-radius: 50%; background: var(--ink); color: #fff; font: 600 calc(12px - 1px * var(--small))/1 var(--sans); font-variant-numeric: tabular-nums; }
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 520px) { .tag { --small: 1; } }
+  @container (max-width: 600px) { .tag { --small: 1; } }
+  /* END KIT axo css */
+  /* KIT svg css — 2D step diagrams. A page without svg chapters deletes this section, up to END KIT svg css. */
   /* Kit "svg": 2D step diagrams. Ink outline for the active element, the 3 semantic colors for meaning, nothing else. */
   :root { --hair: rgba(85, 97, 107, 0.55); }
   .svg-stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
@@ -341,18 +346,14 @@
   .svg-stage .tok.hit text { fill: #fff; }
   .svg-stage .tok.active .halo { opacity: 1; }
   .svg-stage .tok.active .b { stroke: var(--ink); stroke-width: 2; }
+  /* END KIT svg css */
   /* A kit may scale the caption column with its diagram (--cap-k). */
   .rail.side { --k: var(--cap-k, 1); }
   .rail.side .rail-list { gap: calc(9px * var(--k)); }
   .rail.side .cap { grid-template-columns: calc(22px * var(--k)) minmax(0, 1fr); column-gap: calc(9px * var(--k)); font-size: calc(14px * var(--k)); }
   .rail.side .cap .n { width: calc(22px * var(--k)); height: calc(22px * var(--k)); font-size: calc(12px * var(--k)); line-height: calc(20px * var(--k)); }
-  /* Labels follow the stage's own width: a stage 600px or narrower (phones, or a narrow window or divider beside the text) gets the small labels. */
+  /* Kits may size their labels by the stage's own width (a container query on .stage). */
   .stage { container-type: inline-size; }
-  @container (max-width: 600px) {
-    .tag { font-size: 11px; padding: 2px 5px; }
-    .tag.big { font-size: 12px; padding: 3px 6px; }
-    .tag.badge { width: 19px; height: 19px; font-size: 11px; padding: 0; }
-  }
   /* Verification instant mode: no CSS transitions either. */
   body.instant *, body.instant *::before, body.instant *::after { transition: none !important; }
 </style>
@@ -464,6 +465,9 @@ const UI_TEXT = {
   en: {
     noteWide: 'Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model.',
     noteNarrow: 'Swipe the model left or right to rotate it. The button in each chapter makes that event actually happen in the model.',
+    noteSteps: 'The button in each chapter makes that event happen in the model, step by step.',
+    noteMixedWide: 'In 3D chapters, drag the model on the right to rotate it. The button in each chapter makes that event happen in the model, step by step.',
+    noteMixedNarrow: 'In 3D chapters, swipe the model left or right to rotate it. The button in each chapter makes that event happen in the model, step by step.',
     resetView: 'Reset view',
     autorun: 'Auto-play',
     autorunShort: 'Auto',
@@ -487,6 +491,9 @@ const UI_TEXT = {
   ko: {
     noteWide: '오른쪽 모형은 드래그하면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
     noteNarrow: '모형은 좌우로 밀면 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 실제로 일어납니다.',
+    noteSteps: '장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.',
+    noteMixedWide: '3D로 그린 장에서는 오른쪽 모형을 드래그해 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.',
+    noteMixedNarrow: '3D로 그린 장에서는 모형을 좌우로 밀어 돌려 볼 수 있습니다. 장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다.',
     resetView: '시점 되돌리기',
     autorun: '자동 실행',
     autorunShort: '자동',
@@ -510,6 +517,9 @@ const UI_TEXT = {
   ja: {
     noteWide: '右のモデルはドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
     noteNarrow: 'モデルは左右にスワイプすると回転できます。各章のボタンを押すと、モデル上でその出来事が実際に起こります。',
+    noteSteps: '各章のボタンを押すと、モデル上でその出来事が一つずつ順に起こります。',
+    noteMixedWide: '3Dの章では、右のモデルをドラッグして回転できます。各章のボタンを押すと、モデル上でその出来事が一つずつ順に起こります。',
+    noteMixedNarrow: '3Dの章では、モデルを左右にスワイプすると回転できます。各章のボタンを押すと、モデル上でその出来事が一つずつ順に起こります。',
     resetView: '視点をリセット',
     autorun: '自動再生',
     autorunShort: '自動',
@@ -533,6 +543,9 @@ const UI_TEXT = {
   'zh-CN': {
     noteWide: '拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
     noteNarrow: '左右滑动模型即可旋转查看。点击每章中的按钮，模型上就会真实演示那件事。',
+    noteSteps: '点击每章中的按钮，模型上就会一步步演示那件事。',
+    noteMixedWide: '在 3D 章节中，拖动右侧的模型即可旋转查看。点击每章中的按钮，模型上就会一步步演示那件事。',
+    noteMixedNarrow: '在 3D 章节中，左右滑动模型即可旋转查看。点击每章中的按钮，模型上就会一步步演示那件事。',
     resetView: '重置视角',
     autorun: '自动播放',
     autorunShort: '自动',
@@ -1046,9 +1059,17 @@ function defineScene(name, def) {
   if (scenes[name]) throw new Error(`[plz] scene already defined: ${name}`);
   scenes[name] = { name, kit: 'axo', ...def, def, built: null };
 }
+// setupKit(kit, fn): kit code that is not part of one scene (the axo kit's shared floor, for example). SCENES calls it at the
+// top level; fn runs once, after the kit has loaded and before the scenes are built. Kit globals are used only inside fn,
+// so a page without that kit stops with a [plz] message naming this call instead of failing on an undefined name.
+const kitSetups = [];
+function setupKit(name, fn) {
+  if (typeof fn !== 'function') throw new Error(`[plz] setupKit('${name}', fn): fn must be a function`);
+  kitSetups.push({ name, fn });
+}
 function loadKit(name) {
   const kit = kits[name];
-  if (!kit) return Promise.reject(new Error(`[plz] unknown kit: ${name}`));
+  if (!kit) return Promise.reject(new Error(`[plz] kit "${name}" is not on this page: copy its KIT ${name} sections (css and js) from the template and list "${name}" in data-kits.`));
   if (!kit.loading) {
     kit.layer = el('div', { className: 'kit-layer', hidden: true }, wrap);
     kit.layer.dataset.kit = name;
@@ -1060,6 +1081,7 @@ function loadKit(name) {
 // A hoisted function: the split calls it at startup, before any chapter (and before kits/scenes exist).
 function activeKit() { return current ? kits[scenes[current].kit] : null; }
 
+/* KIT axo js — the axo kit. A page without axo chapters deletes this section, up to END KIT axo js (and KIT axo css). */
 /* ---- Kit "axo": three.js axonometric block model (white massing model, ink outlines). three.js is imported only in its load(). ---- */
 const COLOR = {
   model: 0xFBFBF8, ink: 0x1E2A33, outside: 0xEEF0F2, muted: 0xAEB6BC,
@@ -1507,7 +1529,9 @@ defineKit('axo', {
     };
   },
 });
+/* END KIT axo js */
 
+/* KIT svg js — the svg kit. A page without svg chapters deletes this section, up to END KIT svg js (and KIT svg css). */
 /* ---- Kit "svg": 2D step diagrams in native SVG. No library. ----
    A scene's build(d) makes parts with the builder `d` (table, buckets, box, gate, tree, columns, link, token) and arranges them
    with d.grid / d.panels / d.stack. The kit computes the layout for the stage: natural size on desktop scaled by k (1 to 1.6),
@@ -2286,21 +2310,41 @@ defineKit('svg', {
   },
   info() { return this.current ? { ...this.current.sc.info } : null; },
 });
+/* END KIT svg js */
 
-// Load the kits this page declares (data-kits on the stage, default axo) before SCENES runs. Kits defined in SCENES load when the page starts.
+// data-kits on the stage is the page's list of kits (default axo). The listed kits that are on the page load before SCENES runs;
+// after SCENES, checkKits() stops the page when the list and the scenes disagree.
 const DECLARED_KITS = (stageEl.dataset.kits ?? 'axo').split(/[\s,]+/).filter(Boolean);
+// The intro note follows data-kits, decided once before anything loads: all rotatable → the drag hint (noteWide/noteNarrow);
+// none → a step-by-step note (noteSteps); both kinds → the drag hint for 3D chapters only (noteMixedWide/noteMixedNarrow).
+// A kit defined in SCENES is not known yet and counts as not rotatable. A note without data-ui is the author's own and stays.
+// Page strings win: UI_OVERRIDES for the chosen key, then the page's noteWide/noteNarrow for that slot, then the built-in text.
+function applyIntroNote(kitNames) {
+  const rot = kitNames.filter(n => kits[n]?.rotatable).length;
+  const [wide, narrow] = rot === kitNames.length ? ['noteWide', 'noteNarrow'] : rot ? ['noteMixedWide', 'noteMixedNarrow'] : ['noteSteps', 'noteSteps'];
+  const own = UI_PICK.key ? UI_OVER[UI_PICK.key] : {};
+  for (const [sel, key, slot] of [['.intro .note .wide[data-ui]', wide, 'noteWide'], ['.intro .note .narrow[data-ui]', narrow, 'noteNarrow']]) {
+    document.querySelectorAll(sel).forEach(n => { n.dataset.ui = key; n.textContent = own[key] ?? own[slot] ?? uiStr(key); });
+  }
+}
+applyIntroNote(DECLARED_KITS);
+let startPhase = 'kits'; // 'scenes' while SCENES runs: an undefined name there gets a [plz] message (see the catch at the end)
 try {
 for (const name of DECLARED_KITS) if (kits[name]) await loadKit(name);
+startPhase = 'scenes';
 
 /* =====================================================================
    SCENES — the part you change for your topic. The three scenes below are pattern examples (s1, s2: axo kit; s3: svg kit).
    Pattern catalog: references/scene-patterns.md, finished example: assets/example-agent-sandbox.html
    ===================================================================== */
 const FLOOR = 0.6; // top surface height of the shared floor
-base.add(block(13, FLOOR, 8, [0, 0, 0], { color: COLOR.boundSoft }));
-base.add(tag('__shared floor__', [-5.6, FLOOR / 2, 4.05], 'bound'));
-base.add(matterBlock([-4.2, FLOOR, -2.6], 1.0));
-base.add(tag('__resource outside the room__', [-4.2, FLOOR + 1.5, -2.6], 'matter'));
+// The floor shared by the axo scenes (base). Kit code outside a scene goes inside setupKit, so it runs only where the kit is.
+setupKit('axo', () => {
+  base.add(block(13, FLOOR, 8, [0, 0, 0], { color: COLOR.boundSoft }));
+  base.add(tag('__shared floor__', [-5.6, FLOOR / 2, 4.05], 'bound'));
+  base.add(matterBlock([-4.2, FLOOR, -2.6], 1.0));
+  base.add(tag('__resource outside the room__', [-4.2, FLOOR + 1.5, -2.6], 'matter'));
+});
 
 // Pattern: attempt to cross a boundary — the actor goes to the wall, the wall flashes, and the actor comes back.
 defineScene('s1', {
@@ -2677,9 +2721,30 @@ window.__explainer = {
   },
 };
 
-// Start: load the kits the scenes use, build every scene, show the first one, render once, then enable the controls.
-const usedKits = [...new Set(Object.values(scenes).map(s => s.kit))];
-for (const name of usedKits) await loadKit(name);
+// data-kits and the scenes must agree: every kit a scene or setupKit uses is on the page and listed, and every listed kit
+// is on the page and used by a scene. A mismatch is an authoring mistake: the page stops and the stage says what to fix.
+function checkKits() {
+  const users = new Map();
+  const use = (kit, what) => users.set(kit, [...(users.get(kit) ?? []), what]);
+  for (const s of Object.values(scenes)) use(s.kit, `scene ${s.name}`);
+  for (const k of kitSetups) use(k.name, `setupKit('${k.name}')`);
+  for (const [kit, what] of users) {
+    const list = what.join(', ');
+    if (!kits[kit]) throw new Error(`[plz] kit "${kit}" is not on this page, but SCENES uses it (${list}): copy its KIT ${kit} sections (css and js) from the template and list "${kit}" in data-kits, or delete ${list} from SCENES.`);
+    if (!DECLARED_KITS.includes(kit)) throw new Error(`[plz] SCENES uses kit "${kit}" (${list}), but data-kits on the stage does not list it: add "${kit}" to data-kits.`);
+  }
+  for (const kit of DECLARED_KITS) {
+    if (!kits[kit]) throw new Error(`[plz] data-kits lists kit "${kit}", which is not on this page: copy its KIT ${kit} sections (css and js) from the template, or remove "${kit}" from data-kits.`);
+    if (!Object.values(scenes).some(s => s.kit === kit)) throw new Error(`[plz] data-kits lists kit "${kit}", but no scene uses it: remove "${kit}" from data-kits and delete its KIT ${kit} sections.`);
+  }
+}
+
+// Start: check the kits, load the ones defined in SCENES, run the kit setups, build every scene, show the first one,
+// render once, then enable the controls.
+startPhase = 'build';
+checkKits();
+for (const name of DECLARED_KITS) await loadKit(name);
+for (const k of kitSetups) k.fn();
 for (const s of Object.values(scenes)) {
   const built = kits[s.kit].build(s);
   if (typeof built?.reset !== 'function' || typeof built?.run !== 'function') throw new Error(`[plz] scene ${s.name}: build must return reset() and run()`);
@@ -2698,7 +2763,14 @@ document.fonts?.ready.then(() => layoutStage()); // text widths (pills, chips) a
 } catch (error) {
   delete window.__explainer;
   setStageState('failed', error?.uiKey ?? 'loadError');
-  console.error('[plz] stage initialization failed:', error);
+  // An undefined name at the top level of SCENES is most often a kit global on a page without that kit.
+  const missing = startPhase === 'scenes' && error instanceof ReferenceError && /^(\S+) is not defined/.exec(error.message)?.[1];
+  const detail = missing
+    ? `[plz] SCENES uses "${missing}" at its top level, but this page does not define it. Code that uses a kit outside a scene goes inside setupKit('<kit>', () => { … }); if that kit's KIT sections were deleted, delete that code too. Kits on this page: ${Object.keys(kits).join(', ') || 'none'}.`
+    : error?.message ?? '';
+  // An authoring mistake (a [plz] error) is shown on the stage too, so the page author sees what to fix.
+  if (/^\[plz\]/.test(detail)) el('p', { className: 'fallback-detail', textContent: detail }, stageEl.querySelector('.fallback'));
+  console.error(missing ? detail : '[plz] stage initialization failed:', error);
 }
 </script>
 </body>

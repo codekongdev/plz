@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { launchBrowser, nextFrames, openExplainPage, railTexts, sleep, startPageServer, variantWithScenes } from './browser-harness.mjs';
+import { launchBrowser, nextFrames, openExplainPage, railTexts, sleep, startPageServer, variantWithScenes, withoutKit } from './browser-harness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const assets = join(root, 'skills/plz-explain/assets');
@@ -224,6 +224,21 @@ defineScene('s3', { kit: 'svg', title: '3  Headers and chips', build(d) {
 const BAD_EDGE = `
 defineScene('s1', { kit: 'svg', title: '1', build(d) { const tr = d.tree({ id: 'a', label: 'A', children: [{ id: 'b', label: 'B' }] }); tr.edge('nope'); return { diagram: tr, async run() {} }; } });
 `;
+const MISSING_KIT = `
+defineScene('s1', { kit: 'axo', title: '1', build() { return { reset() {}, async run() {} }; } });
+`;
+const AXO_TOPLEVEL = `
+const FLOOR = 0.6;
+base.add(block(13, FLOOR, 8, [0, 0, 0], { color: COLOR.boundSoft }));
+defineScene('s1', { kit: 'svg', title: '1', build(d) { const t = d.table({ title: 'T', keys: [1, 2] }); return { diagram: d.grid([[t]]), async run() {} }; } });
+`;
+const ES_NOTES = { noteWide: 'ES ancho: el botón de cada capítulo', noteNarrow: 'ES estrecho: el botón de cada capítulo' };
+// The page in language `lang` with UI_OVERRIDES[lang] = strings.
+function withOverrides(source, lang, strings) {
+  const out = source.replace('<html lang="en">', `<html lang="${lang}">`).replace('window.UI_OVERRIDES = {', `window.UI_OVERRIDES = {\n  ${lang}: ${JSON.stringify(strings)},`);
+  assert.ok(out.includes(`<html lang="${lang}">`) && out.includes(`${lang}: {`), 'override fixture');
+  return out;
+}
 const BAD_GATE = `
 defineScene('s1', { kit: 'svg', title: '1', build(d) { const b = d.box({ title: 'Join', lanes: 2 }); const t = d.table({ title: 'T', keys: [1, 2] }); d.gate(t, { label: 'F' }); return { diagram: d.grid([[b, t]]), async run() {} }; } });
 `;
@@ -235,15 +250,29 @@ before(async () => {
   const tpl = await readFile(join(assets, 'template.html'), 'utf8');
   const variants = {
     'variant-svg-only.html': variantWithScenes(tpl, SVG_SCENES, 'svg'),
+    ...Object.fromEntries(['ko', 'ja', 'zh-CN'].map(lang => [`variant-svg-only.${lang}.html`, variantWithScenes(tpl, SVG_SCENES, 'svg').replace('<html lang="en">', `<html lang="${lang}">`)])),
     'variant-svg-ko.html': variantWithScenes(tpl, KO_SCENES, 'svg').replace('<html lang="en">', '<html lang="ko">'),
     'variant-svg-bad-gate.html': variantWithScenes(tpl, BAD_GATE, 'svg'),
     'variant-svg-narrow.html': variantWithScenes(tpl, NARROW_SCENES, 'svg'),
     'variant-svg-layout.html': variantWithScenes(tpl, LAYOUT_SCENES, 'svg'),
     'variant-svg-tokens.html': variantWithScenes(tpl, TOKEN_SCENES, 'svg'),
     'variant-svg-bad-edge.html': variantWithScenes(tpl, BAD_EDGE, 'svg'),
+    // An svg-only page (axo sections deleted) whose scene asks for the axo kit.
+    'variant-missing-kit.html': withoutKit(variantWithScenes(tpl, MISSING_KIT, 'svg'), 'axo'),
     'variant-svg-bad-link.html': variantWithScenes(tpl, BAD_LINK, 'svg'),
+    // The realistic mistake: the template with its axo sections deleted (data-kits updated or not) and its SCENES left as they are.
+    'variant-axo-deleted.html': withoutKit(tpl, 'axo').replace('data-kits="axo svg"', 'data-kits="svg"'),
+    'variant-axo-deleted-listed.html': withoutKit(tpl, 'axo'),
+    // Older-style SCENES that use axo globals at the top level, on a page without axo.
+    'variant-axo-toplevel.html': withoutKit(variantWithScenes(tpl, AXO_TOPLEVEL, 'svg'), 'axo'),
+    // A page in a language outside the built-in ones, with its own note strings.
+    'variant-es-svg.html': withOverrides(variantWithScenes(tpl, SVG_SCENES, 'svg'), 'es', ES_NOTES),
+    'variant-es-svg-steps.html': withOverrides(variantWithScenes(tpl, SVG_SCENES, 'svg'), 'es', { ...ES_NOTES, noteSteps: 'ES pasos' }),
+    'variant-es-mixed.html': withOverrides(tpl, 'es', ES_NOTES),
+    // data-kits lists a kit no scene uses.
+    'variant-unused-kit.html': variantWithScenes(tpl, SVG_SCENES, 'axo svg'),
   };
-  server = await startPageServer(path => variants[path] ?? (['template.html', ...SVG_EXAMPLES].includes(path) ? readFile(join(assets, path)) : null));
+  server = await startPageServer(path => variants[path] ?? (['template.html', 'example-agent-sandbox.en.html', ...SVG_EXAMPLES].includes(path) ? readFile(join(assets, path)) : null));
   origin = server.origin;
   browser = await launchBrowser();
 }, { timeout: 30_000 });
@@ -335,13 +364,14 @@ test('svg runs: instant mode reaches the same end state, and reset restores ever
 });
 
 test('svg timing: speed scales the run, and reduced motion keeps captions arriving one by one', { timeout: 90_000 }, async t => {
-  const { page, errors } = await openPage(t, 'variant-svg-only.html');
+  const { page, errors, close } = await openPage(t, 'variant-svg-only.html');
   const x1 = await stampRun(page, 's1', 1), x2 = await stampRun(page, 's1', 2);
   // The director's own timeline is load-independent; the wall clock gets a loose check only.
   assert.ok(x1.timing.base > 1000 && x2.timing.base === x1.timing.base, JSON.stringify([x1.timing, x2.timing]));
   assert.ok(Math.abs(x1.timing.scaled / x2.timing.scaled - 2) < 0.02, `2× halves the schedule (${x1.timing.scaled} / ${x2.timing.scaled})`);
   assert.ok(x1.firstToLast > x2.firstToLast * 1.1, `2× is also faster on the wall clock (${x1.firstToLast} / ${x2.firstToLast} ms)`);
   assert.equal(x2.text, x1.text);
+  await close();
   const reduced = await openPage(t, 'variant-svg-only.html', { reducedMotion: 'reduce' });
   const r = await stampRun(reduced.page, 's1', 1);
   assert.equal(r.text, x1.text);
@@ -513,6 +543,7 @@ test('B4: a gate sits in its grid gutter, and an unsupported placement fails wit
     return { barrier: b.left + b.width / 2, left: P.outer.g.querySelector('.tbl').getBoundingClientRect().right, right: P.join.g.querySelector('.box').getBoundingClientRect().left };
   });
   assert.ok(Math.abs(pos.barrier - (pos.left + pos.right) / 2) < 1, `the gate is centered in the gutter: ${JSON.stringify(pos)}`);
+  await good.close();
   const { page, errors } = await openPage(t, 'variant-svg-bad-gate.html', { waitReady: false });
   await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
   assert.ok(errors.some(e => /d\.gate.*gutter/i.test(e)), `clear error: ${JSON.stringify(errors)}`);
@@ -520,9 +551,10 @@ test('B4: a gate sits in its grid gutter, and an unsupported placement fails wit
 
 test('B5: reduced motion keeps a token\'s opacity while it moves', async t => {
   for (const reducedMotion of ['no-preference', 'reduce']) {
-    const { page } = await openPage(t, 'variant-svg-only.html', { reducedMotion });
+    const { page, close } = await openPage(t, 'variant-svg-only.html', { reducedMotion });
     await page.evaluate(() => window.__explainer.run('s3'));
     assert.equal(await page.evaluate(() => window.__tokOpacity), '0.3', `${reducedMotion}: the faded token stays at 0.3`);
+    await close();
   }
 });
 
@@ -562,6 +594,7 @@ test('B7: a badge may sit at a fixed point, and a one-point link fails with a cl
   const badges = await ok.page.evaluate(() => [...document.querySelectorAll('.svg-scene .sb')].filter(b => b.isConnected).map(b => b.textContent));
   assert.ok(badges.includes('3'), `badge at a fixed point: ${JSON.stringify(badges)}`);
   assert.deepEqual(ok.errors, []);
+  await ok.close();
   const bad = await openPage(t, 'variant-svg-bad-link.html', { waitReady: false });
   await bad.page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
   assert.ok(bad.errors.some(e => /d\.link.*two points/i.test(e)), `clear error: ${JSON.stringify(bad.errors)}`);
@@ -569,7 +602,7 @@ test('B7: a badge may sit at a fixed point, and a one-point link fails with a cl
 
 test('tree.edge(id) leads a token up the drawn edge to the parent, and a token is as wide as its text', async t => {
   for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
-    const { page, errors } = await openPage(t, 'variant-svg-only.html', { viewport });
+    const { page, errors, close } = await openPage(t, 'variant-svg-only.html', { viewport });
     await page.evaluate(() => window.__explainer.run('s3'));
     const r = await page.evaluate(() => {
       const tok = window.__edgeToken, body = tok.body.getBoundingClientRect(), text = tok.text.getBoundingClientRect();
@@ -579,6 +612,7 @@ test('tree.edge(id) leads a token up the drawn edge to the parent, and a token i
     assert.ok(r.dx < 1 && r.atParentBottom < 1, `${viewport.width}: the token ends at the parent's bottom center: ${JSON.stringify(r)}`);
     assert.ok(r.inside, `${viewport.width}: the token text fits its chip`);
     assert.deepEqual(errors, []);
+    await close();
   }
 });
 
@@ -598,7 +632,7 @@ test('columns: each column exposes top() and bottom() points on its frame', asyn
 
 test('key-only tables and narrow boxes let panels sit side by side on a landscape phone; token text height does not count as overflow', async t => {
   for (const viewport of [{ width: 844, height: 390 }, { width: 390, height: 844 }]) {
-    const { page, errors } = await openPage(t, 'variant-svg-narrow.html', { viewport });
+    const { page, errors, close } = await openPage(t, 'variant-svg-narrow.html', { viewport });
     await page.evaluate(() => window.__explainer.instant(true));
     await page.evaluate(() => window.__explainer.run('s1'));
     const r = await page.evaluate(() => {
@@ -608,6 +642,7 @@ test('key-only tables and narrow boxes let panels sit side by side on a landscap
     assert.equal(r.sideBySide, viewport.width > viewport.height, `${viewport.width}x${viewport.height}: panels side by side only when they fit`);
     assert.deepEqual([r.overlaps, r.clipped], [[], []], `${viewport.width}x${viewport.height}`);
     assert.deepEqual(errors, []);
+    await close();
   }
   // Phone tokens are shorter than their text box; only a text wider than its chip is an overflow.
   const { page } = await openPage(t, 'variant-svg-only.html', { viewport: { width: 390, height: 844 } });
@@ -618,12 +653,13 @@ test('key-only tables and narrow boxes let panels sit side by side on a landscap
 
 test('a diagram that is a single part (a tree) lays out at every size without errors', async t => {
   for (const viewport of [DESKTOP, { width: 2282, height: 1293 }, { width: 390, height: 844 }]) {
-    const { page, errors } = await openPage(t, 'variant-svg-narrow.html', { viewport });
+    const { page, errors, close } = await openPage(t, 'variant-svg-narrow.html', { viewport });
     await page.evaluate(() => window.__explainer.run('s2'));
     const r = await page.evaluate(() => ({ k: window.__explainer.kitInfo().scale, transform: [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').getAttribute('transform') }));
     assert.ok(Number.isFinite(r.k) && !/NaN/.test(r.transform), `${viewport.width}: ${JSON.stringify(r)}`);
     assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
     assert.deepEqual(errors, [], `${viewport.width}: no console errors`);
+    await close();
   }
 });
 
@@ -637,6 +673,7 @@ for (const file of SVG_EXAMPLES) {
     assert.deepEqual(threeRequests, []);
     assert.equal(await page.locator('.hint').isVisible(), false);
     if (file.endsWith('.en.html')) assert.equal(await page.evaluate(() => /[가-힣]/.test(document.body.innerText + document.title)), false, 'no Hangul on the English page');
+    for (const n of await noteTexts(page)) assert.doesNotMatch(n, file.endsWith('.en.html') ? ROTATE.en : ROTATE.ko, 'the step-by-step note, without overrides');
     assert.deepEqual(errors, []);
   });
 }
@@ -661,7 +698,7 @@ const centreX = page => page.evaluate(() => {
 });
 test('R1/R4: panels report the size of the arrangement they use (centred when stacked; no blank band or overlap when nested)', async t => {
   for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }, DESKTOP]) {
-    const { page, errors } = await openPage(t, 'variant-svg-layout.html', { viewport });
+    const { page, errors, close } = await openPage(t, 'variant-svg-layout.html', { viewport });
     await page.evaluate(() => window.__explainer.instant(true));
     await page.evaluate(() => window.__explainer.run('s1'));
     if (viewport.width === 390) {
@@ -678,12 +715,13 @@ test('R1/R4: panels report the size of the arrangement they use (centred when st
     assert.ok(gap.gap >= 0 && gap.gap < 60, `${viewport.width}x${viewport.height}: the table below follows the panels: ${JSON.stringify(gap)}`);
     assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
     assert.deepEqual(errors, []);
+    await close();
   }
 });
 
 test('R6: a wide token rests clear of the gate barrier and inside its box; a token leaving its container is reported', async t => {
   for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
-    const { page, errors } = await openPage(t, 'variant-svg-tokens.html', { viewport });
+    const { page, errors, close } = await openPage(t, 'variant-svg-tokens.html', { viewport });
     await page.evaluate(() => window.__explainer.instant(true));
     await page.evaluate(() => window.__explainer.run('s1'));
     const r = await page.evaluate(() => {
@@ -698,6 +736,7 @@ test('R6: a wide token rests clear of the gate barrier and inside its box; a tok
     const reported = await page.evaluate(() => window.__explainer.clipped());
     assert.ok(reported.includes('a-very-long-key-0042'), `${viewport.width}: a token wider than its bucket is reported: ${JSON.stringify(reported)}`);
     assert.deepEqual(errors, []);
+    await close();
   }
 });
 
@@ -715,7 +754,7 @@ test('R3: a token re-measures its width when its text changes', async t => {
 
 test('R9/R8: a key-only table has at most a key header and no row when none is given; a gate never draws an empty chip', async t => {
   for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
-    const { page, errors } = await openPage(t, 'variant-svg-tokens.html', { viewport });
+    const { page, errors, close } = await openPage(t, 'variant-svg-tokens.html', { viewport });
     await page.evaluate(() => window.__explainer.instant(true));
     await page.evaluate(() => window.__explainer.run('s3'));
     const r = await page.evaluate(() => {
@@ -733,6 +772,7 @@ test('R9/R8: a key-only table has at most a key header and no row when none is g
     else assert.ok(r.chipShown && r.chipText.includes('Filter'), 'desktop shows the label chip');
     assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
     assert.deepEqual(errors, []);
+    await close();
   }
 });
 
@@ -740,4 +780,89 @@ test('R7: tree.edge with an unknown id fails with a clear error', async t => {
   const { page, errors } = await openPage(t, 'variant-svg-bad-edge.html', { waitReady: false });
   await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
   assert.ok(errors.some(e => /\[plz\] tree\.edge\(nope\)/.test(e)), `clear error: ${JSON.stringify(errors)}`);
+});
+
+// The intro note follows the kits the page uses: no rotatable kit → no rotate hint; axo only → today's text; both → the hint names 3D chapters.
+const ROTATE = { en: /drag|rotate|swipe/i, ko: /드래그|돌려|밀면|밀어/, ja: /ドラッグ|回転|スワイプ/, 'zh-CN': /拖动|旋转|滑动/ };
+const SCRIPT = { en: /^[^가-힣぀-ヿ]+$/, ko: /[가-힣]/, ja: /[぀-ヿ]/, 'zh-CN': /[一-鿿]/ };
+const noteTexts = page => page.evaluate(() => [...document.querySelectorAll('.intro .note > span')].map(n => n.textContent));
+test('the intro note fits the page\'s kits: svg-only pages have no rotate hint, in every built-in language', async t => {
+  for (const [lang, file] of [['en', 'variant-svg-only.html'], ['ko', 'variant-svg-only.ko.html'], ['ja', 'variant-svg-only.ja.html'], ['zh-CN', 'variant-svg-only.zh-CN.html']]) {
+    const { page, errors, close } = await openPage(t, file);
+    const notes = await noteTexts(page);
+    assert.equal(notes.length, 2);
+    for (const n of notes) {
+      assert.ok(n.length > 10 && SCRIPT[lang].test(n), `${lang}: a note in the page language: ${n}`);
+      assert.doesNotMatch(n, ROTATE[lang], `${lang}: no rotate hint on an svg-only page`);
+    }
+    assert.deepEqual(errors, []);
+    await close();
+  }
+  const axo = await openPage(t, 'example-agent-sandbox.en.html');
+  const axoNotes = await noteTexts(axo.page);
+  assert.equal(axoNotes[0], 'Drag the model on the right to rotate it. The button in each chapter makes that event actually happen in the model.', 'axo-only pages keep today\'s note');
+  await axo.close();
+  const mixed = await openPage(t, 'template.html');
+  const mixedNotes = await noteTexts(mixed.page);
+  assert.ok(mixedNotes.every(n => /3D/.test(n) && ROTATE.en.test(n)), `a mixed page limits the rotate hint to 3D chapters: ${JSON.stringify(mixedNotes)}`);
+});
+
+test('a scene whose kit section is missing stops the page with a readable [plz] message on the stage', async t => {
+  const { page, errors } = await openPage(t, 'variant-missing-kit.html', { waitReady: false });
+  await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
+  const notice = await page.locator('.fallback').innerText();
+  assert.match(notice, /\[plz\][^\n]*"axo"/, `the stage names the missing kit: ${notice}`);
+  assert.match(notice, /KIT axo/);
+  assert.ok(errors.some(e => /\[plz\]/.test(e)));
+});
+
+const stageFailure = async (t, file) => {
+  const { page, errors, close } = await openPage(t, file, { waitReady: false });
+  await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
+  const notice = await page.locator('.fallback').innerText();
+  await close();
+  return { notice, errors };
+};
+
+test('a page whose axo sections were deleted but whose SCENES still use axo stops with a readable [plz] message', async t => {
+  for (const file of ['variant-axo-deleted.html', 'variant-axo-deleted-listed.html']) {
+    const { notice, errors } = await stageFailure(t, file);
+    assert.match(notice, /\[plz\][^\n]*kit "axo" is not on this page/, `${file}: ${notice}`);
+    assert.match(notice, /scene s1, scene s2, setupKit\('axo'\)/, `${file}: names everything that uses axo: ${notice}`);
+    assert.ok(!errors.some(e => /ReferenceError|is not defined/.test(e)), `${file}: no bare ReferenceError: ${JSON.stringify(errors)}`);
+  }
+  const { notice } = await stageFailure(t, 'variant-axo-toplevel.html');
+  assert.match(notice, /\[plz\] SCENES uses "base" at its top level, but this page does not define it/, notice);
+  assert.match(notice, /setupKit/, notice);
+});
+
+test('data-kits is the page\'s list of kits: a listed kit that no scene uses stops the page with a [plz] message', async t => {
+  const { notice } = await stageFailure(t, 'variant-unused-kit.html');
+  assert.match(notice, /\[plz\] data-kits lists kit "axo", but no scene uses it/, notice);
+});
+
+test('the intro note in a language outside the built-in ones uses the page\'s own strings on svg-only and mixed pages', async t => {
+  for (const [file, want] of [
+    ['variant-es-svg.html', [ES_NOTES.noteWide, ES_NOTES.noteNarrow]],
+    ['variant-es-mixed.html', [ES_NOTES.noteWide, ES_NOTES.noteNarrow]],
+    ['variant-es-svg-steps.html', ['ES pasos', 'ES pasos']],
+  ]) {
+    const { page, errors, close } = await openPage(t, file);
+    assert.deepEqual(await noteTexts(page), want, file);
+    assert.deepEqual(errors, []);
+    await close();
+  }
+});
+
+test('the intro note is decided once, from data-kits, before any kit loads (and stays right when the load fails)', async t => {
+  const { page, close } = await openPage(t, 'template.html', { waitReady: false, cdn: () => 'abort' });
+  await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'failed');
+  const notes = await noteTexts(page);
+  assert.ok(notes.every(n => /3D/.test(n)), `the mixed note on a page whose three.js load failed: ${JSON.stringify(notes)}`);
+  await close();
+  const held = await openPage(t, 'template.html', { waitReady: false, cdn: () => new Promise(() => {}) });
+  await held.page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'loading');
+  const before = await noteTexts(held.page);
+  assert.ok(before.every(n => /3D/.test(n)), `the mixed note while three.js is still loading: ${JSON.stringify(before)}`);
+  await held.close();
 });
