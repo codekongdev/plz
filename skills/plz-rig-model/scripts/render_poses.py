@@ -30,6 +30,21 @@ from riglib.common import log, script_args  # noqa: E402
 from riglib.selfcheck import SelfCheck, crossing_pairs  # noqa: E402
 
 
+def safe_component(value):
+    """Convert model-derived text to one portable filename component."""
+    safe = "".join(char if char.isalnum() or char in "._-" else "_" for char in str(value))
+    return "_" if safe in {"", ".", ".."} else safe
+
+
+def output_path(directory, filename):
+    """Resolve a generated file path and reject anything outside its output directory."""
+    root = os.path.realpath(directory)
+    path = os.path.realpath(os.path.join(root, filename))
+    if os.path.commonpath((root, path)) != root:
+        raise ValueError(f"generated path escapes output directory: {filename}")
+    return path
+
+
 def setup_render(res):
     sc = bpy.context.scene
     sc.render.engine = 'BLENDER_WORKBENCH'
@@ -149,6 +164,7 @@ def main():
     a = script_args(ap)
     a.intersections = a.intersections or a.mark
     os.makedirs(a.out, exist_ok=True)
+    prefix = safe_component(a.prefix)
     if a.blend:
         bpy.ops.wm.open_mainfile(filepath=os.path.abspath(a.blend))
     elif a.glb:
@@ -189,7 +205,8 @@ def main():
         for act, frame, label in jobs:
             use_action(rig, act, frame)
             frame_camera(cam, meshes, view)
-            render(os.path.join(a.out, f"{a.prefix}_{label}.png"))
+            label = safe_component(label)
+            render(output_path(a.out, f"{prefix}_{label}.png"))
             if check:
                 dg = bpy.context.evaluated_depsgraph_get()
                 counts[label] = check.run(dg)
@@ -197,9 +214,9 @@ def main():
                     extra = ["| new vs rest", c["new"], dict(list(c["newWhere"].items())[:6])] if "new" in c else []
                     log("INTERSECT", label, name, c["pairs"], "pairs", dict(list(c["where"].items())[:8]), *extra)
                 if a.mark and label != "rest":
-                    mark_render(meshes, check, dg, os.path.join(a.out, f"{a.prefix}_{label}_cross.png"))
+                    mark_render(meshes, check, dg, output_path(a.out, f"{prefix}_{label}_cross.png"))
     if check:
-        path = os.path.join(a.out, f"{a.prefix}_intersections.json")
+        path = output_path(a.out, f"{prefix}_intersections.json")
         with open(path, "w") as fh:
             json.dump(counts, fh, indent=1)
         log("intersections", path)

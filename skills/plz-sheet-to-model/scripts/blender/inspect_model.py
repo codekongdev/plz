@@ -19,6 +19,21 @@ VIEWS = {"left": (-1, 0, 0), "front": (0, -1, 0), "top": (0, 0, 1), "back": (0, 
          "three_quarter": (-0.8, -0.5, 0.35)}
 
 
+def safe_component(value):
+    """Convert an image data-block name to one portable filename component."""
+    safe = "".join(char if char.isalnum() or char in "._-" else "_" for char in str(value))
+    return "_" if safe in {"", ".", ".."} else safe
+
+
+def output_path(directory, filename):
+    """Resolve a generated file path and reject anything outside its output directory."""
+    root = os.path.realpath(directory)
+    path = os.path.realpath(os.path.join(root, filename))
+    if os.path.commonpath((root, path)) != root:
+        raise ValueError(f"generated path escapes output directory: {filename}")
+    return path
+
+
 def main(argv):
     out = os.path.abspath(argv[0])
     size = int(argv[argv.index("--size") + 1]) if "--size" in argv else 800
@@ -56,7 +71,7 @@ def main(argv):
             continue
         _ = img.pixels[0]                    # packed images load lazily in background mode
         if img.has_data:                     # re-pointing the path is fine: the .blend is never saved
-            img.filepath_raw = os.path.join(out, "images", img.name + ".png")
+            img.filepath_raw = output_path(os.path.join(out, "images"), safe_component(img.name) + ".png")
             img.file_format = 'PNG'
             img.save()
 
