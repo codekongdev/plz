@@ -1,20 +1,14 @@
 ---
 name: plz-3d-explain
 description: |
-  Builds a single-file HTML study page that teaches a technical concept, mechanism, or system structure
-  with a 3D model. Scrolling the text on the left switches a three.js axonometric model on the right,
-  chapter by chapter, and a button in each chapter plays out cause and effect on the model (where code is
-  blocked, how a request flows, when a resource is created and destroyed). The page is written in the
-  user's language; screen text is built in for en, ko, ja, zh-CN. Use when someone wants to learn or
-  understand a concept visually, or knows nothing about a topic and wants interactive study material.
-  Not for static architecture or sequence diagrams (archify), data charts, Blender modeling, or product
-  landing pages and app UI.
-  Triggers: "explain X in 3D", "3D explainer", "show how X works as a 3D model";
-  "3D로 공부하게 만들어줘", "개념을 3D로 보여줘", "원리를 모형으로 보여줘", "3D 그래픽으로 설명해줘";
-  "3Dで解説して", "仕組みを3Dモデルで見せて"; "用3D讲解这个概念", "做成3D模型演示原理".
+  Builds a single-file HTML study page that explains a technical concept with a three.js 3D block model.
+  Replaced by plz-explain, which also draws 2D diagrams: prefer plz-explain when it is installed. Use this
+  skill only when plz-explain is not available; it will be removed in a later release.
 ---
 
 # 3D Concept Explainer Page
+
+> **Replaced by `plz-explain`.** This skill will be removed in a later release. If `plz-explain` is installed, use it instead: it builds the same 3D chapters and also 2D diagrams, lanes, playgrounds, and code-and-state chapters. If it is not installed, follow this skill as before, and tell the user once that `plz-explain` replaces it.
 
 The goal is to let a first-time learner see where things get blocked, where they flow, and when
 they appear and disappear. Show structure that text alone cannot convey (layers, boundaries, flows,

@@ -2,42 +2,43 @@
 name: plz-explain
 description: |
   Builds a single-file HTML study page that teaches a technical concept, mechanism, or system structure
-  with an animated model. Scrolling the text on the left switches the model on the right chapter by
-  chapter, and a button in each chapter plays out cause and effect step by step, with numbered step
-  captions on the stage (where code is blocked, how a request flows, when a resource is created and
-  destroyed). Readers can change the playback speed, resize the text and model, and turn on auto-play.
-  The stage draws, per chapter, a three.js axonometric block model or a 2D step diagram. The page is written in the user's
-  language; screen text is built in for en, ko, ja, zh-CN. Use when someone wants to learn or understand
-  a concept visually, or knows nothing about a topic and wants interactive study material. Not for
-  static architecture or sequence diagrams (archify), data charts, Blender modeling, or product landing
-  pages and app UI.
-  Triggers: "explain X visually", "interactive explainer", "animated explainer", "show how X works as a model";
-  "그림으로 움직이며 설명해줘", "개념을 모형으로 보여줘", "원리를 단계별 애니메이션으로 보여줘";
-  "仕組みをアニメーションで解説して", "モデルで見せて"; "用动画讲解这个原理", "做成交互式讲解页面".
+  with step-by-step animations: a 2D diagram or a 3D block model, chosen per chapter. Scrolling the text
+  switches the stage chapter by chapter, and a button plays out cause and effect with numbered captions
+  (rows moving through operators, actors racing on a timeline, code changing a call stack, sliders
+  driving a chart, layers and boundaries in 3D). The page is written in the user's language; screen text
+  is built in for en, ko, ja, zh-CN. Use when someone wants to learn a concept visually or wants
+  interactive study material. Not for static diagrams (archify), data charts, Blender modeling, or
+  landing pages and app UI.
+  Triggers: "explain X visually", "interactive explainer", "animated explainer", "explain X in 3D",
+  "3D explainer", "step-by-step animation of X"; "그림으로 움직이며 설명해줘", "단계별 애니메이션으로 보여줘",
+  "3D로 공부하게 만들어줘", "원리를 모형으로 보여줘"; "仕組みをアニメーションで解説して", "3Dで解説して";
+  "用动画讲解这个原理", "用3D讲解这个概念", "做成交互式讲解页面".
 ---
 
 # Animated Concept Explainer Page
 
 The goal is to let a first-time learner see where things get blocked, where they flow, and when
-they appear and disappear. Show structure that text alone cannot convey (layers, boundaries, flows,
-lifetimes) with a model, and let the learner trigger the events with a button. The model is half
-of the explanation, not decoration. Motion carries only the change being learned.
+they appear and disappear. Show what text alone cannot convey (values moving between parts, the timing
+of a few actors, hidden state, layers and boundaries) on a stage beside the text, and let the learner
+trigger the events with a button. The stage is half of the explanation, not decoration. Motion carries
+only the change being learned.
 
 ## Output
 
-- One HTML file. Web fonts load from a CDN, and three.js r170 too when the page has an axo chapter, so opening the page needs internet. There is no build step.
-- Left: title, intro, numbered chapters, glossary, sources. Right: a fixed stage with the current chapter title, the auto-play switch, the reset-view button, the semantic color legend, and the caption rail.
-- Scrolling switches the stage to the scene of the chapter crossing the reading line. Each chapter has one run button. Pressing it plays the steps on the model, and each step's caption appears on the stage, next to the model, numbered like the steps in the text.
-- The run button is a split button: `[Run][1× ▾]`. The segment opens a speed menu (0.5×, 1×, 1.5×, 2×). The speed is shared by every chapter and remembered.
+- One HTML file. Web fonts load from a CDN, and three.js r170 too when the page has a 3D chapter, so opening the page needs internet. There is no build step.
+- Left: title, intro, numbered chapters, glossary, sources. Right: a fixed stage with the current chapter title, the auto-play switch, the reset-view button (3D chapters), the semantic color legend, and the caption rail.
+- Scrolling switches the stage to the scene of the chapter crossing the reading line. Each chapter has one run button. Pressing it plays the steps on the stage, and each step's caption appears on the stage, next to the drawing, numbered like the steps in the text.
+- The run button is a split button: `[Run][1× ▾]`. The segment opens a speed menu (0.5×, 1×, 1.5×, 2×). The speed is shared by every chapter and remembered. Code-and-state chapters can add a Step button.
 - The divider between text and stage can be dragged (on portrait phones, a handle at the bottom of the stage changes its height). The position is remembered.
 - The "Auto-play" switch at the top right of the stage repeats the action of the chapter being read (off by default; the on state is remembered).
-- Finished examples:
-  - `assets/example-agent-sandbox.html` (axo kit): how AI-agent code sandboxes isolate code, 10 chapters.
-  - `assets/example-hash-join-sip.html` (svg kit): hash join and SIP, 5 chapters. It covers the operator tree, step diagrams with a filter, side-by-side panels and node columns.
-  - `assets/example-lost-update.html` (svg kit): two sessions writing one row (lost update, row lock, version check), 5 chapters of time lanes.
-  - `assets/example-bloom-filter.html` (svg kit): Bloom filters, 5 chapters: a bit array step by step, then three parameter playgrounds (sliders, charts, readouts).
-  - `assets/example-event-loop.html` (svg kit): the JavaScript event loop, 5 chapters of code and state in sync (call stack, task and microtask queues, console), with a Step button.
-  - Every example has an English counterpart beside it, with the same name ending in `.en.html` (`example-agent-sandbox.en.html`, `example-hash-join-sip.en.html`, `example-lost-update.en.html`, `example-bloom-filter.en.html`, `example-event-loop.en.html`); look at that one when building an English page. When you need a similar scene, look in these files first.
+- Finished examples in `assets/`, each with an English counterpart ending in `.en.html` (look at that one when building an English page):
+  - `example-agent-sandbox.html`: how AI-agent code sandboxes isolate code, 10 chapters, all 3D.
+  - `example-hash-join-sip.html`: hash join and SIP, 5 chapters: operator tree, step diagrams with a filter, side-by-side panels, node columns.
+  - `example-lost-update.html`: two sessions writing one row, 5 chapters of lanes.
+  - `example-bloom-filter.html`: Bloom filters, 5 chapters: a bit array step by step, then three parameter playgrounds.
+  - `example-event-loop.html`: the JavaScript event loop, 5 chapters of code and state with a Step button.
+
+  `references/forms.md` lists which chapter of which example shows each form. When you need a similar scene, look there first.
 
 ## Page structure: shell and kits
 
@@ -45,21 +46,94 @@ The page has two layers of engine code. Neither is edited when building a page.
 
 - **The shell** owns the layout, chapter switching, HUD, caption rail, speed menu, split, auto-play, timing (the director), and verification hooks. It does not draw anything.
 - **A kit** draws the stage. Each scene names its kit with `kit:` (default `'axo'`). There are two:
-  - `axo`: a three.js axonometric model of white blocks with ink outlines.
-  - `svg`: a 2D step diagram (tables of rows with keys, hash buckets, operator boxes with lanes, filters, operator trees, node columns, time-axis swimlanes, parameter playgrounds with sliders, charts and readouts, and code panels in sync with the state they change), with no library.
-- The stage lists the kits the page uses in `data-kits` on `aside.stage`: the template has `axo svg`; use `svg` alone when there is no axo chapter, so three.js is never downloaded.
+  - `axo`: the 3D block model, a three.js axonometric model of white blocks with ink outlines.
+  - `svg`: every 2D form (step diagram, operator tree, node columns, side-by-side panels, lanes, parameter playground, code and state), with no library.
+- The stage lists the kits the page uses in `data-kits` on `aside.stage`: the template has `axo svg`; use `svg` alone when there is no 3D chapter, so three.js is never downloaded.
 - Each kit's code and styles sit in their own sections of the template, marked `KIT <kit> css` / `KIT <kit> js` … `END KIT <kit> …`. A page keeps only the sections of the kits it uses (see "Build from the template").
 
-### Choosing a kit per chapter
+## Choosing a form per chapter
 
-Decide by where the information lives.
+Answer these five questions for every chapter, in order, before you build anything, and write the answers down as a chapter spec (template at the end of this section). The catalog with every form's fit, limits, parts and examples is `references/forms.md`; the timing rules and their sources are `references/motion.md`.
 
-- **svg** when the lesson is about values and order: which row, key, or request goes where, in what order, and what is dropped or matched (joins, filters, hashing, queues, routing rows to nodes, a query plan with counts). Removing a third dimension loses nothing here, and 2D keeps every key readable without rotating.
-- **svg lanes** (`d.lanes`) when the relative timing of a few actors (2–5) decides the outcome: races, isolation anomalies, lock waits, retries, handshakes. One column per actor, time running down, a playhead marking "now". Not for one actor (a step diagram) or hundreds (a simulation).
-- **svg playground** (`params` on the scene, `d.chart`, `d.readout`) when the lesson is how an outcome responds to a continuous or ordinal parameter. Keep to 1–3 controls, each a cause the reader varies; the run button plays a short tour first, and the reader explores after it. Not for a fixed procedure, where a slider would only replay time.
-- **svg code and state** (`d.code` with `d.frames`, `d.queue`, `d.console`, `d.vars`) when the lesson is what code or commands do to hidden state, and the reader already knows the code's language. Keep each chapter's code to about 6–10 short lines (about 40 characters), and offer the Step button (`step: true`) where the reader should predict each step. Not when the code is incidental to the concept.
-- **axo** when depth or containment is the concept: layers on layers, rooms inside a boundary, what sits under what (kernels, sandboxes, VMs, network zones).
-- A page may mix them; each chapter uses one kit. Keep the three semantic colors and the same labels for the same thing in both kits.
+### 1. Is there a change to learn?
+
+Write one sentence: what changes, in what order, and why. This sentence is the chapter's `change`, and every motion in the chapter serves it; a movement that is not in the sentence is cut. If nothing changes (a definition, a static overview), it is not an animated chapter: put it in the intro or the body of a neighbouring chapter, or merge it with the chapter where the change starts. Every chapter on the page has a run button, so every chapter needs a change.
+
+### 2. Where does the information live? Pick the form
+
+Ask the rows in order and take the first "yes". The 3D row comes first because it is the narrowest: 2D is the default, and 3D is right only when removing the third axis would lose a fact the reader needs.
+
+| # | Question | Form (kit) | Main parts | Copy from |
+|---|---|---|---|---|
+| 1 | Is depth, layering or containment itself the lesson (a process inside a sandbox inside a VM, rooms on a shared kernel)? | 3D block model (`axo`) | `block`, `glass`, `actorCube`, `packet`, `tube`, `tag` | `example-agent-sandbox.html` ch. 4, 6, 9 |
+| 2 | Does the relative timing of 2–5 actors decide the outcome (a race, a lock wait, a retry, a handshake)? | Lanes (`svg`) | `d.lanes`, `L.event`, `L.message`, `L.span`, `a.play` | `example-lost-update.html` ch. 2–4 |
+| 3 | Is the point how an outcome responds to a parameter the reader can vary (a size, a rate, a count)? | Parameter playground (`svg`) | `params`, `d.chart`, `d.meter`, `d.readout`, `a.set` | `example-bloom-filter.html` ch. 3–5 |
+| 4 | Does code or a command change state the reader cannot see (a stack, queues, variables), and does the reader know the language? | Code and state (`svg`) | `d.code`, `d.frames`, `d.queue`, `d.console`, `d.vars` in `d.flow`; `a.line` | `example-event-loop.html` ch. 1–5 (ch. 4 for predicting) |
+| 5 | Is it an overview of a plan, pipeline or topology with a number on each node? | Operator tree (`svg`) | `d.tree` | `example-hash-join-sip.html` ch. 1 |
+| 6 | Are rows spread over several nodes, servers or partitions, and does which one owns a row matter? | Node columns (`svg`) | `d.columns` | `example-hash-join-sip.html` ch. 5 |
+| 7 | Which value, row or key goes where, in what order, and what is matched or dropped? | Step diagram (`svg`) | `d.table`, `d.buckets`, `d.box`, `d.gate`, `d.bits`, `d.link`, `d.token` in `d.grid` | `example-hash-join-sip.html` ch. 2–3, `example-bloom-filter.html` ch. 1–2 |
+| 8 | After picking a form above: does the chapter run the same input under two options or rules? | Side-by-side panels: the form above, built twice, in `d.panels` (3D: two stages along `SCREEN_RIGHT`) | `d.panels` | `example-hash-join-sip.html` ch. 4, `example-lost-update.html` ch. 5, `example-agent-sandbox.html` ch. 3 |
+
+- No "yes" in rows 1–7: use the step diagram, the 2D default. If the concept needs a form the kits do not draw (a byte layout, a simulation of many actors, a realistic machine), use the nearest form from the table in "Forms the kits do not draw yet" in `references/forms.md` and tell the user what the page simplifies.
+- Two rows fit: write the chapter's `change` sentence and pick the row that names its subject. "Which flag sets which setting" is row 7; "what these lines do to the stack, in order" is row 4. Row 4 is for code the reader follows line by line, not for any chapter that happens to contain a command.
+- Layers that only pass values along (a protocol stack handing a packet down, a request through bridges and NAT, a path through mount points) are row 7, not row 1: the lesson is where the value goes and how it changes. The 3D request patterns in `scene-patterns.md` (intermediary, allowed exit, request path) are for chapters of a page whose rooms and floors are already the lesson, such as a sandbox page.
+- Row 2 is for outcomes that depend on who acts when (a lost write, a wait, a retry, which signal arrives first, an ACK pacing a sender). When the outcome comes from a rule applied to a value over time (a window that grows and halves, two flows converging), use row 7 with a `d.chart` that the run draws point by point (`series.set`, `marker.at`); that is not a playground, because the reader does not vary a cause.
+- A slider that would only move time forward is not a playground; use the run button.
+- Several actors exchanging messages: lanes when the lesson is who acts when; code and state when the lesson is what the code does to the state.
+- Row 8 compares options on the same question or workload; the inputs may differ when the options need it (say so). Teach each option before the comparison, in an earlier chapter or at the start of the comparison chapter's body. Two panels fit a stage; put a third option in the summary table in the body.
+- Parts are not locked to a form: a step diagram may use `d.queue`, `d.vars`, `d.chart` or `d.readout` when they show the value best. The form decides the layout and the interaction, not the part list.
+- Row 4 asks whether the reader knows the language. If the request does not say, assume the language the topic is usually written in (shell for containers, JavaScript for the browser event loop), keep the code to the lines that matter, and explain each line in the body.
+
+### 3. What is the time structure? Pick the interaction
+
+| Time structure | Interaction |
+|---|---|
+| A short sequence of discrete steps (up to about 10) | The run button, at the designed pace. Every chapter has it |
+| The reader should predict each step before seeing it (code and state) | Add the Step button (`step: true`) and ask the question in the body before the run |
+| A continuous or ordinal cause | 1–3 sliders and presets (playground); the run button plays a short tour first |
+| A long sequence of events | Not a single chapter: split it into chapters, or show fewer steps |
+
+Auto-play is the reader's switch, off by default; do not build loops yourself. Predicting first teaches more than watching (`references/motion.md`, "Predict before watching").
+
+### 4. What kind of motion is each step?
+
+Number the steps (`say('2. …')`, matching `ol.steps` in the body) and give each step exactly one kind:
+
+- **causes**: A makes B happen. B starts as A arrives, with no visible gap; the caption states the effect.
+- **follows**: B only comes after A. Leave a short pause, keep A from touching B, and write "then", not "so".
+- **appears**: a part or value enters (a fade or a growth).
+- **leaves**: something is dropped or removed, in its own step, with a count, leaving a trace (a struck-through row).
+- **highlight**: attention moves to a part without changing state (one outline or flash).
+
+A step is one numbered caption. When one engine call reveals several things (a lanes step shows events, then messages, then the values they cause), give the step the kind of its main change: the one the caption states. In side-by-side panels, one step plays on both sides; if the sides do different kinds of things, give each its own step ("Left: …", "Right: …"), and count moving objects per panel.
+
+One kind of change per step; about 1 s per tracked move; at most 3–4 things moving at once (1–2 when the reader must tell them apart); the caption after the motion; the result stays visible at the end. The numbers, the engine defaults and their sources are in `references/motion.md`.
+
+### 5. How do the chapters connect?
+
+- One form per chapter. A page may mix forms and kits across chapters; the stage cuts between them at the chapter boundary, with no transition to build.
+- Keep the three semantic colors and the same label for the same thing in every chapter and both kits, so the reader recognises an object when the form changes.
+- Order the chapters from small to large: author-led step chapters first, a comparison only after the reader knows each side, playgrounds (free exploration) after the chapters they build on. Use the last one or two chapters to apply the idea to the user's actual situation, in whatever form fits; if the request gives no situation (an issue, a draft, a product), use a common real one (a typical command, a common network) and say in the body that it is an example.
+
+### Chapter spec
+
+Write one block per chapter before building, and keep them in your working notes (not in the page):
+
+```text
+Chapter 3: <title>
+change:      <one sentence: what changes, in what order, and why>
+form:        <form> (<kit>), because <the row in step 2 that said yes, or "no row: the 2D default"; what another form would lose>
+copy from:   <example page and chapter>
+parts:       <the parts and their labels, colors by meaning>
+interaction: run | run + step | sliders (tour stops: …)
+steps:                          (moving: objects that travel or that the reader must track; flashes and counters are 0)
+  1. [causes]  <caption>        moving: 1   anchor: <part>
+  2. [leaves]  <caption>        moving: 2   anchor: <counter>
+  3. [follows] <caption>        moving: 0
+gist:        <the chapter in one sentence>
+```
+
+A chapter whose spec has no `change` or no step goes back to question 1.
 
 ## Page language
 
@@ -84,26 +158,17 @@ If `references/preferences.md` exists, read it first. Where items overlap, follo
 
 **Fact-check.** If the topic depends on repository code or current product information, check it first (read the code, official docs, web search). Leave the sources you checked and the date at the end of the page, and write "not checked" for anything you could not verify. Learners trust this page as fact and memorize it.
 
-**Chapter design.** Split into 5-10 chapters. Go from easy to hard, and use the last one or two chapters to apply the idea to the user's actual situation (an issue in progress, a design draft, a product comparison). Decide three things for each chapter:
-
-- Scene: what is placed there (layers, rooms, blocks, passages)
-- Action: what happens when the button is pressed, as numbered steps. Cause and effect must be visible. Do not use animation that just spins.
-- Gist: the chapter reduced to one sentence
-
-A chapter with no action in mind is either well served by text alone or should be merged into another chapter. Write a short chapter list, then build. Ask the user only when the topic scope is ambiguous.
+**Chapter design.** Split into 5-10 chapters. Go from easy to hard, and use the last one or two chapters to apply the idea to the user's actual situation (an issue in progress, a design draft, a product comparison). Then follow "Choosing a form per chapter" above for every chapter and write the chapter specs. Ask the user only when the topic scope is ambiguous.
 
 ### 2. Visual and motion rules
 
-This style is an architectural model (white massing model + ink outlines) seen in axonometric view. It is chosen so that learners read "structure", so keep it when the topic changes.
+The style is an architectural model: white massing and paper, ink outlines, light shadows. It is chosen so that learners read structure, so keep it when the topic changes.
 
-- Orthographic (axonometric) camera, white model, ink outlines, light shadows. They are in the axo kit.
-- svg chapters use the same paper: white tables and boxes with hairline borders, keys in the mono font, the active element marked by an ink outline or halo (never an extra color).
+- 3D chapters: an orthographic (axonometric) camera, white model, ink outlines, light shadows. They are in the axo kit.
+- 2D chapters use the same paper: white tables and boxes with hairline borders, keys in the mono font, the active element marked by an ink outline or halo (never an extra color).
 - Use a light background. A white model reads well against a light ground, with clear outlines and shadows.
 - There are only three semantic colors. actor (the protagonist that moves and causes things, red), bound (boundary, rule, intermediary, blue), matter (data, resource, material, brass). Give each color exactly one meaning, and draw everything else in white and ink. Write what each means on this page in the legend.
-- Motion happens only when a button is pressed and when the chapter changes, by default. If the user turns on "Auto-play", the action of the current chapter replays in a loop. When auto-play is off, use no autoplay or looping animation.
-- One step, one kind of change, about one second. A tracked move takes about 1 s (`a.move` defaults to 1000 ms with slow-in/slow-out). Move at most 3-4 things at once; if each one's identity matters, 1-2.
-- When A really causes B, start B right after A arrives (no visible gap). When B only comes next, leave a short `a.wait` between them, and write "then" rather than "so" in the caption.
-- Show a caption after the movement it describes, and leave the result as a static trace (a held color, a label change) rather than letting it vanish.
+- Motion happens only when the reader presses a button or turns on auto-play, and when the chapter changes. Follow the motion kinds of step 4 above and the rules in `references/motion.md`.
 - Write labels as short noun phrases (about 15 characters) and keep them from overlapping.
 - Fonts: the headline (h1) uses Pretendard Variable (2.2rem, 1.7rem on phones, weight 700); chapter titles (h2) and the stage title use Hahmlet; body text uses IBM Plex Sans KR; only code identifiers use IBM Plex Mono. If you want other fonts, change them in preferences. Japanese and Chinese pages (`:lang(ja)`, `:lang(zh)`) fall back to system fonts such as Hiragino Sans, Yu Gothic, PingFang SC, and Noto Sans CJK, because these web fonts lack enough kana and Simplified Chinese glyphs (this is in the template CSS). Do not add CDN fonts.
 
@@ -111,7 +176,7 @@ This style is an architectural model (white massing model + ink outlines) seen i
 
 Copy `assets/template.html` to the output location and fill in only the HTML marked `TEXT` and the `SCENES` section. Do not edit the `ENGINE` sections, which hold the shell, the director, and the kits (renderer, camera fitting, label handling, animator). They already contain fixes for bugs we hit.
 
-- Decide which kits the page uses (see "Choosing a kit per chapter"). For every kit the page does not use, delete everything that belongs to it:
+- Decide which kits the page uses: the kits of the forms in your chapter specs (3D block model: `axo`; every other form: `svg`). For every kit the page does not use, delete everything that belongs to it:
   - in the `<style>` block, from the `/* KIT <kit> css — … */` line through `/* END KIT <kit> css */`;
   - in the script, from `/* KIT <kit> js — … */` through `/* END KIT <kit> js */` (delete those lines exactly; change nothing else in `ENGINE`);
   - in `SCENES`, that kit's code. Without axo: the `setupKit('axo', …)` block (the shared floor), the `FLOOR` constant, and the scenes `s1` and `s2`. Without svg: the scene `s3`.
@@ -127,7 +192,9 @@ Copy `assets/template.html` to the output location and fill in only the HTML mar
 - The ENGINE handles auto-play. Only chapters with a `data-run` button inside the chapter body's `.act` loop; elements without a button (intro, glossary) do not run. It also does not run at the very top of the page (scroll 40px or less). To loop, the scene's `reset()` must restore everything `run()` changed (including label text).
 - Screen text elements (the intro `.note`'s `.wide` and `.narrow`, HUD buttons, `.hint`, `.fallback`, the glossary and sources headings) carry `data-ui="key"` or `data-ui-aria="key"`, and the engine fills them in the page language. Do not edit this text directly in TEXT. To change it, override it with `UI_OVERRIDES`. The stage's `aria-label` (`data-ui-aria="stageAria"`) has the generic text "Model"; to put the topic in it, delete that attribute and write `aria-label` yourself.
 - API: `references/engine-api.md`
-- Scene patterns by kind of concept (layers, boundaries, flows, lifetimes, comparisons, and so on): `references/scene-patterns.md`
+- Forms (what each fits, its parts, the example chapter to copy): `references/forms.md`
+- Code patterns per form (layers, boundaries, flows, lifetimes, comparisons, filters, lanes, playgrounds, code and state): `references/scene-patterns.md`
+- Motion rules and their sources: `references/motion.md`
 
 ### 4. Writing
 
@@ -172,7 +239,7 @@ The phone layout is built into the template.
 - Wide stages (720px and wider, side by side) show every caption in a column beside the model; the camera fits the model into the rest. Narrower stages show one caption bar: the newest caption, "k / n", and a toggle that opens all captions as a sheet inside the stage.
 - One line of the stage title bar holds the chapter title, the auto-play switch, and the reset-view button (the chapter title takes up to two lines and is truncated with an ellipsis if longer). At 430px wide and below, the switch text shrinks to a short per-language phrase (English "Auto"; the accessible name stays the long phrase "Auto-play"), and tap targets are 44px or more. Code blocks do not wrap; they scroll horizontally inside the block only.
 - Touch: on the stage, a vertical swipe scrolls the page and a horizontal drag rotates the model. Tilting up and down is not supported.
-- svg chapters: on wide stages the diagram is scaled up to 1.6× with the captions beside or below it; on narrow stages and phones the columns compress and the rows adapt (text stays at least 12px on desktop, 11px on phones).
+- svg chapters: on wide stages the diagram is scaled up to 1.6× with the captions beside or below it (a code-and-state chapter also tries each wrapping of its `d.flow`, code beside or above the state, and keeps the one drawn largest); on narrow stages and phones the columns compress and the rows adapt (text stays at least 12px on desktop, 11px on phones).
 - The intro note follows `data-kits`: an axo-only page says the model can be rotated, an svg-only page says the button plays the event step by step, and a mixed page limits the rotate hint to 3D chapters. For a language outside the built-in ones, write `noteWide`, `noteNarrow`, `noteSteps`, `noteMixedWide`, and `noteMixedNarrow` in `UI_OVERRIDES` (or at least `noteWide` and `noteNarrow`, which the other three fall back to).
 - A stage 600px or narrower (phones, or a narrow stage beside the text) uses smaller labels. When the model area is narrower than 700px, the axo kit also pulls labels toward the inside of the model area and shifts them apart when they overlap. Overlaps beyond the cap (56px) remain.
 - When you build a page, write short labels and do not place two long labels close together.

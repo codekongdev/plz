@@ -426,6 +426,8 @@ before(async () => {
     'variant-unused-kit.html': variantWithScenes(tpl, SVG_SCENES, 'axo svg', LANE_CHAPTERS),
     'variant-lanes-extra.html': variantWithScenes(tpl, LANES_EXTRA, 'svg'),
     'variant-pg-extra.html': variantWithScenes(tpl, PG_EXTRA, 'svg'),
+    // s7's flow inside a column stack: the kit must still compare the flow's wrappings.
+    'variant-svg-nested-flow.html': (() => { const v = variantWithScenes(tpl, SVG_SCENES, 'svg', LANE_CHAPTERS), a = "diagram: d.flow([code, d.flow([frames, d.stack([micro, tasks], { dir: 'col' }), out])]),"; assert.ok(v.includes(a)); return v.replace(a, () => "diagram: d.stack([d.flow([code, d.flow([frames, d.stack([micro, tasks], { dir: 'col' }), out])])], { dir: 'col' }),"); })(),
   };
   server = await startPageServer(path => variants[path] ?? (['template.html', 'example-agent-sandbox.en.html', ...SVG_EXAMPLES].includes(path) ? readFile(join(assets, path)) : null));
   origin = server.origin;
@@ -577,6 +579,10 @@ async function svgChapterChecks(page, tag, { phone }) {
     assert.ok(r.text.length > 0, `${tag} ${n}: final caption`);
     assert.deepEqual(r.overlaps, [], `${tag} ${n}: overlaps`);
     assert.deepEqual(r.clipped, [], `${tag} ${n}: clipped`);
+    if (!phone && ['right', 'below'].includes(r.kit?.arrangement)) { // the kit placed the captions: every caption of the run is in view
+      const shown = await page.evaluate(() => { const rail = document.querySelector('.rail'), b = rail.getBoundingClientRect(); return rail.scrollHeight <= rail.clientHeight + 1 && [...rail.querySelectorAll('.cap')].every(c => { const q = c.getBoundingClientRect(); return q.top >= b.top - 0.5 && q.bottom <= b.bottom + 0.5; }); });
+      assert.ok(shown, `${tag} ${n}: every caption is in view (${r.kit.arrangement})`);
+    }
     const f = await minFont(page);
     assert.ok(f >= (phone ? 11 : 12) - 0.01, `${tag} ${n}: smallest label ${f}px`);
     // A playground: also at the minimum and maximum of every slider, then back to the defaults.
@@ -1597,4 +1603,68 @@ test('stacked phones: a chapter whose stage height differs from its neighbour st
   }
   assert.deepEqual(errors, []);
   await close();
+});
+
+// Wide stages: a d.flow diagram (code and state) tries each of its wrappings with each caption arrangement and keeps the one
+// drawn largest, under the same 1.3× preference for captions beside the drawing as any diagram. The chosen layout box is
+// centred on the stage, and the caption column has room for every caption of the chapter (none scrolled out of view).
+const FLOW_STAGE = page => page.evaluate(() => {
+  const kit = window.__explainer.kitInfo(), rail = document.querySelector('.rail'), r = rail.getBoundingClientRect();
+  const caps = [...rail.querySelectorAll('.cap')].map(c => c.getBoundingClientRect());
+  return {
+    kit, overlaps: window.__explainer.overlaps(), clipped: window.__explainer.clipped(),
+    // every caption lies inside the rail's visible box, and the rail does not scroll
+    captionsShown: caps.length > 0 && rail.scrollHeight <= rail.clientHeight + 1 && caps.every(c => c.top >= r.top - 0.5 && c.bottom <= r.bottom + 0.5),
+  };
+});
+// The arrangement the 1.3× rule picks among the candidates the kit reports: the largest k beside, the largest k below,
+// and below only when its k is 1.3 times larger.
+const ruleScale = cands => {
+  const max = list => Math.max(0, ...list.map(c => c.k));
+  const right = max(cands.filter(c => !c.below)), below = max(cands.filter(c => c.below));
+  return below > right * 1.3 ? { below: true, k: below } : { below: false, k: right };
+};
+for (const file of ['example-event-loop.html', 'example-event-loop.en.html']) {
+  test(`${file}: code and state take the arrangement drawn largest, centred, with every caption in view`, { timeout: 120_000 }, async t => {
+    for (const [width, height, floor] of [[1440, 900, 0.2], [2282, 1293, 0.14]]) {
+      const { page, errors, close } = await openPage(t, file, { viewport: { width, height } });
+      await page.evaluate(() => window.__explainer.instant(true));
+      for (const n of EXAMPLE_SCENES['event-loop']) {
+        await page.evaluate(n => window.__explainer.run(n), n);
+        const r = await FLOW_STAGE(page), kit = r.kit, tag = `${width}x${height} ${n}`;
+        assert.ok(['right', 'below'].includes(kit.arrangement), `${tag}: the kit placed the captions as a column (${kit.arrangement})`);
+        assert.ok(kit.candidates.length >= 3, `${tag}: the flow's wrappings were all tried (${kit.candidates.length})`);
+        const want = ruleScale(kit.candidates);
+        assert.equal(kit.arrangement === 'below', want.below, `${tag}: captions ${kit.arrangement}, the rule says ${want.below ? 'below' : 'right'}`);
+        assert.ok(kit.scale >= want.k / 1.02 - 1e-9, `${tag}: scale ${kit.scale} is the largest the rule allows (${want.k})`);
+        const b = kit.block, share = (kit.box.w * kit.box.h) / (kit.W * kit.H);
+        assert.ok(share > floor, `${tag}: the diagram's layout box covers ${share.toFixed(3)} of the stage`);
+        assert.ok(Math.abs(b.x - (kit.W - b.x - b.w)) <= 2, `${tag}: the layout block is centred: ${JSON.stringify(b)} in ${kit.W}`);
+        assert.ok(r.captionsShown, `${tag}: every caption is in view`);
+        assert.deepEqual([r.overlaps, r.clipped], [[], []], `${tag}: overlaps and clipped`);
+      }
+      assert.deepEqual(errors, []);
+      await close();
+    }
+  });
+}
+
+test('d.flow: a nested flow wraps beside the item before it, and a flow inside a container is still compared by wrapping', { timeout: 60_000 }, async t => {
+  const scales = [];
+  for (const file of ['variant-svg-only.html', 'variant-svg-nested-flow.html']) {
+    const { page, errors, close } = await openPage(t, file);
+    await page.evaluate(() => window.__explainer.instant(true));
+    await page.evaluate(() => window.__explainer.run('s7'));
+    const kit = await page.evaluate(() => window.__explainer.kitInfo());
+    assert.ok(kit.candidates.length >= 3, `${file}: wrappings tried (${JSON.stringify(kit.candidates)})`);
+    scales.push(kit.scale);
+    if (file === 'variant-svg-only.html') {
+      // the code beside a state that wraps onto more lines: one top line holds both, narrower than the one-row width
+      const oneRow = Math.max(...kit.candidates.map(c => c.w));
+      assert.ok(kit.candidates.some(c => c.lines?.length === 1 && c.lines[0] === 2 && c.w < oneRow - 1), `${file}: a candidate with the state wrapped beside the code: ${JSON.stringify(kit.candidates)}`);
+    }
+    assert.deepEqual(errors, []);
+    await close();
+  }
+  assert.ok(Math.abs(scales[0] - scales[1]) < 0.01, `a flow inside a column stack is drawn as large as the same flow alone: ${scales}`);
 });

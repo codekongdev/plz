@@ -1051,7 +1051,7 @@ function layoutStage() {
   const side = !barred && W >= RAIL_SIDE_MIN;
   const kit = activeKit();
   // A kit may arrange its drawing and the caption column itself (place); null means "use the default".
-  const placed = side && kit?.place ? kit.place({ W, H, top: topInset, bottom: bottomEdge }) : null;
+  const placed = side && kit?.place ? kit.place({ W, H, top: topInset, bottom: bottomEdge, railNeed }) : null;
   railEl.classList.toggle('side', side);
   railEl.classList.toggle('compact', !side);
   railEl.classList.toggle('open', !side && railOpen);
@@ -1078,6 +1078,43 @@ function layoutStage() {
   // The HUD chapter title grows gently with the stage (up to 1.25×) where the HUD lies over a large stage.
   hudNow.style.fontSize = barred ? '' : `${(1.05 * clamp(1, Math.min(W / 760, H / 820), 1.25)).toFixed(3)}rem`;
   if (!placed && kit?.fit) kit.fit(modelRect, W, H, { top: barred ? 0 : topInset, bottom: barred ? H : bottomEdge });
+}
+// The captions a chapter leaves on the rail at the end of its run: those of its last completed run, or, before it has run,
+// the say() texts read from its scene code (per step number the longest; captions without a number each). Template
+// literals count their placeholders as two characters. A kit that places the caption column (place) reserves room for them.
+const sceneCaps = {};
+function sceneCaptions(name) {
+  if (sceneCaps[name]) return sceneCaps[name];
+  const byN = new Map(), plain = [];
+  for (const m of String(scenes[name]?.def.build ?? '').matchAll(/\bsay\(\s*(['"`])((?:\\[\s\S]|(?!\1)[^\\])*)\1/g)) {
+    const t = m[2].replace(/\$\{[^}]*\}/g, '00').replace(/\\([\s\S])/g, '$1');
+    const n = /^(\d+)\.\s/.exec(t)?.[1];
+    if (!n) plain.push(t);
+    else if ((byN.get(n) ?? '').length < t.length) byN.set(n, t);
+  }
+  return [...byN.values(), ...plain];
+}
+// Height (px, caption scale 1) of the current chapter's captions in a column w px wide; null when none are known.
+const railNeedCache = new Map();
+document.fonts?.addEventListener?.('loadingdone', () => railNeedCache.clear());
+function railNeed(w) {
+  const texts = sceneCaptions(current);
+  if (!texts.length) return null;
+  const key = `${current}|${Math.round(w)}|${texts.join('\u0001')}`;
+  if (railNeedCache.has(key)) return railNeedCache.get(key);
+  const probe = el('div', { className: 'rail side' }, wrap);
+  Object.assign(probe.style, { visibility: 'hidden', display: 'flex', left: '0', top: '0', width: `${w}px` });
+  const list = el('ol', { className: 'rail-list' }, probe);
+  texts.forEach((t, i) => {
+    const m = /^(\d+)\.\s+([\s\S]*)$/.exec(t);
+    const li = el('li', { className: i === texts.length - 1 ? 'cap new' : 'cap' }, list);
+    el('span', { className: 'n', textContent: m ? m[1] : '' }, li);
+    el('span', { className: 't', textContent: m ? m[2] : t }, li);
+  });
+  const h = probe.offsetHeight;
+  probe.remove();
+  railNeedCache.set(key, h);
+  return h;
 }
 // Height of the closed bar (the fixed --bar-h), so the model does not jump when the sheet opens. Measured once; re-measured after a resize.
 let barHeight = 0;
@@ -1203,7 +1240,8 @@ Split.apply(); // the saved split holds while kits load, and after a load failur
      ended(scene)         optional: the scene's run reached its end (not cancelled)
      params(scene, values) optional: a scene's parameters (playgrounds): set some (values) and return all; null without parameters
      paramSpec(scene)     optional: { id: { min, max, value } } of a scene's parameters
-     place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom };
+     place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom,
+                          railNeed(w): px height of the chapter's captions in a column w px wide at scale 1 (null: unknown) };
                           return { rail: { x, y, w, h }, scale, model } (scale also sizes the captions), or null for the default
      minHeight()          optional: the smallest model height (px) for the stage-height handle on phones
      frame(dt)            every animation frame
@@ -2327,6 +2365,31 @@ function svgBuilder(sc) {
     return register(part);
   }
 
+  // During one layout pass (sc.memo, set by the kit's place() and fit()) a container computes each size and its wrap widths
+  // once per metrics and width; the kit tries several widths per pass, and every try asks the children again.
+  const memo = node => {
+    for (const fn of ['size', 'widths']) {
+      const raw = node[fn];
+      if (!raw) continue;
+      node[fn] = (m, w) => {
+        const c = sc.memo;
+        if (!c) return raw(m, w);
+        const key = `${fn}|${m.phone ? 'p' : 'd'}${m.row}|${w}`;
+        let per = c.get(node);
+        if (!per) c.set(node, (per = new Map()));
+        if (!per.has(key)) per.set(key, raw(m, w));
+        return per.get(key);
+      };
+    }
+    return node;
+  };
+  // A container's wrap widths: for each child that can wrap (a flow, or a container holding one), the container's natural
+  // width with that child at each of its widths (beside: the others stay natural), or the child's width alone (stacked).
+  const childWidths = (children, m, total, beside) => {
+    const out = new Set();
+    for (const p of children) for (const wc of p.widths?.(m) ?? []) out.add(beside ? total - p.size(m).w + wc : wc);
+    return [...out].sort((a, c) => c - a);
+  };
   // Containers. grid: rows of cells (parts or null) with a gutter between columns for connectors and gates.
   // panels: the same kind of diagram side by side (stacked on phones), each with a title. stack: a plain row or column.
   function grid(rows, { gutter = null } = {}) {
@@ -2336,7 +2399,8 @@ function svgBuilder(sc) {
       return { w: Math.max(0, ...s.map(x => x.w)), min: Math.max(0, ...s.map(x => x.min)) };
     });
     const gut = m => gutter ?? m.gutter;
-    const node = {
+    const node = memo({
+      widths: m => childWidths(rows.flat().filter(Boolean), m, node.size(m).w, true),
       size(m) {
         const cs = colSizes(m), gw = gut(m) * (ncol - 1);
         const h = rows.reduce((sum, r) => sum + Math.max(0, ...r.filter(Boolean).map(p => p.size(m).h)), 0) + m.gapY * (rows.length - 1);
@@ -2357,7 +2421,7 @@ function svgBuilder(sc) {
         });
         return node.size(m).h;
       },
-    };
+    });
     return node;
   }
   function stack(items, { dir = 'row', gap = null } = {}) {
@@ -2373,7 +2437,8 @@ function svgBuilder(sc) {
       if (spare > 0 && give > 0) out.forEach(o => { if (o.shrunk) o.w += Math.min(o.nat - o.w, spare * (o.nat - o.w) / give); });
       return out;
     };
-    const node = {
+    const node = memo({
+      widths: m => childWidths(items, m, node.size(m).w, dir === 'row'),
       size(m, w) {
         if (dir === 'row') { const s = rowSizes(m, w); return { w: s.reduce((a, b) => a + b.w, 0) + gp(m) * (s.length - 1), min: items.reduce((a, p) => a + p.size(m).min, 0) + gp(m) * (s.length - 1), h: Math.max(...s.map(x => x.h)) }; }
         const s = items.map(p => p.size(m, w)); // a column passes its width down (panels inside pick by it)
@@ -2390,34 +2455,60 @@ function svgBuilder(sc) {
         }
         return node.size(m, w).h;
       },
-    };
+    });
     return node;
   }
   // flow: items left to right at their natural widths, wrapping to a new line when the next one does not fit (like flex-wrap):
   // one row on a wide stage, a few lines on a narrower one (code across the top, the state below it side by side), one
-  // column only when nothing fits beside anything. An item wider than the width gets a line of its own and is placed at
-  // that width (a nested flow then wraps itself). Lines are top-aligned.
+  // column only when nothing fits beside anything. A nested flow that does not fit beside the items before it at its natural
+  // width wraps there when the rest of the line holds its widest item (the code beside a state on two lines); otherwise it
+  // starts a new line, and an item wider than the width gets a line of its own at that width. Lines are top-aligned.
+  // widths(m) lists the widths at which the wrapping changes (every run of neighbouring items, with a nested flow's own
+  // widths at the end of a run), so the kit can try each arrangement and keep the one it draws largest.
   function flow(items, { gap = null } = {}) {
     const gx = m => gap ?? (m.phone ? 10 : 24), gy = m => m.gapY; // tighter than panels: the state parts belong together
+    const narrowest = (p, m) => (p.wrapMin ? p.wrapMin(m) : Infinity); // the narrowest width a nested flow wraps to unsqueezed
     const lines = (m, w) => {
       const out = [];
-      let line = [], used = 0;
+      let line = [], ws = [], used = 0;
       for (const p of items) {
-        const nat = p.size(m).w, add = (line.length ? gx(m) : 0) + nat;
-        if (line.length && used + add > w + 0.5) { out.push(line); line = []; used = 0; }
-        line.push(p); used += (line.length > 1 ? gx(m) : 0) + nat;
+        const nat = p.size(m).w, g = line.length ? gx(m) : 0;
+        let pw = nat;
+        if (line.length && used + g + nat > w + 0.5) {
+          const room = w - used - g;
+          if (room + 0.5 >= narrowest(p, m)) pw = room; // wrap beside the items before it
+          else { out.push({ ps: line, ws }); line = []; ws = []; used = 0; }
+        }
+        pw = Math.min(pw, w);
+        used += (line.length ? gx(m) : 0) + pw; line.push(p); ws.push(pw);
       }
-      if (line.length) out.push(line);
-      return out.map(ps => {
-        const ws = ps.map(p => Math.min(p.size(m).w, w));
-        return { ps, ws, h: Math.max(...ps.map((p, i) => p.size(m, ws[i]).h)), w: ws.reduce((a, b) => a + b, 0) + gx(m) * (ps.length - 1) };
+      if (line.length) out.push({ ps: line, ws });
+      return out.map(({ ps, ws: lw }) => {
+        const sz = ps.map((p, i) => p.size(m, lw[i]));
+        const dw = sz.map((z, i) => (i === sz.length - 1 ? Math.min(lw[i], z.w) : lw[i])); // the last item may draw narrower
+        return { ps, ws: lw, h: Math.max(...sz.map(z => z.h)), w: dw.reduce((a, c) => a + c, 0) + gx(m) * (ps.length - 1) };
       });
     };
-    return {
+    return memo({
       size(m, w = Infinity) {
         const ls = lines(m, w);
         return { w: Math.max(...ls.map(l => l.w)), min: Math.max(...items.map(p => p.size(m).min)), h: ls.reduce((a, l) => a + l.h, 0) + gy(m) * (ls.length - 1) };
       },
+      widths(m) {
+        const nat = items.map(p => p.size(m).w), out = new Set();
+        nat.forEach((_, i) => {
+          let s = 0;
+          for (let j = i; j < nat.length; j++) {
+            const before = s + (j > i ? gx(m) : 0);
+            for (const wc of items[j].widths?.(m) ?? []) out.add(before + wc); // item j wraps beside the items before it
+            out.add((s = before + nat[j]));
+          }
+        });
+        const min = Math.max(...items.map(p => p.size(m).min));
+        return [...out].filter(w => w >= min).sort((a, c) => c - a);
+      },
+      wrapMin: m => Math.max(...items.map(p => (p.wrapMin ? p.wrapMin(m) : p.size(m).w))),
+      lineCounts: (m, w = Infinity) => lines(m, w).map(l => l.ps.length),
       place(m, x, y, w) {
         let yy = y;
         for (const l of lines(m, w)) {
@@ -2427,7 +2518,7 @@ function svgBuilder(sc) {
         }
         return yy - gy(m) - y;
       },
-    };
+    });
   }
   function panels(list) {
     const titled = list.map(({ title, body }) => {
@@ -2440,11 +2531,17 @@ function svgBuilder(sc) {
     const row = stack(titled, { dir: 'row' }), col = stack(titled, { dir: 'col' });
     // Side by side whenever the row fits (phones included, for example a landscape phone); stacked otherwise.
     const pick = (m, w) => (w < row.size(m).min ? col : row);
-    return {
+    return memo({
       // The size of the arrangement place() will use for this width (no width: side by side).
       size: (m, w = Infinity) => ({ ...pick(m, w).size(m, w), min: col.size(m).min }),
+      // a body that wraps: every panel at that width side by side, or one panel at that width (stacked)
+      widths: m => {
+        const out = new Set(), n = list.length, g = m.panelGap;
+        for (const { body } of list) for (const wc of body.widths?.(m) ?? []) { out.add(wc); out.add(n * wc + g * (n - 1)); }
+        return [...out].sort((a, c) => c - a);
+      },
       place: (m, x, y, w) => pick(m, w).place(m, x, y, w),
-    };
+    });
   }
   return {
     table, buckets, box, gate, tree, columns, lanes, chart, meter, readout, bits, code, frames, queue, console: konsole, vars,
@@ -2774,30 +2871,66 @@ defineKit('svg', {
     sc.k = k;
     sc.root.setAttribute('transform', `translate(${+x.toFixed(2)} ${+y.toFixed(2)}) scale(${+k.toFixed(4)})`);
   },
+  // The arrangements the diagram can take with metrics m in at most maxW: [{ avail, w, h, lines }], widest first, each drawn
+  // differently. A d.flow (also inside a container) lists the widths where its wrapping changes; any other diagram has one.
+  // lines: a top-level flow's items per line, for the hooks.
+  layouts(sc, m, maxW = Infinity) {
+    const ws = [maxW, ...(sc.diagram.widths?.(m) ?? []).filter(w => w < maxW)];
+    const out = [], seen = new Set();
+    for (const avail of ws) {
+      const s = avail === Infinity ? sc.diagram.size(m) : sc.diagram.size(m, avail), w = Math.max(s.min, Math.min(s.w, avail));
+      const key = `${Math.round(w)}x${Math.round(s.h)}`;
+      if (!seen.has(key)) { seen.add(key); out.push({ avail, w, h: s.h, lines: sc.diagram.lineCounts?.(m, avail) }); }
+    }
+    return out;
+  },
+  // One chooser for every stage. options: { k, below } per arrangement. The larger k wins among the arrangements with the
+  // captions beside the drawing and among those with the captions below (the earlier, wider one on a tie within 2%), and
+  // below wins over beside only when its k is 1.3 times larger.
+  choose(options) {
+    const best = list => list.reduce((b, o) => (!b || o.k > b.k * 1.02 ? o : b), null);
+    const right = best(options.filter(o => !o.below)), below = best(options.filter(o => o.below));
+    return below && (!right || below.k > right.k * 1.3) ? below : right;
+  },
   // Wide stages (rail as a column): the diagram and the rail form one block laid out at natural size, then scaled by k (1 to 1.6).
-  // Two arrangements compete, rail right and rail below; below wins only when its k is 1.3 times larger. Returns null when
-  // neither fits at k = 1 (the shell then uses its default rail and fit()).
+  // Every arrangement of the diagram (a flow's wrappings: code beside the state, beside a wrapped state, above it, …) is
+  // tried with the captions beside it and below it, and choose() keeps one. Room for every caption of the chapter is
+  // reserved (g.railNeed measures them), so the end state shows them all; an arrangement where they do not fit at k = 1
+  // is not taken. Returns null when nothing fits (the shell then uses its default rail and fit()).
   place(g) {
     const sc = this.current?.sc;
     if (!sc) return null;
-    const m = svgMetrics(false), nat = sc.diagram.size(m);
-    const PAD = 16, GAP = 24, RAIL_MIN = 248, KMAX = 1.6, BELOW = 12;
+    const m = svgMetrics(false);
+    const PAD = 16, GAP = 24, RAIL_MIN = 248, KMAX = 1.6, BELOW = 12, RAIL_DEFAULT = 150;
     const aw = g.W - 2 * PAD;
     // A playground's controls sit under the diagram (unscaled, at most 560px wide); the diagram gets the height above them.
     this.ctlDock(sc, false);
     const cw = Math.min(aw, 560), ch = this.ctlSize(sc, cw), ah = g.bottom - g.top - PAD - ch;
-    const railBelow = 150; // room reserved for the captions under the diagram (they scroll inside it if longer)
-    const kr = Math.min(aw / (nat.w + GAP + RAIL_MIN), ah / nat.h);
-    const kb = Math.min(aw / nat.w, ah / (nat.h + BELOW + railBelow));
-    if (kr < 0.999 && kb < 0.999) return null;
-    const below = kb >= 0.999 && (kr < 0.999 || Math.min(KMAX, kb) > Math.min(KMAX, kr) * 1.3);
-    const k = Math.min(KMAX, below ? kb : kr);
-    const size = this.layoutAt(sc, m, Infinity);
+    // Caption heights at scale 1: in the narrowest column beside the drawing, and under a drawing w wide. They scale with k.
+    const need = w => g.railNeed?.(w) ?? null;
+    const capR = need(RAIL_MIN) ?? 0, capB = w => (need(w) ?? RAIL_DEFAULT - 8) + 8;
+    sc.memo = new Map();
+    const options = [];
+    try {
+      for (const c of this.layouts(sc, m)) {
+        const kr = Math.min(aw / (c.w + GAP + RAIL_MIN), ah / Math.max(c.h, capR));
+        const cb = capB(c.w), kb = Math.min(aw / c.w, ah / (c.h + BELOW + cb));
+        if (kr >= 0.999) options.push({ ...c, below: false, k: Math.min(KMAX, kr), cap: capR });
+        if (kb >= 0.999) options.push({ ...c, below: true, k: Math.min(KMAX, kb), cap: cb });
+      }
+    } finally { sc.memo = null; }
+    const best = this.choose(options);
+    if (!best) return null;
+    const { below, k } = best;
+    const size = this.layoutAt(sc, m, best.avail);
     const railN = below ? size.w : clamp(RAIL_MIN, aw / k - size.w - GAP, 420);
-    const bw = (below ? size.w : size.w + GAP + railN) * k, bh = (below ? size.h + BELOW + railBelow : size.h) * k + ch;
+    const bw = (below ? size.w : size.w + GAP + railN) * k, bh = (below ? size.h + BELOW + best.cap : Math.max(size.h, best.cap)) * k + ch;
     const ox = (g.W - bw) / 2, oy = g.top + Math.max(0, (g.bottom - g.top - bh) * 0.4);
     this.transform(sc, ox, oy, k);
-    sc.info = { scale: k, arrangement: below ? 'below' : 'right', row: m.row };
+    const r2 = v => Math.round(v * 100) / 100;
+    sc.info = { scale: k, arrangement: below ? 'below' : 'right', row: m.row, W: g.W, H: g.H,
+      box: { x: r2(ox), y: r2(oy), w: r2(size.w * k), h: r2(size.h * k) }, block: { x: r2(ox), y: r2(oy), w: r2(bw), h: r2(bh) },
+      candidates: options.map(o => ({ w: r2(o.w), h: r2(o.h), k: r2(o.k), below: o.below, lines: o.lines })) };
     const ctlY = oy + size.h * k + CTL_GAP, ctlX = clamp(PAD, ox + (size.w * k - cw) / 2, g.W - PAD - cw);
     if (ch) this.ctlPlace(sc, ctlX, ctlY);
     const rail = below
@@ -2831,20 +2964,31 @@ defineKit('svg', {
     rect.h -= ch;
     // Desktop sizes first (row 36, then 32 and 28: text stays at its desktop size), then phone sizes (row 20 down to 15).
     const tries = [...(barredQ.matches ? [] : [36, 32, 28].map(r => svgMetrics(false, r))), ...[20, 19, 18, 17, 16, 15].map(r => svgMetrics(true, r))];
-    let size = null, m = null;
-    for (const cand of tries) { // pick the sizes with the boxes only, then draw once
-      m = cand;
-      if (m.phone) this.availW = rect.w - 2 * m.pad;
-      size = this.arrange(sc, m, rect.w - 2 * m.pad);
-      if (size.h + 2 * m.pad <= rect.h && size.w + 2 * m.pad <= rect.w + 0.5) break;
-    }
+    let size = null, m = null, options = [];
+    sc.memo = new Map();
+    try {
+      for (const cand of tries) { // pick the sizes with the boxes only, then draw once
+        m = cand;
+        if (m.phone) this.availW = rect.w - 2 * m.pad;
+        const aw = rect.w - 2 * m.pad, ah = rect.h - 2 * m.pad;
+        // of the arrangements that fit (a flow's wrappings), the one drawn largest (phones draw at k = 1: the widest that
+        // fits); when none fits, the shortest, so the next, smaller sizes start from it
+        const all = this.layouts(sc, m, aw);
+        options = all.filter(c => c.h <= ah && c.w <= aw + 0.5).map(c => ({ ...c, below: false, k: m.phone ? 1 : clamp(1, Math.min(aw / c.w, ah / c.h), 1.6) }));
+        const pick = this.choose(options) ?? all.reduce((a, c) => (c.h < a.h ? c : a));
+        size = this.arrange(sc, m, pick.avail);
+        if (size.h + 2 * m.pad <= rect.h && size.w + 2 * m.pad <= rect.w + 0.5) break;
+      }
+    } finally { sc.memo = null; }
     this.paint(sc);
     const k = m.phone ? 1 : clamp(1, Math.min((rect.w - 2 * m.pad) / size.w, (rect.h - 2 * m.pad) / size.h), 1.6);
     const ox = rect.x + Math.max(m.pad, (rect.w - size.w * k) / 2);
     const oy = rect.y + (m.phone ? m.pad : Math.max(m.pad, (rect.h - size.h * k) * 0.4));
     this.transform(sc, ox, oy, k);
     if (ch) this.ctlPlace(sc, rect.x + (rect.w - cw) / 2, oy + size.h * k + CTL_GAP);
-    sc.info = { scale: k, arrangement: m.phone ? 'phone' : 'fit', row: m.row };
+    const r2 = v => Math.round(v * 100) / 100;
+    sc.info = { scale: k, arrangement: m.phone ? 'phone' : 'fit', row: m.row, W, H, box: { x: r2(ox), y: r2(oy), w: r2(size.w * k), h: r2(size.h * k) },
+      candidates: options.map(o => ({ w: r2(o.w), h: r2(o.h), k: r2(o.k), below: false, lines: o.lines })) };
   },
   // A playground's controls: their height (with the gap above them) at width w, and their place (px in the layer).
   ctlSize(sc, w) {
@@ -2873,7 +3017,8 @@ defineKit('svg', {
     const sc = this.current?.sc;
     if (!sc) return 150;
     const m = svgMetrics(true, 15);
-    return Math.max(150, sc.diagram.size(m, this.availW ?? Infinity).h + 2 * m.pad + (sc.ctlH ?? 0)); // at the width last fitted to, with the controls
+    const h = Math.min(...this.layouts(sc, m, this.availW ?? Infinity).map(c => c.h)); // the shortest arrangement at the width last fitted to
+    return Math.max(150, h + 2 * m.pad + (sc.ctlH ?? 0)); // with the controls
   },
   // The run ended (not cancelled): code panels hide their marker, so no step is spent on it.
   ended(built) { for (const p of built.sc.parts) p.finish?.(); built.sc.dirty?.(); },
@@ -3260,6 +3405,7 @@ async function runScene(name, { step = false } = {}) {
   if (mine !== runToken) return;
   kit.ended?.(s.built); // the run reached its end (a kit may tidy its end state, e.g. hide a code marker)
   sceneTotals[name] = captions.length;
+  sceneCaps[name] = captions.map(c => c.text); // the next layout reserves room for exactly these
   renderRailMeta();
   onSceneDone(name, mine); // If auto-play is on, continue the loop.
 }

@@ -1,6 +1,8 @@
 # plz-3d-explain
 English | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
 
+> **Replaced by [plz-explain](../plz-explain/README.md).** plz-explain builds the same 3D chapters and also 2D diagrams, time lanes, parameter playgrounds, and code-and-state chapters. This skill no longer starts on its own and will be removed in a later release. Install plz-explain instead.
+
 A skill for Claude Code and Codex that creates a single HTML learning page with three.js 3D models of technical concepts and system structures.
 
 Desktop: chapter 4, containers.

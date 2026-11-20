@@ -1,6 +1,8 @@
 # plz-3d-explain
 [English](README.md) | [한국어](README.ko.md) | 日本語 | [简体中文](README.zh-CN.md)
 
+> **[plz-explain](../plz-explain/README.md) に置き換えられました。** plz-explain は同じ 3D の章に加えて、2D の図、時間レーン、パラメーターの遊び場、コードと状態の章も作成します。このスキルは自動では起動しなくなり、今後のリリースで削除されます。plz-explain をインストールしてください。
+
 技術的な概念やシステム構成を three.js の 3D モデルで学べる、単一 HTML ファイルの学習ページを作成する Claude Code・Codex 向けスキルです。
 
 デスクトップ：第4章、コンテナ

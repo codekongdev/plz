@@ -1,6 +1,8 @@
 # plz-3d-explain
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | 简体中文
 
+> **已由 [plz-explain](../plz-explain/README.md) 取代。** plz-explain 除了同样的 3D 章节，还能生成 2D 图示、时间泳道、参数游乐场以及代码与状态章节。本技能不再自动触发，并将在以后的版本中删除。请改为安装 plz-explain。
+
 为 Claude Code 和 Codex 编写的技能，用 three.js 3D 模型讲解技术概念和系统结构，生成单文件 HTML 学习页面。
 
 桌面端：第 4 章，容器

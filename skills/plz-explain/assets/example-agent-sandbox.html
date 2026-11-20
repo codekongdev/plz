@@ -1049,7 +1049,7 @@ function layoutStage() {
   const side = !barred && W >= RAIL_SIDE_MIN;
   const kit = activeKit();
   // A kit may arrange its drawing and the caption column itself (place); null means "use the default".
-  const placed = side && kit?.place ? kit.place({ W, H, top: topInset, bottom: bottomEdge }) : null;
+  const placed = side && kit?.place ? kit.place({ W, H, top: topInset, bottom: bottomEdge, railNeed }) : null;
   railEl.classList.toggle('side', side);
   railEl.classList.toggle('compact', !side);
   railEl.classList.toggle('open', !side && railOpen);
@@ -1076,6 +1076,43 @@ function layoutStage() {
   // The HUD chapter title grows gently with the stage (up to 1.25×) where the HUD lies over a large stage.
   hudNow.style.fontSize = barred ? '' : `${(1.05 * clamp(1, Math.min(W / 760, H / 820), 1.25)).toFixed(3)}rem`;
   if (!placed && kit?.fit) kit.fit(modelRect, W, H, { top: barred ? 0 : topInset, bottom: barred ? H : bottomEdge });
+}
+// The captions a chapter leaves on the rail at the end of its run: those of its last completed run, or, before it has run,
+// the say() texts read from its scene code (per step number the longest; captions without a number each). Template
+// literals count their placeholders as two characters. A kit that places the caption column (place) reserves room for them.
+const sceneCaps = {};
+function sceneCaptions(name) {
+  if (sceneCaps[name]) return sceneCaps[name];
+  const byN = new Map(), plain = [];
+  for (const m of String(scenes[name]?.def.build ?? '').matchAll(/\bsay\(\s*(['"`])((?:\\[\s\S]|(?!\1)[^\\])*)\1/g)) {
+    const t = m[2].replace(/\$\{[^}]*\}/g, '00').replace(/\\([\s\S])/g, '$1');
+    const n = /^(\d+)\.\s/.exec(t)?.[1];
+    if (!n) plain.push(t);
+    else if ((byN.get(n) ?? '').length < t.length) byN.set(n, t);
+  }
+  return [...byN.values(), ...plain];
+}
+// Height (px, caption scale 1) of the current chapter's captions in a column w px wide; null when none are known.
+const railNeedCache = new Map();
+document.fonts?.addEventListener?.('loadingdone', () => railNeedCache.clear());
+function railNeed(w) {
+  const texts = sceneCaptions(current);
+  if (!texts.length) return null;
+  const key = `${current}|${Math.round(w)}|${texts.join('\u0001')}`;
+  if (railNeedCache.has(key)) return railNeedCache.get(key);
+  const probe = el('div', { className: 'rail side' }, wrap);
+  Object.assign(probe.style, { visibility: 'hidden', display: 'flex', left: '0', top: '0', width: `${w}px` });
+  const list = el('ol', { className: 'rail-list' }, probe);
+  texts.forEach((t, i) => {
+    const m = /^(\d+)\.\s+([\s\S]*)$/.exec(t);
+    const li = el('li', { className: i === texts.length - 1 ? 'cap new' : 'cap' }, list);
+    el('span', { className: 'n', textContent: m ? m[1] : '' }, li);
+    el('span', { className: 't', textContent: m ? m[2] : t }, li);
+  });
+  const h = probe.offsetHeight;
+  probe.remove();
+  railNeedCache.set(key, h);
+  return h;
 }
 // Height of the closed bar (the fixed --bar-h), so the model does not jump when the sheet opens. Measured once; re-measured after a resize.
 let barHeight = 0;
@@ -1201,7 +1238,8 @@ Split.apply(); // the saved split holds while kits load, and after a load failur
      ended(scene)         optional: the scene's run reached its end (not cancelled)
      params(scene, values) optional: a scene's parameters (playgrounds): set some (values) and return all; null without parameters
      paramSpec(scene)     optional: { id: { min, max, value } } of a scene's parameters
-     place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom };
+     place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom,
+                          railNeed(w): px height of the chapter's captions in a column w px wide at scale 1 (null: unknown) };
                           return { rail: { x, y, w, h }, scale, model } (scale also sizes the captions), or null for the default
      minHeight()          optional: the smallest model height (px) for the stage-height handle on phones
      frame(dt)            every animation frame
@@ -2430,6 +2468,7 @@ async function runScene(name, { step = false } = {}) {
   if (mine !== runToken) return;
   kit.ended?.(s.built); // the run reached its end (a kit may tidy its end state, e.g. hide a code marker)
   sceneTotals[name] = captions.length;
+  sceneCaps[name] = captions.map(c => c.text); // the next layout reserves room for exactly these
   renderRailMeta();
   onSceneDone(name, mine); // If auto-play is on, continue the loop.
 }

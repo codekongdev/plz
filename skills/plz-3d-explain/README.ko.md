@@ -1,6 +1,8 @@
 # plz-3d-explain
 [English](README.md) | 한국어 | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
 
+> **[plz-explain](../plz-explain/README.md)으로 대체되었습니다.** plz-explain은 같은 3D 장에 더해 2D 도식, 시간 레인, 매개변수 놀이터, 코드와 상태 장도 만듭니다. 이 스킬은 이제 스스로 실행되지 않으며 다음 릴리스 이후에 삭제됩니다. plz-explain을 설치해 주세요.
+
 기술 개념과 시스템 구조를 three.js 3D 모형으로 공부하는 단일 HTML 학습 페이지를 만드는 Claude Code와 Codex용 스킬입니다.
 
 데스크톱: 4장 컨테이너

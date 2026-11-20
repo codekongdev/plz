@@ -1,13 +1,13 @@
 # Engine API
 
-What the `ENGINE` sections of `assets/template.html` provide. Build scenes in the `SCENES` section with only these functions.
+What the `ENGINE` sections of `assets/template.html` provide. Build scenes in the `SCENES` section with only these functions. Which form fits which chapter is in `forms.md`; the timing rules behind the defaults below are in `motion.md`.
 
 The engine has two parts:
 
 - **The shell**: layout, chapter switching, HUD, caption rail, speed menu, split, auto-play, the director (timing), and the verification hooks. It draws nothing.
 - **Kits**: each kit draws the stage for the scenes that name it. There are two:
   - `axo` (default): a three.js axonometric block model. Sections marked "axo kit" apply to it.
-  - `svg`: 2D step diagrams in native SVG (tables, hash buckets, operator boxes, filters, trees, node columns). See "svg kit" below. It needs no library.
+  - `svg`: every 2D form in native SVG (step diagrams, operator trees, node columns, side-by-side panels, lanes, parameter playgrounds, code and state). See "svg kit" below. It needs no library.
 - One page may mix both; each chapter shows the kit of its scene.
 
 ## Scene definition
@@ -55,7 +55,7 @@ defineScene('name', {
 
 ## Director: one timing contract
 
-Every duration and wait in a run goes through the director, whatever the kit.
+Every duration and wait in a run goes through the director, whatever the kit. The rules it implements (about 1 s per tracked move, slow-in/slow-out, reduced motion that keeps order and dwell, auto-play off by default) and their sources are in `motion.md`.
 
 - **Speed**: 0.5×, 1×, 1.5×, 2× from the speed menu (or `__explainer.speed(v)`). It scales every duration and every wait. A change applies at once to animations and waits in flight. It is shared by all chapters and saved in `localStorage` (`plz-explain:speed`).
 - **Reduced motion** (`prefers-reduced-motion: reduce`): the step order and every wait stay. Movement (`a.move`, `a.scaleTo`, `a.tween`) becomes a cut to the end state, and the step still takes its time, so captions still arrive one by one. Color changes (`a.flash`) still animate. Chapter changes cut the camera.
@@ -143,7 +143,7 @@ not disposed by these helpers because materials may borrow them.
 
 ## svg kit (2D step diagrams)
 
-Use it when the lesson is about values and order: which row, key, or request goes where, and what happens to it.
+It draws every 2D form; which one fits a chapter is in `forms.md`.
 
 ```js
 defineScene('filter', {
@@ -174,8 +174,10 @@ defineScene('filter', {
 - The kit lays the diagram out from the parts' natural sizes. You do not place parts in pixels.
 - **Wide stage (720px and up), rail beside or below:**
   - The diagram is laid out at natural size and scaled by k from 1 to 1.6 to fill the stage. Captions scale with it.
-  - Two arrangements compete: rail right and rail below. Below wins only when its k is 1.3 times larger.
-  - When neither fits at k = 1, the kit uses the narrower layout described next.
+  - Two caption arrangements compete: rail right and rail below. Below wins only when its k is 1.3 times larger than the best k with the rail right.
+  - A diagram with a `d.flow` in it (at the top or inside `d.stack`, `d.grid` or `d.panels`) also tries each of the flow's wrappings with both rails; among them the larger k wins (the wider arrangement on a tie within 2%), under the same 1.3× rule.
+  - Room is reserved for every caption the chapter shows at the end of its run, so none scrolls out of view: before the chapter has run, the kit measures the `say()` texts in its scene code (per step number the longest); after a run, the captions that run left. An arrangement whose captions do not fit at k = 1 is not taken.
+  - When nothing fits at k = 1, the kit uses the narrower layout described next.
 - **Narrower stages and phones:**
   - Columns are compressed toward their minimum widths, and the diagram is fitted between the HUD and the legend.
   - When desktop sizes do not fit the height, rows shrink first (36, 32, then 28px, with desktop text sizes); after that phone sizes are used. The phone row height adapts from 20px down to 15px; at 17px and below, table header rows are hidden.
@@ -203,7 +205,7 @@ Resting points know how a token sits on them, so a token of any width fits: `tab
 | `d.columns(names, { slots })` | Nodes or servers side by side, each with `slots` places for rows | `col(i).slot(j)`, `col(i).top()`, `col(i).bottom()`, `col(i).mark('active')` |
 | `d.link(points, { dashed, tone, label, labelAt, arrow, hidden, opacity })` | A connector through two or more points (functions or fixed `[x, y]`) with an arrowhead. `dashed` + `tone: 'bound'` + `label` for a signal passed sideways (`labelAt` a point for the label pill, which grows with its text) | Fade or dim it with `a.fade(link, 0.12)` |
 | `d.lanes(list, { steps, axis })` | Time-axis swimlanes, see "Lanes" below | `event()`, `message()`, `span()`, `now`, `yOf(step)`, `rowH()`, `lane(id)` (badge anchor at its header) |
-| `d.token(text, at, { tone, w })` | A chip resting at point `at`, as wide as its text (at least the standard width; `w` fixes it; measured again when the text, its size or the fonts change). `tone: 'matter' \| 'bound' \| 'hit'`. Create tokens during `run()`, when their group starts | `mark('hit' \| 'active', on)` (active: ink halo) |
+| `d.token(text, at, { tone, w })` | A chip resting at point `at`, as wide as its text (at least the standard width; `w` fixes it; measured again when the text, its size or the fonts change). `tone: 'matter' \| 'bound' \| 'hit'`. Create tokens during `run()`, when their group starts | `mark('hit' \| 'active', on)` (active: ink halo). Change its text with `tok.text.textContent = '…'` (the width follows); keep the same token when the same thing changes, so the reader can follow it |
 
 Every part also has `left(at)`, `right(at)`, `top(at)`, `bottom(at)` (a point on its frame; `at` is a 0–1 fraction along the edge or another point whose coordinate to use), `mid()`, and `mark(cls, on)`. `d.corner(a, b)` is the point `[b.x, a.y]` for an elbow. `d.phone()` tells whether phone sizes are in use.
 
@@ -229,7 +231,7 @@ Rotation: the svg kit is not rotatable, so the drag hint and Reset view are hidd
 
 ### Lanes (time-axis swimlanes)
 
-For 2–5 actors whose relative timing decides the outcome (a race, an isolation anomaly, a lock wait, a retry, a handshake). Not for one actor (use a step diagram) or many identical ones.
+When to use lanes: "Lanes" in `forms.md`.
 Each actor is a column and time runs down in steps. Columns read well at 390px when every event has a short form, and more steps grow the diagram downward, where a phone has room. A resource lane (the shared row, a lock) sits between the actors, so reads and writes are short horizontal arrows.
 
 ```js
@@ -263,7 +265,7 @@ Lane widths come from the measured text (an estimate until the scene is first dr
 
 ### Parameter playground
 
-For a lesson about how an outcome responds to a continuous or ordinal parameter (bits vs error rate, load vs latency, node size vs tree height). Not for a fixed procedure, where a slider would only replay time.
+When to use a playground: "Parameter playground" in `forms.md`.
 The scene declares 1–3 parameters and returns `update(params)`, which draws the diagram for those values. The run button plays an authored tour that moves the sliders through a few stops with numbered captions; afterwards the reader explores freely.
 
 ```js
@@ -319,7 +321,7 @@ Charts and meters keep their state in JS (series, marker, fractions); `set` and 
 
 ### Code and state in sync
 
-For a lesson about what code or commands do to hidden state (a call stack, queues, variables, a console): the event loop, recursion, a cache, a protocol state machine. Not when the reader has not met the code yet, or when the code is incidental. Keep each chapter's code to about 6–10 short lines (about 40 characters, so it fits a 390px phone at 11.5px mono).
+When to use it: "Code and state" in `forms.md`. Keep each chapter's code to about 6–10 short lines (about 40 characters, so it fits a 390px phone at 11.5px mono).
 
 ```js
 defineScene('promise', {
@@ -351,7 +353,7 @@ defineScene('promise', {
 | `d.queue({ title, max, tone })` | FIFO: `enqueue(text)` at the tail, `dequeue()` from the head, `list()`, `tail()`, `head()` |
 | `d.console({ title, max })` | Output lines that accumulate: `log(text)`, `list()`, `last()`, `next()` |
 | `d.vars({ title, names, sample })` | Named values: `set(name, value)`, `get(name)`, `slot(name)`; `sample` is the widest value, so the part fits every name with it. An unknown name stops the page with a `[plz] d.vars` error |
-| `d.flow(items, { gap })` | Items left to right at their natural widths, wrapping to a new line when the next does not fit (like flex-wrap): one row on a wide stage, the code across the top with the state side by side below it on a narrower one, a column only when nothing fits beside anything. A nested flow placed on its own line wraps itself |
+| `d.flow(items, { gap })` | Items left to right at their natural widths, wrapping to a new line when the next does not fit (like flex-wrap). A nested flow that does not fit beside the items before it wraps there when the rest of the line holds its widest item (the code beside a state on two lines); otherwise it starts a new line and wraps itself. The kit tries every wrapping (the code beside the state, beside a wrapped state, above it in one row, the state split over lines, a column), also for a flow inside a container, each with the caption rail beside or below, and keeps the one drawn largest; the block is centred on the stage |
 | `await a.line(code, n, { ms = 320, step = true })` | Moves the marker to line n (`null`: past the end) and is a step boundary; `step: false` moves it inside the current step (the script's end in the same step as its last line). One line → one kind of change: change the state after it, then say what changed. Every step must end with a caption. When the run ends, the kit hides the marker by itself (no final `a.line(code, null)`) |
 | `await a.carry(text, from, to, { tone, ms = 650 })` | Moves a value between two points as a token, then removes it; change the state right after |
 | `await a.checkpoint()` | A step boundary that is not a line (the event loop taking the next task) |
@@ -379,7 +381,7 @@ A page author does not write kits; this section is for engine changes. A kit is 
 | `clear(scene)` | Drop temporary objects after a failed run |
 | `animator(dir, scene)` | Returns the `a` passed to `run()`; without it, `a` is the director |
 | `fit(rect, W, H, chrome)` | Fit the drawing into `rect` (px inside the layer of size W × H); the rest is under the caption rail. `chrome = { top, bottom }` is the band between the HUD and the legend |
-| `place(geom)` | Optional, wide stages only: arrange the drawing and the caption column together. Returns `{ rail, scale, model }` (the scale also sizes the captions) or `null` for the default |
+| `place(geom)` | Optional, wide stages only: arrange the drawing and the caption column together. `geom = { W, H, top, bottom, railNeed }`; `railNeed(w)` is the height (px, scale 1) of the chapter's captions in a column `w` px wide, or `null` when none are known. Returns `{ rail, scale, model }` (the scale also sizes the captions) or `null` for the default |
 | `minHeight()` | Optional: the smallest model height (px) for the stage-height handle on phones; re-applied on every chapter change |
 | `settled()` | Optional: `false` while the drawing is still easing toward its end state (axo: labels decluttering, the camera gliding). `run()` waits for it |
 | `overflowing()` | Optional: text wider than its own frame; `clipped()` reports it |
@@ -409,7 +411,7 @@ a Retry button that reloads the page. On small screens the failed stage becomes 
 | `rail(open?)` | Reads or sets whether the caption sheet is open on a narrow stage |
 | `resources()` | axo: counts of registered labels, decluttering state entries, and renderer geometries (`labels`, `labelStates`, `geometries`), step badges excluded. Compare after warming up the same scene and after repeated runs |
 | `azimuth()` | axo: camera azimuth (radians). Use it to check whether the model rotated |
-| `kitInfo()` | The active kit's state. svg: `{ scale, arrangement, row }` (`arrangement`: `right`, `below`, `fit`, or `phone`) |
+| `kitInfo()` | The active kit's state. svg: `{ scale, arrangement, row, W, H, box, block, candidates }`. `arrangement`: `right`, `below`, `fit`, or `phone`. `box`: the diagram's layout box in stage px; `block`: the diagram with its caption column (wide stages); `candidates`: every arrangement tried, `{ w, h, k, below, lines }` |
 | `step(name)` | One authored step of that chapter, as the Step button does (stepping is reader input): `{ done, caption }` |
 | `params(name, values?)` | A playground's parameters: reads them, or sets some (as the reader would, without stopping a run; the live line updates) and returns all. `null` for a scene without parameters |
 | `paramSpec(name)` | `{ id: { min, max, value } }` of a playground's parameters (`min`/`max` are the first and last values of a list) |

@@ -1,6 +1,6 @@
 # Scene patterns
 
-Each kind of concept has a model that fits it. When designing a chapter, first decide "which pattern is this chapter?".
+Code patterns for building each form. Pick the chapter's form first ("Choosing a form per chapter" in SKILL.md, and `forms.md`), then the pattern below that builds it. The timing rules behind the numbers here are in `motion.md`.
 Patterns 1–9 use the axo kit (the default); patterns 10–14 use the svg kit (2D step diagrams). Assume all code is written inside `build()` of `defineScene` (for `g`, `temp`, `a`, and `say`, see
 engine-api.md). Put one-shot objects in `temporaryGroup()` and use `disposeObject()` or
 `clearGroup(temp)` to release them; an ordinary `remove()` or `clear()` does not free their resources.
@@ -192,7 +192,7 @@ label, such as "A's files only". The `split` scene in example chapter 3 has this
 
 ## 2D patterns (svg kit)
 
-Choose svg when the lesson is about values and order, and axo when it is about depth and containment (see SKILL.md).
+Which 2D form fits a chapter is in `forms.md`.
 All code below is inside `build(d)` of a scene with `kit: 'svg'`; `run(a, say)` is in the object it returns (see "svg kit" in engine-api.md).
 Rules that apply to every 2D pattern:
 
@@ -286,7 +286,7 @@ Move a few representative rows (3–4) one by one and show the rest as a count. 
 
 ## 15. Lanes
 
-Two to five actors side by side, time running down, the shared resource between them. Use it when the order of a few actors' actions decides the outcome: two sessions writing one row, a lock wait, a retry, a handshake.
+Two to five actors side by side, time running down, the shared resource between them.
 
 ```js
 const LANES = () => [{ id: 'a', name: 'Session A' }, { id: 'row', name: 'accounts · id 1', short: 'id 1', resource: true }, { id: 'b', name: 'Session B' }];
@@ -309,7 +309,7 @@ v120.mark('lost'); say('4. A\'s 120 is gone.', { anchor: v120 });
 
 ## 16. Parameter playground
 
-One to three sliders drive a chart and a few readouts; the run button plays a short tour through chosen stops, then the reader explores. Use it when the lesson is how an outcome responds to a parameter (bits vs error rate, load vs latency). A slider that only replays a fixed procedure is not a playground; use a step diagram.
+One to three sliders drive a chart and a few readouts; the run button plays a short tour through chosen stops, then the reader explores.
 
 ```js
 defineScene('hashes', {
@@ -341,7 +341,7 @@ defineScene('hashes', {
 
 ## 17. Code and state in sync
 
-A short program beside the state it changes; the marker moves line by line and each line changes one thing. Use it when the lesson is what code does to hidden state (the event loop, recursion, a protocol). The reader should already know the language; the code is the subject, not decoration.
+A short program beside the state it changes; the marker moves line by line and each line changes one thing. Arrange it with `d.flow`; the kit picks the wrapping it draws largest.
 
 ```js
 const code = d.code({ title: 'main.js', lines: PROGRAMS.predict.split('\n') });
