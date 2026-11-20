@@ -390,17 +390,17 @@ await py.runPythonAsync(code);
 
     <section class="chapter" data-scene="lifecycle">
       <h2><span class="n">9</span><span>A day in the life of a sandbox</span></h2>
-      <p>You also have to decide when to create a sandbox and when to clear it away. One common design is to keep one sandbox per conversation. The sandbox is created the first time the code execution tool is called in the conversation, and later turns reuse the same sandbox. That way, variables made in an earlier turn are still there in the next turn.</p>
-      <p>If there are no calls for a while, the sandbox is reclaimed to give back its resources. Instead of deleting it, you can also pause it. The memory and disk state is saved as a snapshot and revived on the next call. For example, the E2B documentation says a paused sandbox keeps its file system and memory together, and that reviving it takes about 1 second.</p>
+      <p>You also have to decide when to create a sandbox and when to clear it away. One common design is to keep one sandbox per conversation. The sandbox is created the first time the code execution tool is called in the conversation, and later turns reuse the same sandbox. Reusing the sandbox alone does not make Python variables persist. This example assumes the same Python process, or interpreter execution context, stays alive across turns. If a new Python process starts on each turn, its variables are lost even inside the same VM or container. Files can remain in the sandbox file system, but variables live in process memory.</p>
+      <p>If there are no calls for a while, the sandbox is reclaimed to give back its resources. Instead of deleting it, you can also pause it. If the file system and the memory of the running process are saved in a snapshot and then revived, the variables in the same interpreter can continue too. Restoring only the file system or starting a new Python process does not restore those variables. For example, the E2B documentation says a paused sandbox keeps its file system and memory together, and that reviving it takes about 1 second.</p>
       <p>There is also an upper limit on how many sandboxes can run at the same time. Once the limit is reached, new requests wait until a slot opens. The model below is an example with a limit of 3 and an idle time of 30 minutes. These numbers are values chosen for the explanation.</p>
       <h3>For example</h3>
       <pre class="code"><code><span class="c"># Turn 1: create a new sandbox and read a spreadsheet</span>
 df = pd.read_excel("/work/sales.xlsx")
-<span class="c"># Turn 2: same sandbox, so df is still there</span>
+<span class="c"># Turn 2: same Python process, so df is still there</span>
 pivot = df.pivot_table(index="month", values="amount")
 <span class="c"># 30 minutes later: pause and save a snapshot</span>
-<span class="c"># Turn 3: after reviving, keep using df and pivot</span></code></pre>
-      <p class="gist">A sandbox has a lifetime: it is created, reused, paused, revived, and cleared away. Keeping state is more convenient, but it holds resources for longer.</p>
+<span class="c"># Turn 3: after restoring process memory, keep using df and pivot</span></code></pre>
+      <p class="gist">Files live in the sandbox file system; variables live in Python process memory. To keep using variables, reuse the same interpreter or restore that process memory.</p>
       <div class="act"><button type="button" disabled data-run="lifecycle">Replay the conversation</button><p class="result" aria-live="polite"></p></div>
     </section>
 
@@ -1514,16 +1514,16 @@ defineScene('lifecycle', {
         sheet.position.y = sheetY + 2; sheet.scale.setScalar(1); sheet.visible = true;
         await a.move(sheet, [sheet.position.x, sheetY, sheet.position.z], 600);
         await a.scaleTo(df, 1, 500);
-        say('Turn 1: it read the file into a table (df). All 3 slots are now full.');
+        say('Turn 1: the same Python process read the file into a table (df). All 3 slots are now full.');
         await a.wait(1100);
         say('Chat D also needs a sandbox, but the limit is reached, so it waits.');
         await a.scaleTo(D, 1, 600);
         await a.wait(1100);
-        say('Turn 2: in chat A, it computes a pivot. The df from the previous turn is still there.');
+        say('Turn 2: the same Python process is reused to compute a pivot. df remains in process memory; it would be gone if a new process had started.');
         await a.flash(df, COLOR.actor, 600);
         await a.scaleTo(pivot, 1, 500);
         await a.wait(1100);
-        say('Chat A had no calls for 30 minutes. The sandbox was paused and its state saved as a snapshot.');
+        say('Chat A had no calls for 30 minutes. The file system and the running Python process memory were saved in a snapshot.');
         snap.visible = true; snap.scale.setScalar(0.001);
         await Promise.all([a.scaleTo(A, 0.001, 700), a.scaleTo(snap, 1, 700)]);
         A.visible = false;
@@ -1536,11 +1536,11 @@ defineScene('lifecycle', {
         await a.scaleTo(D, 0.001, 600);
         D.visible = false;
         await a.wait(600);
-        say('Turn 3: the user asks in chat A again. The saved snapshot is revived.');
+        say('Turn 3: the user asks in chat A again. The snapshot, including process memory, is revived.');
         await a.move(snap, [slot0.x, FLOOR + 0.07, slot0.z], 800, 1.2);
         await Promise.all([a.scaleTo(snap, 0.001, 600), a.scaleTo(A, 1, 700)]);
         snap.visible = false;
-        say('Turn 3: df and pivot came back as they were. It continued the computation instead of reading everything again.');
+        say('Turn 3: df and pivot came back with process memory. The same interpreter continued the computation.');
       },
     };
   },
