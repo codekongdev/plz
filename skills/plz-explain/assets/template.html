@@ -296,7 +296,9 @@
   /* Kit "svg": 2D step diagrams. Ink outline for the active element, the 3 semantic colors for meaning, nothing else. */
   :root { --hair: rgba(85, 97, 107, 0.55); }
   .svg-stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
-  .svg-stage text { font-family: var(--sans); fill: var(--ink); dominant-baseline: central; }
+  /* geometricPrecision: glyph advances scale linearly with the diagram's scale (no hinting to whole pixels, which on Linux
+     makes a text measured at one scale wider at another), so measured widths hold at every scale. */
+  .svg-stage text { font-family: var(--sans); fill: var(--ink); dominant-baseline: central; text-rendering: geometricPrecision; }
   .svg-stage .mono { font-family: var(--mono); font-weight: 500; }
   .svg-stage .g { font-weight: 600; }
   .svg-stage .meta { fill: var(--ink-soft); }
@@ -901,7 +903,15 @@ function setInstant(on) {
   });
   document.addEventListener('pointerdown', e => { if (openSeg && !menu.contains(e.target) && !openSeg.contains(e.target)) close(false); }, true);
   addEventListener('resize', () => close(false));
-  addEventListener('scroll', () => close(false), { passive: true });
+  // A scroll moves the menu with its segment (a late layout shift, the tail of the smooth scroll that brought the button
+  // into view); it closes when the segment leaves the viewport or is covered by the pinned stage.
+  addEventListener('scroll', () => {
+    if (!openSeg) return;
+    const r = openSeg.getBoundingClientRect();
+    const visibleTop = stackedQ.matches ? Math.max(0, stageEl.getBoundingClientRect().bottom) : 0;
+    if (r.bottom <= visibleTop || r.top >= innerHeight || !r.width) close(false);
+    else place(openSeg);
+  }, { passive: true });
   document.querySelectorAll('.act [data-run]').forEach(run => {
     const box = el('div', { className: 'splitbtn' });
     run.replaceWith(box); box.append(run);
@@ -1716,27 +1726,57 @@ function svgMetrics(phone, row = phone ? 20 : 36) {
   return { phone, row, hdr: big ? 17 : 0, title: big ? 20 : 17, cell: big ? 42 : 34, tokW: 30, tokH: row - 3, key: row < 17 ? 11.5 : 12.5, text: 12, meta: 11, kw: 36, pad: 5,
     gapY: 6, gutter: 60, hp: 5, pill: 18, pillW: 88, chipH: 20, nodeW: 96, nodeH: 36, colW: 96, hgap: 8, vgap: 16, panelGap: 12, badge: 8 };
 }
-// The width of a text that is not rendered yet, in em: wide glyphs (CJK, Hangul, fullwidth forms) 1, mono 0.6,
-// capitals 0.68, other proportional text 0.56; bold proportional text is 6% wider. A cautious estimate, used until the
-// text can be measured.
-const WIDE_GLYPH = /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]/u;
-function estimateText(text, fontSize, { mono = false, bold = false } = {}) {
-  let em = 0;
-  for (const ch of String(text)) em += WIDE_GLYPH.test(ch) ? 1 : mono ? 0.6 : /[A-Z]/.test(ch) ? 0.68 : 0.56;
-  return em * fontSize * (bold && !mono ? 1.06 : 1);
-}
-// Width of an SVG text in diagram units: measured when the text is rendered, estimated otherwise. The estimate reads
-// mono and bold from the node's classes (.mono, .g) unless opts says otherwise.
-function measureText(node, fontSize, opts = {}) {
-  try { const w = node.getComputedTextLength(); if (w > 0) return { w, measured: true }; } catch (e) { /* not rendered yet: estimate */ }
-  const cls = node.classList;
-  return { w: estimateText(node.textContent, fontSize, { mono: opts.mono ?? cls?.contains('mono'), bold: opts.bold ?? cls?.contains('g') }), measured: false };
-}
-const textWidth = (node, fontSize) => measureText(node, fontSize).w;
-// Web fonts change text widths when they arrive: cached widths remember the epoch they were measured in.
+// Web fonts change text widths when they arrive: cached metrics remember the epoch they were measured in.
 let svgFontEpoch = 0;
 document.fonts?.addEventListener?.('loadingdone', () => { svgFontEpoch += 1; });
 document.fonts?.ready.then(() => { svgFontEpoch += 1; });
+// Text metrics come from the fonts that render on this machine, never from a table of glyph widths: a hidden SVG with
+// the stage's classes (the same .svg-stage rules, the label's own classes and those of its groups) measures the width
+// (getComputedTextLength) and the text box (getBBox: its top relative to the text's y, and its height). Cached per font
+// epoch, so sizes are measured again when a web font arrives, and the shell lays the stage out again then.
+// chain: the class of each group from the part down to the text, the text's own class last ('mono', 'g', 'meta', …).
+let svgMeter = null;
+const meterCache = new Map();
+function meterText(text, fontSize, chain = ['']) {
+  const str = String(text), key = `${svgFontEpoch}|${fontSize}|${chain.join('>')}|${str}`;
+  if (meterCache.has(key)) return meterCache.get(key);
+  if (!svgMeter) {
+    svgMeter = svgNode('svg', { class: 'svg-stage', 'aria-hidden': 'true' });
+    Object.assign(svgMeter.style, { position: 'absolute', left: '0', top: '0', width: '1px', height: '1px', visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' });
+  }
+  if (!svgMeter.isConnected) document.body.appendChild(svgMeter);
+  let parent = svgMeter;
+  for (const c of chain.slice(0, -1)) parent = svgNode('g', { class: c }, parent);
+  const t = svgNode('text', { class: chain.at(-1) ?? '', 'font-size': fontSize, x: 0, y: 0 }, parent, str);
+  let r = null;
+  try {
+    const w = t.getComputedTextLength(), b = t.getBBox();
+    if (w > 0 || !str) r = { w, top: b.height ? b.y : -fontSize * 0.7, h: b.height || fontSize * 1.4, measured: true };
+  } catch (e) { /* the page is not rendered: no metrics */ }
+  svgMeter.firstChild.remove();
+  if (r) meterCache.set(key, r);
+  return r ?? { w: fallbackWidth(str, fontSize), top: -fontSize * 0.7, h: fontSize * 1.4, measured: false }; // not cached: measured next time
+}
+// Only for a page that is not rendered at all (no layout to measure in): one em per character, wider than any real font.
+const fallbackWidth = (text, fontSize) => [...text].length * fontSize;
+// Width of a text in diagram units, measured with the fonts that render. mono and bold pick the label classes.
+function estimateText(text, fontSize, { mono = false, bold = false } = {}) {
+  return meterText(text, fontSize, [`${mono ? 'mono' : ''}${bold ? ' g' : ''}`]).w;
+}
+// The class chain of a label (its groups up to the scene, then its own class), for meterText.
+function labelChain(node) {
+  const chain = [node.getAttribute?.('class') ?? ''];
+  for (let e = node.parentNode; e && !e.classList?.contains('svg-scene') && e.tagName !== 'svg'; e = e.parentNode) chain.unshift(e.getAttribute('class') ?? '');
+  return chain;
+}
+// Width of an SVG label in diagram units: measured where it is drawn when it is rendered, otherwise in the hidden meter with
+// the same classes (a scene that is not shown yet, a label hidden with display: none).
+function measureText(node, fontSize) {
+  try { const w = node.getComputedTextLength(); if (w > 0) return { w, measured: true }; } catch (e) { /* not rendered here: use the meter */ }
+  const r = meterText(node.textContent, fontSize, labelChain(node));
+  return { w: r.w, measured: r.measured };
+}
+const textWidth = (node, fontSize) => measureText(node, fontSize).w;
 // A resting point: where a token sits by its right edge, left edge or centre, the frame it must stay inside, and what it must not cover.
 const rest = (fn, align = 'center', { within = null, avoid = null } = {}) => Object.assign(fn, { align, within, avoid });
 // The token centre for a point, given the token width (points without an alignment are centres).
@@ -1820,12 +1860,15 @@ function svgBuilder(sc) {
       hdrH: m => (header ? (m ?? sc.m).hdr : 0),
       // The key column fits the widest key (word keys too); a table with notes is as wide as the key column plus the longest note.
       keyW: m => Math.max(0, ...keys.map(k => estimateText(k, m.key, { mono: true }))) + 22,
-      // The key column at width w; sizing uses its widest case (max of m.kw and the keys), so a note always fits after it
-      // and before the × mark (the last 28px).
-      kw: (m, w) => (payload ? Math.max(Math.min(m.kw, w * 0.35), note ? part.keyW(m) : 0) : w - 28),
+      headW: (m, i) => (header?.[i] ? meterText(header[i], m.meta, ['part table', 'meta']).w : 0),
+      // Both the second header and the note start after the same key column; reserve space for both from its widest size.
+      keyColMin: m => Math.max(note ? part.keyW(m) : 0, part.hdrH(m) ? part.headW(m, 0) + 8 : 0),
+      kw: (m, w) => (payload ? Math.max(Math.min(m.kw, w * 0.35), part.keyColMin(m)) : w - 28),
       size: m => {
-        const noteW = note && payload ? Math.max(m.kw, part.keyW(m)) + 8 + estimateText(note, m.meta, { bold: true }) + 6 + 28 : 0;
-        const w = payload ? Math.max(m.phone ? 128 : 184, noteW) : (m.phone ? 72 : 100), min = payload ? Math.max(m.phone ? 104 : 140, noteW) : (m.phone ? 64 : 84);
+        const keyColW = Math.max(m.kw, part.keyColMin(m));
+        const noteW = note && payload ? keyColW + 8 + estimateText(note, m.meta, { bold: true }) + 6 + 28 : 0;
+        const headsW = part.hdrH(m) ? (payload ? keyColW + 8 + part.headW(m, 1) + 10 : part.headW(m, 0) + 20) : 0;
+        const w = Math.max(headsW, payload ? Math.max(m.phone ? 128 : 184, noteW) : (m.phone ? 72 : 100)), min = Math.max(headsW, payload ? Math.max(m.phone ? 104 : 140, noteW) : (m.phone ? 64 : 84));
         return { w, min, h: m.title + part.hdrH(m) + keys.length * m.row + part.below(m) };
       },
       place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: part.hdrH(m) + keys.length * m.row }; },
@@ -1877,7 +1920,12 @@ function svgBuilder(sc) {
     };
     const part = {
       kind: 'buckets', g, cells, frame,
-      size: m => ({ w: m.phone ? 184 : 248, min: m.phone ? 150 : 200, h: m.title + 2 * m.hp + m.cell }),
+      // Cells are wide enough for the long labels on desktop (measured); a cell too narrow for its label shows the short one.
+      labelW: (m, b, short_ = false) => meterText(short_ ? short(b) : lab(b), m.meta, ['part buckets', 'cell', 'meta']).w + 12,
+      size: m => {
+        const need = (short_, base) => Math.max(base, 2 * m.hp + (count - 1) * 4 + count * Math.max(...cells.map((_, b) => part.labelW(m, b, short_))));
+        return { w: m.phone ? need(true, 184) : need(false, 248), min: need(true, m.phone ? 150 : 200), h: m.title + 2 * m.hp + m.cell };
+      },
       place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: 2 * m.hp + m.cell }; },
       cell: b => cells[b],
       slot: b => rest(() => { const { cw, cx, cy } = geo(); return [cx(b) + cw / 2, cy + sc.m.cell - sc.m.tokH / 2 - (sc.m.phone ? 3 : 6)]; }, 'center', { within: cells[b].rect }),
@@ -1888,7 +1936,7 @@ function svgBuilder(sc) {
         svgSet(frame, { x, y, width: w, height: h });
         cells.forEach((n, i) => {
           svgSet(n.rect, { x: cx(i), y: cy, width: cw, height: m.cell });
-          n.idx.textContent = !m.phone && cw >= 52 ? lab(i) : short(i);
+          n.idx.textContent = !m.phone && part.labelW(m, i) <= cw ? lab(i) : short(i);
           svgSet(n.idx, { x: cx(i) + 5, y: cy + (m.phone ? 8 : 10), 'font-size': m.meta });
           svgSet(n.dash, { x: cx(i) + cw / 2, y: cy + m.cell - m.tokH / 2 - (m.phone ? 3 : 6), 'text-anchor': 'middle', 'font-size': m.key });
         });
@@ -1928,9 +1976,26 @@ function svgBuilder(sc) {
     if (cnt) cnt.text.textContent = counter.replace('{n}', 0);
     if (tal) { tal.text.textContent = tally.replace('{n}', 0); tal.g.style.opacity = 0; }
     const hasHdr = () => (header ? sc.m.hdr : 0);
+    // The title in at most `room` px: whole, or cut with an ellipsis (measured), never shorter than one character.
+    const fitTitle = (m, room) => {
+      if (!title || part.titleW(m) <= room) return title;
+      const chars = [...title];
+      let n = chars.length - 1;
+      while (n > 1 && part.titleW(m, chars.slice(0, n).join('').trimEnd() + '…') > room) n -= 1;
+      return chars.slice(0, n).join('').trimEnd() + '…';
+    };
     const part = {
       kind: 'box', g, frame, counterNode: cnt?.g ?? null, tallyNode: tal?.g ?? null,
-      size: m => ({ w: narrow ? (m.phone ? 96 : 140) : (m.phone ? 184 : 248), min: narrow ? (m.phone ? 80 : 112) : (m.phone ? 150 : 200), h: m.title + (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row + (tally ? m.pill + 8 : 0) }),
+      // The title and the counter pill share the top line, and the tally pill sits under the box: both measured, with a
+      // two-digit count. The box is wide enough for the whole title when it can be; a narrower box (a phone) shortens the
+      // title with an ellipsis before the pill, and never gets narrower than its pills.
+      // A pill is at least m.pillW wide when there is room; at the minimum it hugs its text.
+      pillW: (m, text, cls, hug = false) => Math.max(hug ? 0 : m.pillW, meterText(text.replace('{n}', '00'), m.meta + 0.5, ['part opbox', `pill ${cls}`, 'g']).w + (m.phone ? 16 : 24)),
+      titleW: (m, text = title) => (text ? meterText(text, m.text, ['part opbox', 'g' + toneClass(tone)]).w : 0),
+      cntW: (m, hug = false) => (counter ? 10 + part.pillW(m, counter, 'counter', hug) : 0),
+      topW: (m, full = true) => Math.max((full ? part.titleW(m) : Math.min(part.titleW(m), part.titleW(m, '…') + 24)) + part.cntW(m, !full), full && tally ? part.pillW(m, tally, 'tally') : 0),
+      // (the minimum keeps the title line: a shortened title and the counter; pills of a title-less box may reach into the gutter)
+      size: m => ({ w: Math.max(part.topW(m), narrow ? (m.phone ? 96 : 140) : (m.phone ? 184 : 248)), min: Math.max(title ? part.topW(m, false) : 0, narrow ? (m.phone ? 80 : 112) : (m.phone ? 150 : 200)), h: m.title + (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row + (tally ? m.pill + 8 : 0) }),
       place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: (header ? m.hdr : 0) + Math.max(lanes, 1) * m.row }; },
       laneC: i => part.box.y + hasHdr() + i * sc.m.row + sc.m.row / 2,
       in: i => () => [part.box.x, part.laneC(i)],
@@ -1946,12 +2011,14 @@ function svgBuilder(sc) {
       restore() { laneTexts.forEach(t => { t.full = ''; t.short = ''; }); }, // reset: forget the previous run's lane text
       draw(m) {
         const { x, y, w, h } = part.box, hh = hasHdr();
+        const cntMin = Math.min(m.pillW, Math.max(0, w - part.titleW(m) - 10)); // the counter pill gives up its spare width first
+        ttl.textContent = fitTitle(m, w - (counter ? 10 + Math.max(cntMin, part.pillW(m, counter, 'counter', true)) : 0));
         svgSet(ttl, { x, y: y - m.title / 2, 'font-size': m.text });
         svgSet(frame, { x, y, width: w, height: h });
         heads.forEach((n, i) => svgSet(n, { x: i ? x + 8 + m.tokW + 8 : x + 8, y: y + hh / 2, 'font-size': m.meta, opacity: hh ? 1 : 0 }));
         seps.forEach((n, i) => { const yy = y + hh + i * m.row; svgSet(n, { x1: x, x2: x + w, y1: yy, y2: yy, opacity: i || hh ? 1 : 0 }); });
         laneTexts.forEach((t, i) => { if (t.full) t.g.textContent = m.phone ? t.short : t.full; svgSet(t.g, { x: x + 8 + m.tokW + 8, y: part.laneC(i), 'font-size': m.meta }); });
-        if (cnt) fitPill(cnt, m, x + w, y - m.title / 2, { minW: m.pillW });
+        if (cnt) fitPill(cnt, m, x + w, y - m.title / 2, { minW: cntMin });
         if (tal) fitPill(tal, m, x + w, y + h + 6 + m.pill / 2, { minW: m.pillW });
       },
     };
@@ -2044,20 +2111,26 @@ function svgBuilder(sc) {
       kind: 'tree', g, nodes,
       node: id => { if (!byId[id]) throw new Error(`[plz] tree.node(${id}): no node with that id`); return byId[id]; },
       edge: id => { if (!byId[id]) throw new Error(`[plz] tree.edge(${id}): no node with that id`); return byId[id].up(); },
-      size: m => ({ w: leaves.length * m.nodeW + (leaves.length - 1) * m.hgap, min: leaves.length * (m.phone ? 70 : 90) + (leaves.length - 1) * m.hgap, h: depth * m.nodeH + (depth - 1) * m.vgap }),
+      // Node sizes from the measured labels: as wide as the widest label, as tall as both text boxes with room around them.
+      boxes: (m, n) => [meterText(n.name.textContent, m.text, ['part tree', 'tnode', 'g']), meterText(n.met.textContent, m.meta, ['part tree', 'tnode', 'meta'])],
+      labelW: m => Math.max(...nodes.map(n => Math.max(...part.boxes(m, n).map(b => b.w)))) + 12,
+      nodeH: m => Math.max(m.nodeH, Math.max(...nodes.map(n => part.boxes(m, n).reduce((a, b) => a + b.h, 0))) + 8),
+      size: m => ({ w: leaves.length * Math.max(m.nodeW, part.labelW(m)) + (leaves.length - 1) * m.hgap, min: leaves.length * Math.max(m.phone ? 70 : 90, part.labelW(m)) + (leaves.length - 1) * m.hgap, h: depth * part.nodeH(m) + (depth - 1) * m.vgap }),
       place(m, x, y, w) {
-        const nw = Math.min(m.nodeW, (w - (leaves.length - 1) * m.hgap) / leaves.length);
+        const nw = Math.min(Math.max(m.nodeW, part.labelW(m)), (w - (leaves.length - 1) * m.hgap) / leaves.length), nh = part.nodeH(m);
         leaves.forEach((n, i) => { n.x = x + i * (nw + m.hgap); });
         const setX = n => { if (n.kids.length) { n.kids.forEach(setX); n.x = (n.kids[0].x + n.kids.at(-1).x) / 2; } };
         setX(rootN);
-        nodes.forEach(n => Object.assign(n, { w: nw, h: m.nodeH, y: y + n.depth * (m.nodeH + m.vgap) }));
-        part.box = { x, y, w: leaves.length * nw + (leaves.length - 1) * m.hgap, h: depth * m.nodeH + (depth - 1) * m.vgap };
+        nodes.forEach(n => Object.assign(n, { w: nw, h: nh, y: y + n.depth * (nh + m.vgap) }));
+        part.box = { x, y, w: leaves.length * nw + (leaves.length - 1) * m.hgap, h: depth * nh + (depth - 1) * m.vgap };
       },
       draw(m) {
         nodes.forEach(n => {
           svgSet(n.rect, { x: n.x, y: n.y, width: n.w, height: n.h });
-          svgSet(n.name, { x: n.x + n.w / 2, y: n.y + n.h * 0.34, 'text-anchor': 'middle', 'font-size': m.text });
-          svgSet(n.met, { x: n.x + n.w / 2, y: n.y + n.h * 0.72, 'text-anchor': 'middle', 'font-size': m.meta });
+          // the two text boxes stacked with equal room above, between and below them (box tops measured from the text's y)
+          const [b1, b2] = part.boxes(m, n), gap = Math.max(0, (n.h - b1.h - b2.h) / 3);
+          svgSet(n.name, { x: n.x + n.w / 2, y: n.y + gap - b1.top, 'text-anchor': 'middle', 'font-size': m.text });
+          svgSet(n.met, { x: n.x + n.w / 2, y: n.y + 2 * gap + b1.h - b2.top, 'text-anchor': 'middle', 'font-size': m.meta });
           if (n.edge) {
             const cx = n.x + n.w / 2, px = n.parent.x + n.parent.w / 2, top = n.y, mid = n.parent.y + n.parent.h + m.vgap / 2;
             svgSet(n.edge, { d: `M${cx},${top} V${mid} H${px} V${n.parent.y + n.parent.h + 1}` });
@@ -2084,9 +2157,12 @@ function svgBuilder(sc) {
     const part = {
       kind: 'columns', g, cols,
       col: i => cols[i],
-      size: m => ({ w: names.length * m.colW + (names.length - 1) * m.hgap, min: names.length * (m.tokW + 20) + (names.length - 1) * m.hgap, h: m.title + slots * m.row + 8 }),
+      // A column is at least as wide as its title (measured; the titles are centred over their columns).
+      titleW: m => Math.max(...names.map(nm => meterText(nm, m.text, ['part columns', 'col', 'g']).w)) + 6,
+      colW: m => Math.max(m.colW, part.titleW(m)),
+      size: m => ({ w: names.length * part.colW(m) + (names.length - 1) * m.hgap, min: names.length * Math.max(m.tokW + 20, part.titleW(m)) + (names.length - 1) * m.hgap, h: m.title + slots * m.row + 8 }),
       place(m, x, y, w) {
-        const cw = Math.min(m.colW, (w - (names.length - 1) * m.hgap) / names.length);
+        const cw = Math.min(part.colW(m), (w - (names.length - 1) * m.hgap) / names.length);
         cols.forEach((c, i) => Object.assign(c, { x: x + i * (cw + m.hgap), y: y + m.title, w: cw, h: slots * m.row + 8 }));
         part.box = { x, y: y + m.title, w: names.length * cw + (names.length - 1) * m.hgap, h: slots * m.row + 8 };
       },
@@ -2158,23 +2234,8 @@ function svgBuilder(sc) {
     const back = P(g), wires = P(g), ph = svgNode('g', { class: 'playhead' }, g);
     const phLine = svgNode('line', {}, ph), phMark = svgNode('path', {}, ph);
     const nums = axis ? Array.from({ length: steps }, (_, i) => label(g, 'meta lstep', i + 1)) : [];
-    // Lane widths come from the measured text (a hidden meter text, cached per text and font; measured again when the
-    // fonts change or while the scene is not rendered yet, when the estimate stands in).
-    const meter = label(g, 'lmeter', '');
-    meter.style.visibility = 'hidden';
-    const widths = new Map();
-    const textW = (text, fs, { mono = false, bold = false } = {}) => {
-      const key = `${mono ? 'm' : 's'}${bold ? 'b' : ''}|${fs}|${text}`, hit = widths.get(key);
-      if (hit?.measured && hit.epoch === svgFontEpoch) return hit.w;
-      meter.setAttribute('class', mono ? 'mono' : '');
-      meter.style.fontWeight = bold ? '600' : '';
-      svgSet(meter, { 'font-size': fs });
-      meter.textContent = text;
-      const r = measureText(meter, fs, { mono, bold });
-      meter.textContent = '';
-      widths.set(key, { ...r, epoch: svgFontEpoch });
-      return r.w;
-    };
+    // Lane widths come from the measured text (the kit's meter, cached per text, size and font epoch).
+    const textW = (text, fs, { mono = false, bold = false } = {}) => meterText(text, fs, ['part lanes', `${mono ? 'mono' : ''}${bold ? ' g' : ''}`]).w;
     const ids = new Set();
     const cols = list.map(spec => {
       if (!spec?.id || ids.has(spec.id)) fail(`lane id "${spec?.id}" is missing or used twice`);
@@ -2354,16 +2415,22 @@ function svgBuilder(sc) {
     const xl = x.label ? label(g, 'meta', x.label) : null;
     const unit = (s, v) => { const t = s.log ? (Math.log10(v) - Math.log10(s.min)) / (Math.log10(s.max) - Math.log10(s.min)) : (v - s.min) / (s.max - s.min); return clamp(0, Number.isFinite(t) ? t : 0, 1); };
     const series = [], refs = [], markers = [];
-    const geo = m => {
-      const b = part.box, yw = Math.max(0, ...yt.map(t => textWidth(t.t, m.meta))) + 8, tickRow = m.meta + 8;
-      const top = m.title + m.meta / 2 + 4; // the top tick label stays clear of the title
-      const plot = { x: b.x + yw, y: b.y + top, w: b.w - yw - 4, h: b.h - top - tickRow - (xl ? m.meta + 6 : 0) };
-      return { plot, px: v => plot.x + unit(x, v) * plot.w, py: v => plot.y + plot.h - unit(y, v) * plot.h };
+    // Rows under the plot from the measured text boxes: the tick mark, the tick labels, then the axis label, each clear of
+    // the next (the box heights differ between fonts).
+    const rows = m => {
+      const tk = meterText('0', m.meta, ['part chart', 'meta tk']), lb = meterText(x.label || '0', m.meta, ['part chart', 'meta']);
+      const tt = meterText(title || '0', m.text, ['part chart', 'g']), titleBottom = m.title / 2 + tt.top + tt.h;
+      return { tk, lb, tickRow: 6 + tk.h + 2, xlRow: xl ? lb.h + 2 : 0, top: Math.max(m.title + 4, titleBottom + 3 - tk.top) }; // top: the top y label's box clears the title's
     };
-    const plotH = m => (m.phone ? 5.5 * m.row : 5 * m.row);
+    const geo = m => {
+      const b = part.box, yw = Math.max(0, ...yt.map(t => textWidth(t.t, m.meta))) + 8, r = rows(m);
+      const plot = { x: b.x + yw, y: b.y + r.top, w: b.w - yw - 4, h: b.h - r.top - r.tickRow - r.xlRow };
+      return { plot, r, px: v => plot.x + unit(x, v) * plot.w, py: v => plot.y + plot.h - unit(y, v) * plot.h };
+    };
+    const plotH = m => (m.phone ? (m.row >= 18 ? 5.5 : 4.5) * m.row : 5 * m.row); // short phone stages (small rows) get a lower plot
     const part = {
       kind: 'chart', g,
-      size: m => ({ w: natW ?? (m.phone ? 300 : 440), min: m.phone ? 220 : 300, h: m.title + m.meta / 2 + 4 + plotH(m) + m.meta + 8 + (xl ? m.meta + 6 : 0) }),
+      size: m => { const r = rows(m); return { w: natW ?? (m.phone ? 300 : 440), min: m.phone ? 220 : 300, h: r.top + plotH(m) + r.tickRow + r.xlRow }; },
       place(m, bx, by, w) { part.box = { x: bx, y: by, w, h: part.size(m).h }; },
       line(fn, { tone = '', samples = 80 } = {}) {
         // set() only stores the function: the next paint (the playground's, or the kit's frame) draws it once.
@@ -2415,7 +2482,7 @@ function svgBuilder(sc) {
         const gapX = m.meta * 0.3, spans = xt.map(({ v, t, l }) => {
           const px = q.px(v), anchor = px <= plot.x + 0.5 ? 'start' : px >= plot.x + plot.w - 0.5 ? 'end' : 'middle';
           svgSet(l, { x1: px, x2: px, y1: plot.y + plot.h, y2: plot.y + plot.h + 4 });
-          svgSet(t, { x: px, y: plot.y + plot.h + 6 + m.meta / 2, 'text-anchor': anchor, 'font-size': m.meta });
+          svgSet(t, { x: px, y: plot.y + plot.h + 6 - q.r.tk.top, 'text-anchor': anchor, 'font-size': m.meta });
           const w = textWidth(t, m.meta);
           return anchor === 'start' ? [px, px + w] : anchor === 'end' ? [px - w, px] : [px - w / 2, px + w / 2];
         });
@@ -2427,7 +2494,7 @@ function svgBuilder(sc) {
           if (show) right = r;
         });
         yt.forEach(({ v, t, l }) => { const py = q.py(v); svgSet(l, { x1: plot.x, x2: plot.x + plot.w, y1: py, y2: py }); svgSet(t, { x: plot.x - 6, y: py, 'text-anchor': 'end', 'font-size': m.meta }); });
-        if (xl) svgSet(xl, { x: plot.x + plot.w, y: plot.y + plot.h + m.meta + 10 + m.meta / 2, 'text-anchor': 'end', 'font-size': m.meta });
+        if (xl) svgSet(xl, { x: plot.x + plot.w, y: plot.y + plot.h + q.r.tickRow - q.r.lb.top, 'text-anchor': 'end', 'font-size': m.meta });
         for (const s of series) {
           const pts = Array.from({ length: s.samples + 1 }, (_, i) => {
             const t = i / s.samples, xv = x.log ? 10 ** (Math.log10(x.min) + t * (Math.log10(x.max) - Math.log10(x.min))) : x.min + t * (x.max - x.min);
@@ -2598,7 +2665,8 @@ function svgBuilder(sc) {
       markPos: () => markAt,
       size(m) {
         const q = cgeo(m), noteOf = i => (typeof note === 'string' ? note : note?.[i + 1] ?? '');
-        const widest = Math.max(60, ...lines.map((t, i) => estimateText(t, q.fs, { mono: true }) + (noteOf(i) ? 12 + estimateText(noteOf(i), m.meta) : 0)));
+        // measured as the current line (bold) with its indentation kept, the widest a line is ever drawn
+        const widest = Math.max(60, ...lines.map((t, i) => meterText(t, q.fs, ['part code', 'cline now', 'mono ctext']).w + (noteOf(i) ? 12 + meterText(noteOf(i), m.meta, ['part code', 'cline', 'meta cnote']).w : 0)));
         const w = q.pad * 2 + markW + numW(m) + 8 + widest;
         return { w, min: w, h: head(m) + q.pad * 2 + lines.length * q.lh };
       },
@@ -2829,27 +2897,42 @@ function svgBuilder(sc) {
     const rowSizes = (m, w = Infinity) => {
       const s = items.map(p => p.size(m)), gaps = gp(m) * (s.length - 1), nat = s.reduce((a, b) => a + b.w, 0);
       if (!(w < nat + gaps)) return s;
-      const f = Math.max(0, (w - gaps) / nat);
-      const out = s.map((x, i) => { const ww = Math.max(x.min, x.w * f), y = items[i].size(m, ww); return { ...y, w: Math.min(ww, y.w), shrunk: y.w >= ww && ww < x.w, nat: x.w }; });
+      // shrink in proportion; an item that reaches its minimum stays there and the others share the rest
+      const atMin = new Set();
+      let f = 1;
+      for (let pass = 0; pass <= s.length; pass++) {
+        const fixedW = s.reduce((a, x, i) => a + (atMin.has(i) ? x.min : 0), 0), freeNat = s.reduce((a, x, i) => a + (atMin.has(i) ? 0 : x.w), 0);
+        f = freeNat ? Math.max(0, (w - gaps - fixedW) / freeNat) : 0;
+        const more = s.map((x, i) => i).filter(i => !atMin.has(i) && s[i].w * f < s[i].min);
+        if (!more.length) break;
+        more.forEach(i => atMin.add(i));
+      }
+      const out = s.map((x, i) => { const ww = atMin.has(i) ? x.min : Math.max(x.min, x.w * f), y = items[i].size(m, ww); return { ...y, w: Math.min(ww, y.w), shrunk: y.w >= ww && ww < x.w, nat: x.w }; });
       const spare = w - gaps - out.reduce((a, b) => a + b.w, 0), give = out.filter(o => o.shrunk).reduce((a, o) => a + (o.nat - o.w), 0);
       if (spare > 0 && give > 0) out.forEach(o => { if (o.shrunk) o.w += Math.min(o.nat - o.w, spare * (o.nat - o.w) / give); });
       return out;
     };
+    // A row that does not fit its width even with every item at its minimum (long measured labels on a narrow stage) is
+    // laid out as a column instead, like panels, rather than running past the stage.
+    const rowMin = m => items.reduce((a, p) => a + p.size(m).min, 0) + gp(m) * (items.length - 1);
+    const asCol = (m, w) => dir === 'col' || (w !== undefined && w < rowMin(m) - 0.5);
+    const colGap = m => (dir === 'col' ? gp(m) : m.gapY);
     const node = memo({
+      rowMin,
       widths: m => childWidths(items, m, node.size(m).w, dir === 'row'),
       size(m, w) {
-        if (dir === 'row') { const s = rowSizes(m, w); return { w: s.reduce((a, b) => a + b.w, 0) + gp(m) * (s.length - 1), min: items.reduce((a, p) => a + p.size(m).min, 0) + gp(m) * (s.length - 1), h: Math.max(...s.map(x => x.h)) }; }
+        if (!asCol(m, w)) { const s = rowSizes(m, w); return { w: s.reduce((a, b) => a + b.w, 0) + gp(m) * (s.length - 1), min: dir === 'row' ? Math.max(...items.map(p => p.size(m).min)) : 0, h: Math.max(...s.map(x => x.h)) }; }
         const s = items.map(p => p.size(m, w)); // a column passes its width down (panels inside pick by it)
-        return { w: Math.max(...s.map(x => x.w)), min: Math.max(...s.map(x => x.min)), h: s.reduce((a, b) => a + b.h, 0) + gp(m) * (s.length - 1) };
+        return { w: Math.max(...s.map(x => x.w)), min: Math.max(...s.map(x => x.min)), h: s.reduce((a, b) => a + b.h, 0) + colGap(m) * (s.length - 1) };
       },
       place(m, x, y, w) {
-        if (dir === 'row') {
+        if (!asCol(m, w)) {
           const s = rowSizes(m, w);
           let xx = x;
           items.forEach((p, i) => { p.gridSlot = null; p.place(m, xx, y, s[i].w); xx += s[i].w + gp(m); });
         } else {
           let yy = y;
-          items.forEach((p, i) => { p.gridSlot = null; const si = p.size(m, w); p.place(m, x, yy, Math.min(w, si.w)); yy += si.h + gp(m); });
+          items.forEach((p, i) => { p.gridSlot = null; const si = p.size(m, w); p.place(m, x, yy, Math.min(w, si.w)); yy += si.h + colGap(m); });
         }
         return node.size(m, w).h;
       },
@@ -2928,7 +3011,7 @@ function svgBuilder(sc) {
     });
     const row = stack(titled, { dir: 'row' }), col = stack(titled, { dir: 'col' });
     // Side by side whenever the row fits (phones included, for example a landscape phone); stacked otherwise.
-    const pick = (m, w) => (w < row.size(m).min ? col : row);
+    const pick = (m, w) => (w < row.rowMin(m) ? col : row);
     return memo({
       // The size of the arrangement place() will use for this width (no width: side by side).
       size: (m, w = Infinity) => ({ ...pick(m, w).size(m, w), min: col.size(m).min }),
@@ -3467,12 +3550,21 @@ defineKit('svg', {
     this.drawBadges(sc);
     return () => { sc.badges.delete(b); g.remove(); };
   },
+  // A badge sits on its anchor point; when its text box would cover a label of the diagram there (a chart title above a
+  // point near the top of the plot), it moves just below the point instead. Boxes are measured, so this holds for any font.
   drawBadges(sc) {
+    const fs = sc.m.phone ? 11 : 12, tb = meterText('0', fs, ['sb', '']);
+    let others = null;
+    const hits = (x, y) => {
+      others ??= [...sc.layer.parts.querySelectorAll('text')].filter(t => t.textContent.trim() && t.style.display !== 'none').map(t => { try { return t.getBBox(); } catch (e) { return null; } }).filter(q => q && q.width);
+      const l = x - tb.w / 2, top = y + 0.5 + tb.top;
+      return others.some(q => l < q.x + q.width && q.x < l + tb.w && top < q.y + q.height && q.y < top + tb.h);
+    };
     for (const b of sc.badges) {
       b.g.style.display = b.anchor?.gone ? 'none' : ''; // its item was taken out (a popped frame, a dequeued callback)
-      const [x, y] = b.at(), r = sc.m.badge;
+      const r = sc.m.badge, [x, y0] = b.at(), y = typeof b.anchor === 'function' && hits(x, y0) ? y0 + 2 * r + 2 : y0;
       svgSet(b.c, { cx: x, cy: y, r });
-      svgSet(b.t, { x, y: y + 0.5, 'text-anchor': 'middle', 'font-size': sc.m.phone ? 11 : 12 });
+      svgSet(b.t, { x, y: y + 0.5, 'text-anchor': 'middle', 'font-size': fs });
     }
   },
   // Visible labels: SVG text with content in the active scene, skipping anything hidden or faded out.
@@ -3977,6 +4069,7 @@ window.__explainer = {
     await hookGoTo(name);
     await runOrContinue(name); // a stepped run of this chapter continues to its end
     await sleep(200);
+    await document.fonts?.ready; // a font the end state needed (new glyphs) is in, and the stage was laid out again with it
     await frames(); // the end state has been drawn before the caller measures it
     // Labels may still be easing apart (or the camera still gliding): wait until the kit says it has settled, at most 120 frames.
     for (let i = 0; i < 120 && activeKit()?.settled && !activeKit().settled(); i++) await frames(1);
@@ -4064,7 +4157,11 @@ document.querySelectorAll('.act [data-run]').forEach(run => {
 setStageState('ready');
 layoutStage();
 Split.apply(); // again now that the caption bar is shown: the stage-height minimum includes it
-document.fonts?.ready.then(() => layoutStage()); // text widths (pills, chips) are measured with the web fonts once they are in
+// Text is measured with the fonts that render: once the web fonts are in (and again when one arrives later, such as a CJK
+// font loaded for its first glyph), lay the stage out again, with the stacked stage's height minimum from the new sizes.
+const fontsArrived = () => { if (stackedQ.matches) Split.apply(); layoutStage(); };
+document.fonts?.ready.then(fontsArrived);
+document.fonts?.addEventListener?.('loadingdone', fontsArrived);
 } catch (error) {
   delete window.__explainer;
   setStageState('failed', error?.uiKey ?? 'loadError');

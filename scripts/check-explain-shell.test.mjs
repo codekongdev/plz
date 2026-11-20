@@ -193,6 +193,50 @@ test('speed menu: opens from the split button, syncs every chapter, persists, an
   }
 });
 
+// A scroll that leaves the segment on screen (a late layout shift, the tail of a smooth scroll that brought the button into
+// view) keeps the menu open and attached to its segment. The menu closes once the segment is fully out of view.
+test('speed menu: stays open and follows its segment through a small scroll, closes when the segment leaves the screen', async t => {
+  for (const viewport of [DESKTOP, { width: 390, height: 844 }]) {
+    const { page, errors, close } = await openPage(t, 'template.html', { viewport });
+    const seg = '[data-scene="s2"] .speed-seg';
+    await page.evaluate(() => document.querySelector('[data-scene="s2"] .act').scrollIntoView({ block: 'end', behavior: 'instant' }));
+    await nextFrames(page);
+    await page.click(seg);
+    await page.evaluate(() => window.scrollBy({ top: 30, behavior: 'instant' }));
+    await nextFrames(page, 3);
+    const r = await page.evaluate(sel => {
+      const m = document.querySelector('.speed-menu'), mr = m.getBoundingClientRect(), sr = document.querySelector(sel).getBoundingClientRect();
+      return { hidden: m.hidden, attached: Math.abs(mr.bottom - (sr.top - 4)) < 1.5 || Math.abs(mr.top - (sr.bottom + 4)) < 1.5 };
+    }, seg);
+    assert.deepEqual(r, { hidden: false, attached: true }, `${viewport.width}: the menu stays with its segment`);
+    await page.click('.speed-item[data-v="1.5"]');
+    assert.equal(await page.evaluate(() => window.__explainer.speed()), 1.5);
+    await page.click(seg);
+    if (viewport.width === 390) {
+      await page.evaluate(sel => {
+        const segment = document.querySelector(sel).getBoundingClientRect();
+        const stage = document.querySelector('.stage').getBoundingClientRect();
+        window.scrollBy({ top: segment.bottom - stage.bottom + 8, behavior: 'instant' });
+      }, seg);
+      await nextFrames(page, 3);
+      const covered = await page.evaluate(sel => {
+        const segment = document.querySelector(sel).getBoundingClientRect();
+        const stage = document.querySelector('.stage').getBoundingClientRect();
+        return { behindStage: segment.top > 0 && segment.bottom <= stage.bottom, hidden: document.querySelector('.speed-menu').hidden };
+      }, seg);
+      assert.deepEqual(covered, { behindStage: true, hidden: true }, 'closed once the pinned stage covered its segment');
+      await page.evaluate(() => document.querySelector('[data-scene="s2"] .act').scrollIntoView({ block: 'end', behavior: 'instant' }));
+      await nextFrames(page);
+      await page.click(seg);
+    }
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await nextFrames(page, 3);
+    assert.equal(await page.evaluate(() => document.querySelector('.speed-menu').hidden), true, `${viewport.width}: closed once its segment left the screen`);
+    assert.deepEqual(errors, []);
+    await close();
+  }
+});
+
 // Timing is checked on the director's own timeline (__explainer.timing(): the time each wait and tween asked for at 1×,
 // and the time it was scheduled for at the speeds in effect), which does not depend on machine load. Wall clock gets a loose check only.
 test('director: run time scales with speed, and a mid-run speed change applies live', { timeout: 120_000 }, async t => {
@@ -459,10 +503,14 @@ test('captions: only "N. " starts a numbered step; 2.5 and 10.0.0.5 are ordinary
   assert.deepEqual(errors, []);
 });
 
-test('axo animator passes tween options through: { motion: false } animates under reduced motion, and a custom ease is used', async t => {
+test('axo animator passes tween options through: { motion: false } animates under reduced motion, and a custom ease is used', { timeout: 45_000 }, async t => {
   const { page, errors } = await openPage(t, 'variant-axo-probe.html', { reducedMotion: 'reduce' });
-  await page.evaluate(() => window.__explainer.run('s1'));
-  const seen = await page.evaluate(() => window.__seen);
+  // Give the tween intermediate frames even when software rendering stalls on a busy test machine.
+  await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 10_000);
+  await page.evaluate(() => { window.__probeRun = window.__explainer.run('s1'); });
+  await page.clock.runFor(2_500);
+  const seen = await page.evaluate(async () => { await window.__probeRun; return window.__seen; });
   assert.ok(seen.color.some(v => v > 0 && v < 1), `a color tween animates under reduced motion: ${JSON.stringify(seen.color.slice(0, 5))}`);
   assert.ok(seen.eased.length > 1 && seen.eased.every(v => v === 0.5), `the custom ease is applied: ${JSON.stringify(seen.eased.slice(0, 5))}`);
   assert.deepEqual(errors, []);
@@ -495,7 +543,8 @@ test('the saved split applies while the stage is loading and after a load failur
       const held = new Promise(r => { release = r; });
       const { page } = await openPage(t, 'template.html', { viewport, waitReady: false, storage: { 'plz-explain:split-x': String(pct) }, cdn: async () => { await held; return 'serve'; } });
       t.after(release);
-      await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'loading');
+      await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'loading'
+        && document.querySelector('.split-v')?.hasAttribute('aria-valuenow'));
       const loading = await page.evaluate(() => ({ text: document.querySelector('.text').getBoundingClientRect().width, handle: document.querySelector('.split-v').getBoundingClientRect(), w: innerWidth }));
       const want = pct / 100 * loading.w;
       assert.ok(Math.abs(loading.text - want) < 2, `text column ${loading.text}px while loading, want ${want}px`);

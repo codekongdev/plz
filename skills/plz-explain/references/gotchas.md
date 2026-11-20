@@ -79,6 +79,8 @@ Things we ran into while building real pages. Read this before verifying.
 
 ## Verification environment
 
+- **Verify with the page's web fonts loaded.** Text widths differ a lot between fonts (a Linux fallback such as DejaVu Sans is far wider than the macOS system font), and the kit measures what renders. A page checked with the CDN fonts blocked is checked against the wrong fonts; wait for `document.fonts.ready` before the checks.
+
 - **Playwright MCP screenshots are saved only inside allowed folders.** `/tmp` is refused. A relative path lands in the
   working directory root (the repository root) and makes a mess. Give an absolute path inside an allowed folder (usually the working directory, or its
   `.playwright-mcp/`), and if it is inside a repository, check that the folder is gitignored.

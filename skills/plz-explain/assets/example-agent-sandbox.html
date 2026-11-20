@@ -950,7 +950,15 @@ function setInstant(on) {
   });
   document.addEventListener('pointerdown', e => { if (openSeg && !menu.contains(e.target) && !openSeg.contains(e.target)) close(false); }, true);
   addEventListener('resize', () => close(false));
-  addEventListener('scroll', () => close(false), { passive: true });
+  // A scroll moves the menu with its segment (a late layout shift, the tail of the smooth scroll that brought the button
+  // into view); it closes when the segment leaves the viewport or is covered by the pinned stage.
+  addEventListener('scroll', () => {
+    if (!openSeg) return;
+    const r = openSeg.getBoundingClientRect();
+    const visibleTop = stackedQ.matches ? Math.max(0, stageEl.getBoundingClientRect().bottom) : 0;
+    if (r.bottom <= visibleTop || r.top >= innerHeight || !r.width) close(false);
+    else place(openSeg);
+  }, { passive: true });
   document.querySelectorAll('.act [data-run]').forEach(run => {
     const box = el('div', { className: 'splitbtn' });
     run.replaceWith(box); box.append(run);
@@ -2713,6 +2721,7 @@ window.__explainer = {
     await hookGoTo(name);
     await runOrContinue(name); // a stepped run of this chapter continues to its end
     await sleep(200);
+    await document.fonts?.ready; // a font the end state needed (new glyphs) is in, and the stage was laid out again with it
     await frames(); // the end state has been drawn before the caller measures it
     // Labels may still be easing apart (or the camera still gliding): wait until the kit says it has settled, at most 120 frames.
     for (let i = 0; i < 120 && activeKit()?.settled && !activeKit().settled(); i++) await frames(1);
@@ -2800,7 +2809,11 @@ document.querySelectorAll('.act [data-run]').forEach(run => {
 setStageState('ready');
 layoutStage();
 Split.apply(); // again now that the caption bar is shown: the stage-height minimum includes it
-document.fonts?.ready.then(() => layoutStage()); // text widths (pills, chips) are measured with the web fonts once they are in
+// Text is measured with the fonts that render: once the web fonts are in (and again when one arrives later, such as a CJK
+// font loaded for its first glyph), lay the stage out again, with the stacked stage's height minimum from the new sizes.
+const fontsArrived = () => { if (stackedQ.matches) Split.apply(); layoutStage(); };
+document.fonts?.ready.then(fontsArrived);
+document.fonts?.addEventListener?.('loadingdone', fontsArrived);
 } catch (error) {
   delete window.__explainer;
   setStageState('failed', error?.uiKey ?? 'loadError');

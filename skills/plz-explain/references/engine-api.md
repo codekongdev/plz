@@ -182,6 +182,7 @@ defineScene('filter', {
   - Columns are compressed toward their minimum widths, and the diagram is fitted between the HUD and the legend.
   - When desktop sizes do not fit the height, rows shrink first (36, 32, then 28px, with desktop text sizes); after that phone sizes are used. The phone row height adapts from 20px down to 15px; at 17px and below, table header rows are hidden.
 - Text is at least 12px on desktop sizes and at least 11px on phone sizes.
+- Every size that depends on text (table and box widths, tree nodes, column titles, chart rows, pills, code panels) is measured with the fonts that render on the reader's machine, never estimated: the kit measures labels in a hidden SVG with the same classes, and lays the stage out again when a web font arrives. A label that does not fit is reported by `clipped()` rather than hidden. A box narrower than its title and counter shortens the title with an ellipsis; a `d.stack` row that does not fit even at its parts' minimum widths is laid out as a column.
 - On phones, the stage-height minimum comes from the active chapter's diagram at its smallest rows. It is applied on every chapter change, also when no height is saved, so a diagram is never cut off.
 
 | Container | Arranges |
@@ -419,7 +420,7 @@ a Retry button that reloads the page. On small screens the failed stage becomes 
 
 ## Speed menu
 
-The speed segment (`button.speed-seg`) sits after each chapter's run button. It has `aria-haspopup="menu"` and `aria-expanded`, and its accessible name includes the current value. The menu (`role="menu"`) has four `menuitemradio` items. ArrowDown, ArrowUp, Enter, or Space on the segment opens the menu with focus on the current value; arrows, Home, and End move; Enter or Space chooses; Escape closes and returns focus to the segment; Tab or a click outside closes. The menu opens below the segment, or above it when there is no room. On touch screens the items are at least 44px tall.
+The speed segment (`button.speed-seg`) sits after each chapter's run button. It has `aria-haspopup="menu"` and `aria-expanded`, and its accessible name includes the current value. The menu (`role="menu"`) has four `menuitemradio` items. ArrowDown, ArrowUp, Enter, or Space on the segment opens the menu with focus on the current value; arrows, Home, and End move; Enter or Space chooses; Escape closes and returns focus to the segment; Tab or a click outside closes. The menu opens below the segment, or above it when there is no room. When the page scrolls, the menu follows its segment and closes when the segment leaves the viewport or the pinned stage covers it. On touch screens the items are at least 44px tall.
 
 ## Split
 

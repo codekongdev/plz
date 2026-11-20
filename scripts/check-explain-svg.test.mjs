@@ -1386,7 +1386,7 @@ test('playground controls are not chapters, and a docked slider keeps focus acro
 // restored by reset in a step-diagram scene, and x tick labels that keep a gap.
 const PG_EXTRA = `
 defineScene('s1', { kit: 'svg', title: '1  Notes and charts', build(d) {
-  const t = d.table({ title: 'Answers', keys: [1, 2], header: ['key', 'answer'], note: 'a rather long answer' });
+  const t = d.table({ title: 'Answers', keys: [1, 2], header: ['Input key in the original request', 'answer'], note: 'a rather long answer' });
   const chart = d.chart({ title: 'Rate', x: { label: 'n', min: 1000, max: 20000, ticks: [1000, 2000, 3000, 4000, 5000, 10000, 15000, 20000], format: v => v.toLocaleString('en-US') }, y: { min: 0, max: 1, ticks: [0, 0.5, 1] } });
   const s = chart.line(x => 0.5);
   const mk = chart.marker(s); mk.at(1000);
