@@ -362,25 +362,24 @@ await py.runPythonAsync(code);
     <section class="chapter" data-scene="ossandbox">
       <h2><span class="n">8</span><span>An agent on your own computer: the OS sandbox</span></h2>
       <p>Coding agents usually run on my laptop. Starting a container or a VM for every command is a hassle. So Claude Code has a feature that runs shell commands inside a sandbox provided by the operating system. It uses the built-in Seatbelt on macOS, and bubblewrap on Linux and WSL2. With no container and no VM, the kernel of the same computer applies rules only to this process and its child processes.</p>
-      <p>There are two rules. File writes are allowed only to the working folder, the per-user temporary folder, and folders you add separately. For the network, there is no direct way out, and traffic has to go through a proxy that runs outside the sandbox. For each connection, the proxy compares the host name against an allowlist, and the list starts out empty. A connection to a place not on the list is either put to the user as a question or rejected, depending on the permission mode. In <code>bypassPermissions</code> mode, which skips permission checks, it is allowed without asking.</p>
-      <p>Reading is different. The default settings let most of the computer be read, including key files such as <code>~/.ssh</code>. What stops the data that was read from leaving is the network rule. To block reading as well, set <code>denyRead</code>. Also, this sandbox applies only to shell commands. Claude's file tools such as Read and Edit, MCP servers, and hooks run outside it and are handled by permission rules.</p>
+      <p>There are two rules. File writes are allowed only to the working folder, the per-user temporary folder, and folders you add separately. For the network, there is no direct way out, and traffic has to go through a proxy that runs outside the sandbox. For each connection, the proxy compares the host name against an allowlist, and the list starts out empty. For hosts outside the list, the permission mode and any stricter network rules determine whether the connection goes through, is refused, or needs approval.</p>
+      <p>Reading is different. The default settings let most of the computer be read, including key files such as <code>~/.ssh</code>. Network rules separately control where the data that was read can be sent. To block reading as well, set <code>denyRead</code>. Also, this sandbox applies only to shell commands. Claude's file tools such as Read and Edit, MCP servers, and hooks run outside it and are handled by permission rules.</p>
       <h3>For example</h3>
       <p>Turn it on with the <code>/sandbox</code> command, or write the following in the settings file.</p>
       <pre class="code"><code>{
   "sandbox": {
     "enabled": true,
-    "filesystem": { "denyRead": ["~/.ssh"] },
     "network": {
       "allowedDomains": ["pypi.org", "files.pythonhosted.org"]
     }
   }
 }</code></pre>
-      <p>The model below shows the result of the same code attempting five things under the default settings, before <code>denyRead</code> is added.</p>
+      <p>In the model below, the sandbox uses the default read settings and a permission mode that refuses connections to unlisted domains. The code makes five attempts.</p>
       <ol class="steps">
         <li>Write a result file to the working folder. Allowed.</li>
         <li>Write outside the folder (<code>~/.bashrc</code>). Blocked. On macOS you get <code>Operation not permitted</code>, and on Linux <code>Read-only file system</code>.</li>
         <li>Read the key file in <code>~/.ssh</code>. Under the default settings, it can be read.</li>
-        <li>Send the key it read to <code>example.net</code>. It is not on the allowlist, so it stops at the proxy.</li>
+        <li>Try to send the key to <code>example.net</code>. In this permission mode, the proxy refuses the connection because the host is outside the allowlist.</li>
         <li>Send a request to <code>pypi.org</code>, which was added to the allowlist. It goes out through the proxy.</li>
       </ol>
       <p>The documentation also states the limits. By default the proxy does not look inside encrypted traffic and sees only the host name. So if you allow a broad domain such as <code>github.com</code>, data can leave by that route. Also, the sandbox is off by default, and even when it is on, if a required component is missing, the default setting runs the command without a sandbox. To make startup stop in that case, turn on <code>sandbox.failIfUnavailable</code>.</p>
@@ -406,16 +405,16 @@ pivot = df.pivot_table(index="month", values="amount")
 
     <section class="chapter" data-scene="compare">
       <h2><span class="n">10</span><span>How to choose</span></h2>
-      <p>Send the same escape attempt to all four approaches and the differences show at a glance. When the code tries to get out of the box and reach the host's key file, all four stop it, but the layer that stops it differs. The lower the stopping layer, and the more layers there are between the code and the host, the harder it is to break through.</p>
+      <p>Send the same two-step attempt to all four approaches: first read the host key file, then send the key it read to <code>example.net</code>. The container and microVM stop access to the host file at their boundary, assuming the key file was not passed into the guest. WASM cannot use the key file or an external network function unless the runtime explicitly provides them. The OS sandbox uses the default read settings from chapter 8, so the key file can be read. As in chapter 8, we assume a permission mode that refuses connections to unlisted domains, so the proxy blocks the request to <code>example.net</code>. To block the read in the OS sandbox too, configure <code>denyRead</code>. The lower the stopping layer, and the more layers there are between the code and the host, the harder it is to break through.</p>
       <p>The tables below sum up the chapters so far. There are no confirmed comparison figures for weight and start speed, so they are written qualitatively, and that is this page's own judgment. It does not recommend any particular product. When choosing, first decide "what am I trying to protect (my laptop, or a server shared by several users)" and "what tools does the code need".</p>
       <h3>Who answers, and what has to be crossed</h3>
       <table>
-        <thead><tr><th scope="col">Approach</th><th scope="col">Who answers system calls</th><th scope="col">What to cross to reach the host</th></tr></thead>
+        <thead><tr><th scope="col">Approach</th><th scope="col">Who answers system calls</th><th scope="col">What to cross to reach the host</th><th scope="col">Key read / external send</th></tr></thead>
         <tbody>
-          <tr><th scope="row">Container + gVisor</th><td>gVisor's stand-in kernel (the host kernel if absent)</td><td>The namespace wall, the stand-in kernel</td></tr>
-          <tr><th scope="row">MicroVM</th><td>A separate guest kernel for each VM</td><td>The guest kernel, the hypervisor</td></tr>
-          <tr><th scope="row">WASM</th><td>Functions the runtime hands in</td><td>The WASM box, the outside runtime's permissions</td></tr>
-          <tr><th scope="row">OS sandbox</th><td>The host kernel (with a policy applied)</td><td>The write and network policy. The kernel is shared</td></tr>
+          <tr><th scope="row">Container + gVisor</th><td>gVisor's stand-in kernel (the host kernel if absent)</td><td>The namespace wall, the stand-in kernel</td><td>The host key file cannot be read because it is not passed into the container.</td></tr>
+          <tr><th scope="row">MicroVM</th><td>A separate guest kernel for each VM</td><td>The guest kernel, the hypervisor</td><td>The host key file cannot be read because it is not passed into the guest.</td></tr>
+          <tr><th scope="row">WASM</th><td>Functions the runtime hands in</td><td>The WASM box, the outside runtime's permissions</td><td>The key file and network access are unavailable unless the runtime explicitly provides them.</td></tr>
+          <tr><th scope="row">OS sandbox</th><td>The host kernel (with a policy applied)</td><td>The write and network policy. The kernel is shared</td><td>Default read settings allow the key to be read. In the mode shown here, the proxy refuses the send to an unlisted domain. Adding <code>denyRead</code> for the key file also blocks the read.</td></tr>
         </tbody>
       </table>
       <h3>Weight and available tools (judgment)</h3>
@@ -439,7 +438,7 @@ pivot = df.pivot_table(index="month", values="amount")
         </tbody>
       </table>
       <p>For example, if all you want is to have an agent run tests on my laptop, the OS sandbox takes the least effort. If you run several users' code on one server, a microVM that divides the kernel, or a container with a stand-in kernel inserted, is the better fit. For short code that only needs to compute, WASM may be enough. This paragraph is also a judgment.</p>
-      <p class="gist">All four approaches stop the attempt, but the layer that stops it differs. Choose by what you are protecting and what tools the code needs.</p>
+      <p class="gist">In this comparison, the container, microVM, and WASM stop the key read. The OS sandbox allows the read by default and stops the later send under the permission mode shown. Add <code>denyRead</code> for the key file to block the read too.</p>
       <div class="act"><button type="button" disabled data-run="compare">Try to escape from all four</button><p class="result" aria-live="polite"></p></div>
     </section>
 
@@ -462,7 +461,7 @@ pivot = df.pivot_table(index="month", values="amount")
         <dt>WASM</dt><dd>WebAssembly. An execution format that cannot reach the outside without going through functions the runtime hands in.</dd>
         <dt>Pyodide</dt><dd>A Python distribution that ports CPython to WASM. It runs in browsers and Node.js.</dd>
         <dt>OS sandbox</dt><dd>An approach that uses operating system features (macOS Seatbelt, Linux bubblewrap) to restrict one process's file writes and network access.</dd>
-        <dt>Proxy</dt><dd>A relay server that receives requests on someone's behalf and forwards them. Here it passes connections only to domains on the allowlist.</dd>
+        <dt>Proxy</dt><dd>A relay server that receives requests on someone's behalf and forwards them. Here it checks the destination against the allowlist and applies the network policy.</dd>
       </dl>
       <div class="sources">
         <h3 data-ui="sources" data-date="2026-10-28">Sources (checked 2026-10-28)</h3>
@@ -1440,7 +1439,7 @@ defineScene('ossandbox', {
         await a.move(s1, [4.15, FLOOR + 0.75, 0], 900, 0.6);
         await a.flash(proxy, COLOR.bound, 800);
         disposeObject(s1);
-        say('4. example.net is not on the allowlist, so it stopped at the proxy.');
+        say('4. In this permission mode, the proxy refused the connection to the unlisted example.net.');
         await a.wait(1100);
         say('5. It sends a request to pypi.org, which was added to the allowlist.');
         const s2 = packet(COLOR.actor, [home.x, home.y + 0.4, home.z], 0.15); temp.add(s2);
@@ -1625,7 +1624,7 @@ defineScene('compare', {
         say('WASM: the capsule wall has no door, so it was stopped. Next, the OS sandbox.');
         await a.wait(500);
         await shot(a, O, homes[3].clone().add(V(0, 0.3, 0)), [[-0.95, K + 0.7, 0.85], [1.05, K + 0.5, -0.9]], [[O.key, COLOR.actor], [px, COLOR.bound]]);
-        say('OS sandbox: the key file could be read, but the request to send it out was stopped at the proxy. All four stopped it, but the layer that stopped it differed.');
+        say('OS sandbox: reading the key was allowed by default. In this permission mode, the proxy stopped the send to the unlisted domain. The other three stopped the key read.');
       },
     };
   },

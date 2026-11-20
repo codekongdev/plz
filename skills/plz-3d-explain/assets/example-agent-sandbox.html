@@ -362,25 +362,24 @@ await py.runPythonAsync(code);
     <section class="chapter" data-scene="ossandbox">
       <h2><span class="n">8</span><span>내 컴퓨터에서 도는 에이전트: OS 샌드박스</span></h2>
       <p>코딩 에이전트는 대개 내 노트북에서 돕니다. 명령마다 컨테이너나 VM을 띄우기는 번거롭습니다. 그래서 Claude Code는 셸 명령을 운영체제가 제공하는 샌드박스 안에서 실행하는 기능을 둡니다. macOS에서는 내장된 Seatbelt를, 리눅스와 WSL2에서는 bubblewrap을 씁니다. 컨테이너도 VM도 없이, 같은 컴퓨터의 커널이 이 프로세스와 그 자식 프로세스에만 규칙을 겁니다.</p>
-      <p>규칙은 두 가지입니다. 파일 쓰기는 작업 폴더, 사용자별 임시 폴더, 따로 추가한 폴더에만 허용됩니다. 네트워크는 직접 나가는 길이 없고, 샌드박스 바깥에서 도는 프록시를 거쳐야 합니다. 프록시는 연결마다 호스트 이름을 허용 목록과 비교하는데, 목록은 처음에 비어 있습니다. 목록에 없는 곳으로 가는 연결은 권한 모드에 따라 사용자에게 묻거나 거절됩니다. 다만 권한 확인을 건너뛰는 <code>bypassPermissions</code> 모드에서는 묻지 않고 허용됩니다.</p>
-      <p>읽기는 다릅니다. 기본 설정은 <code>~/.ssh</code> 같은 키 파일을 포함해 컴퓨터 대부분을 읽게 둡니다. 읽은 것을 밖으로 내보내지 못하게 막는 쪽은 네트워크 규칙입니다. 읽기까지 막으려면 <code>denyRead</code>를 설정합니다. 그리고 이 샌드박스는 셸 명령에만 걸립니다. Read·Edit 같은 Claude의 파일 도구, MCP 서버, 훅은 바깥에서 돌고 권한 규칙으로 다룹니다.</p>
+      <p>규칙은 두 가지입니다. 파일 쓰기는 작업 폴더, 사용자별 임시 폴더, 따로 추가한 폴더에만 허용됩니다. 네트워크는 직접 나가는 길이 없고, 샌드박스 바깥에서 도는 프록시를 거쳐야 합니다. 프록시는 연결마다 호스트 이름을 허용 목록과 비교하는데, 목록은 처음에 비어 있습니다. 목록에 없는 곳으로 가는 연결을 허용할지, 거부할지, 사용자에게 물을지는 권한 모드와 추가 네트워크 규칙에 따라 달라집니다.</p>
+      <p>읽기는 다릅니다. 기본 설정은 <code>~/.ssh</code> 같은 키 파일을 포함해 컴퓨터 대부분을 읽게 둡니다. 읽은 데이터를 어디로 보낼 수 있는지는 네트워크 규칙이 따로 정합니다. 읽기까지 막으려면 <code>denyRead</code>를 설정합니다. 그리고 이 샌드박스는 셸 명령에만 걸립니다. Read·Edit 같은 Claude의 파일 도구, MCP 서버, 훅은 바깥에서 돌고 권한 규칙으로 다룹니다.</p>
       <h3>예를 들면</h3>
       <p><code>/sandbox</code> 명령으로 켜거나, 설정 파일에 다음처럼 적습니다.</p>
       <pre class="code"><code>{
   "sandbox": {
     "enabled": true,
-    "filesystem": { "denyRead": ["~/.ssh"] },
     "network": {
       "allowedDomains": ["pypi.org", "files.pythonhosted.org"]
     }
   }
 }</code></pre>
-      <p>아래 모형은 <code>denyRead</code>를 넣기 전의 기본 설정에서 같은 코드가 다섯 가지 일을 시도한 결과입니다.</p>
+      <p>아래 모형은 기본 읽기 설정을 쓰고, 허용 목록에 없는 도메인으로의 연결을 거부하는 권한 모드에서 코드가 다섯 가지 일을 시도하는 모습을 보여 줍니다.</p>
       <ol class="steps">
         <li>작업 폴더에 결과 파일을 씁니다. 허용됩니다.</li>
         <li>폴더 밖(<code>~/.bashrc</code>)에 씁니다. 막힙니다. macOS에서는 <code>Operation not permitted</code>, 리눅스에서는 <code>Read-only file system</code>이 돌아옵니다.</li>
         <li><code>~/.ssh</code>의 키 파일을 읽습니다. 기본 설정에서는 읽힙니다.</li>
-        <li>읽은 키를 <code>example.net</code>으로 보냅니다. 허용 목록에 없어서 프록시에서 멈춥니다.</li>
+        <li>읽은 키를 <code>example.net</code>으로 보내려 합니다. 이 권한 모드에서는 허용 목록에 없는 호스트라 프록시가 연결을 거부합니다.</li>
         <li>허용 목록에 넣은 <code>pypi.org</code>로 요청을 보냅니다. 프록시를 지나 나갑니다.</li>
       </ol>
       <p>한계도 문서에 적혀 있습니다. 프록시는 기본으로 암호화된 내용을 들여다보지 않고 호스트 이름만 봅니다. 그래서 <code>github.com</code>처럼 넓은 도메인을 허용하면 그 길로 데이터가 나갈 수 있습니다. 또 샌드박스는 기본으로 꺼져 있고, 켜 두어도 필요한 구성 요소가 없으면 기본 설정에서는 샌드박스 없이 명령을 실행합니다. 이때 시작을 멈추게 하려면 <code>sandbox.failIfUnavailable</code>을 켭니다.</p>
@@ -406,16 +405,16 @@ pivot = df.pivot_table(index="month", values="amount")
 
     <section class="chapter" data-scene="compare">
       <h2><span class="n">10</span><span>무엇을 고를까</span></h2>
-      <p>네 방식에 같은 탈출 시도를 보내 보면 차이가 한눈에 보입니다. 코드가 상자를 벗어나 호스트의 키 파일에 닿으려 할 때, 네 방식 모두 막지만 막는 층이 다릅니다. 막는 층이 아래에 있을수록, 그리고 코드와 호스트 사이의 층이 많을수록 뚫기 어렵습니다.</p>
+      <p>네 방식에 같은 두 단계 시도를 보내 봅시다. 먼저 호스트의 키 파일을 읽고, 다음으로 읽은 키를 <code>example.net</code>으로 보냅니다. 컨테이너와 마이크로VM은 키 파일이 게스트에 전달되지 않았다는 전제에서 호스트 파일 읽기를 경계에서 막고, WASM은 키 파일이나 외부 전송 기능을 런타임이 따로 건네지 않는 한 쓸 수 없습니다. OS 샌드박스는 8장의 기본 읽기 설정을 쓰므로 키 파일을 읽을 수 있습니다. 8장처럼 허용 목록 밖의 연결을 거부하는 권한 모드를 가정하므로, 프록시는 목록에 없는 <code>example.net</code>으로의 요청을 막습니다. OS 샌드박스에서 읽기까지 막으려면 <code>denyRead</code>를 설정해야 합니다. 막는 층이 아래에 있을수록, 그리고 코드와 호스트 사이의 층이 많을수록 뚫기 어렵습니다.</p>
       <p>아래 표는 지금까지의 장을 정리한 것입니다. 무게와 시작 속도는 확인된 비교 수치가 없어서 정성적으로 적었고, 이것은 이 페이지의 판단입니다. 특정 제품을 추천하지 않습니다. 고를 때는 "무엇을 지키려는가(내 노트북, 여러 사용자가 함께 쓰는 서버)"와 "코드에 어떤 도구가 필요한가"를 먼저 정합니다.</p>
       <h3>누가 대답하고, 무엇을 넘어야 하나</h3>
       <table>
-        <thead><tr><th scope="col">방식</th><th scope="col">시스템 콜에 대답하는 쪽</th><th scope="col">호스트에 닿으려면 넘을 것</th></tr></thead>
+        <thead><tr><th scope="col">방식</th><th scope="col">시스템 콜에 대답하는 쪽</th><th scope="col">호스트에 닿으려면 넘을 것</th><th scope="col">키 읽기 / 외부 전송</th></tr></thead>
         <tbody>
-          <tr><th scope="row">컨테이너 +gVisor</th><td>gVisor의 대리 커널(없으면 호스트 커널)</td><td>네임스페이스 벽, 대리 커널</td></tr>
-          <tr><th scope="row">마이크로VM</th><td>VM마다 따로 있는 게스트 커널</td><td>게스트 커널, 하이퍼바이저</td></tr>
-          <tr><th scope="row">WASM</th><td>런타임이 넣어 준 함수</td><td>WASM 상자, 바깥 런타임의 권한</td></tr>
-          <tr><th scope="row">OS 샌드박스</th><td>호스트 커널(정책을 걸어 둠)</td><td>쓰기·네트워크 정책. 커널은 공유</td></tr>
+          <tr><th scope="row">컨테이너 +gVisor</th><td>gVisor의 대리 커널(없으면 호스트 커널)</td><td>네임스페이스 벽, 대리 커널</td><td>호스트 키 파일은 컨테이너에 전달되지 않아 읽을 수 없습니다.</td></tr>
+          <tr><th scope="row">마이크로VM</th><td>VM마다 따로 있는 게스트 커널</td><td>게스트 커널, 하이퍼바이저</td><td>호스트 키 파일은 게스트에 전달되지 않아 읽을 수 없습니다.</td></tr>
+          <tr><th scope="row">WASM</th><td>런타임이 넣어 준 함수</td><td>WASM 상자, 바깥 런타임의 권한</td><td>키 파일과 네트워크 기능은 런타임이 명시적으로 제공하지 않는 한 쓸 수 없습니다.</td></tr>
+          <tr><th scope="row">OS 샌드박스</th><td>호스트 커널(정책을 걸어 둠)</td><td>쓰기·네트워크 정책. 커널은 공유</td><td>기본 읽기 설정에서는 키를 읽을 수 있습니다. 이 권한 모드에서는 허용 목록 밖으로 보내는 요청을 프록시가 거부합니다. 키 파일을 <code>denyRead</code>에 추가하면 읽기도 막습니다.</td></tr>
         </tbody>
       </table>
       <h3>무게와 쓸 수 있는 도구 (판단)</h3>
@@ -439,7 +438,7 @@ pivot = df.pivot_table(index="month", values="amount")
         </tbody>
       </table>
       <p>예를 들어 내 노트북에서 에이전트에게 테스트를 돌리게 하는 정도라면 OS 샌드박스가 가장 손이 덜 갑니다. 여러 사용자의 코드를 한 서버에서 돌린다면 커널을 나누는 마이크로VM이나 대리 커널을 낀 컨테이너 쪽이 맞습니다. 계산만 하면 되는 짧은 코드라면 WASM으로 충분할 수 있습니다. 이 문단도 판단입니다.</p>
-      <p class="gist">네 방식은 모두 막지만 막는 층이 다릅니다. 지키려는 대상과 코드에 필요한 도구로 고릅니다.</p>
+      <p class="gist">이 비교에서 컨테이너·마이크로VM·WASM은 키 읽기를 막습니다. OS 샌드박스는 기본 읽기 설정에서 키를 읽게 두고, 예시의 권한 모드에서는 전송을 막습니다. 키 파일을 <code>denyRead</code>에 추가하면 읽기도 막을 수 있습니다.</p>
       <div class="act"><button type="button" disabled data-run="compare">네 곳에서 탈출 시도</button><p class="result" aria-live="polite"></p></div>
     </section>
 
@@ -462,7 +461,7 @@ pivot = df.pivot_table(index="month", values="amount")
         <dt>WASM</dt><dd>WebAssembly. 런타임이 넣어 준 함수를 거치지 않고는 바깥에 닿을 수 없는 실행 형식입니다.</dd>
         <dt>Pyodide</dt><dd>CPython을 WASM으로 옮긴 파이썬 배포판. 브라우저와 Node.js에서 돕니다.</dd>
         <dt>OS 샌드박스</dt><dd>운영체제 기능(macOS Seatbelt, 리눅스 bubblewrap)으로 한 프로세스의 파일 쓰기와 네트워크를 제한하는 방식입니다.</dd>
-        <dt>프록시</dt><dd>요청을 대신 받아 전달하는 중계 서버. 여기서는 허용 목록에 있는 도메인으로만 연결을 넘깁니다.</dd>
+        <dt>프록시</dt><dd>요청을 대신 받아 전달하는 중계 서버. 여기서는 연결 대상을 허용 목록과 비교하고 네트워크 규칙을 적용합니다.</dd>
       </dl>
       <div class="sources">
         <h3 data-ui="sources" data-date="2026-10-28">출처 (2026-10-28 확인)</h3>
@@ -1440,7 +1439,7 @@ defineScene('ossandbox', {
         await a.move(s1, [4.15, FLOOR + 0.75, 0], 900, 0.6);
         await a.flash(proxy, COLOR.bound, 800);
         disposeObject(s1);
-        say('4. example.net은 허용 목록에 없어서 프록시에서 멈췄습니다.');
+        say('4. 이 권한 모드에서는 허용 목록에 없는 example.net으로의 연결을 프록시가 거부했습니다.');
         await a.wait(1100);
         say('5. 허용 목록에 넣은 pypi.org 로 요청을 보냅니다.');
         const s2 = packet(COLOR.actor, [home.x, home.y + 0.4, home.z], 0.15); temp.add(s2);
@@ -1625,7 +1624,7 @@ defineScene('compare', {
         say('WASM: 캡슐 벽에 문이 없어 막혔습니다. 다음은 OS 샌드박스.');
         await a.wait(500);
         await shot(a, O, homes[3].clone().add(V(0, 0.3, 0)), [[-0.95, K + 0.7, 0.85], [1.05, K + 0.5, -0.9]], [[O.key, COLOR.actor], [px, COLOR.bound]]);
-        say('OS 샌드박스: 키 파일은 읽혔지만, 밖으로 보내는 요청이 프록시에서 막혔습니다. 네 곳 모두 막았지만 막는 층이 달랐습니다.');
+        say('OS 샌드박스: 기본 읽기 설정에서는 키를 읽을 수 있었습니다. 이 권한 모드에서는 허용 목록 밖으로 전송하는 요청을 프록시가 막았습니다. 앞의 세 방식은 키 읽기를 막았습니다.');
       },
     };
   },
