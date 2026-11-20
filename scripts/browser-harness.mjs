@@ -1,5 +1,5 @@
 // Shared setup for the Chromium browser tests: a local page server, the browser launch, and the network route
-// that serves three.js from the pinned npm package at its CDN URLs. Tests never need the live CDN or web fonts,
+// that serves three.js and the web fonts from pinned npm packages at their CDN URLs. Tests never need the live CDN,
 // and every other external request is rejected.
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -9,7 +9,38 @@ import { dirname, resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
 
 export const threeCdnPrefix = 'https://cdn.jsdelivr.net/npm/three@0.170.0/';
-const threeRoot = dirname(dirname(createRequire(import.meta.url).resolve('three')));
+const require = createRequire(import.meta.url);
+const threeRoot = dirname(dirname(require.resolve('three')));
+
+// The pages' web fonts come from Google Fonts. The tests serve the same families from pinned @fontsource packages, so text is
+// measured and drawn with the fonts readers get, the same on every operating system (system fallback fonts differ widely:
+// DejaVu on a Linux runner is much wider than the macOS fonts). The Pretendard stylesheet (the h1 headline only) stays empty.
+const GOOGLE_FONTS_CSS = 'https://fonts.googleapis.com/css2';
+const FONT_FILES_PREFIX = 'https://fonts.gstatic.com/plz-tests/';
+const FONT_PACKAGES = { Hahmlet: '@fontsource/hahmlet', 'IBM Plex Mono': '@fontsource/ibm-plex-mono', 'IBM Plex Sans KR': '@fontsource/ibm-plex-sans-kr' };
+const fontRoot = pkg => dirname(require.resolve(`${pkg}/package.json`));
+// The @font-face rules for a Google Fonts css2 URL (family=Name:wght@400;500&family=…), from the packages' per-weight CSS.
+export async function googleFontsCss(url) {
+  const css = [];
+  for (const spec of new URL(url).searchParams.getAll('family')) {
+    const [name, axes = ''] = spec.split(':');
+    const pkg = FONT_PACKAGES[name];
+    assert.ok(pkg, `no test font package for the web font "${name}"; add it to FONT_PACKAGES in scripts/browser-harness.mjs`);
+    const weights = /wght@([\d;]+)/.exec(axes)?.[1].split(';') ?? ['400'];
+    for (const w of weights) {
+      const text = await readFile(resolve(fontRoot(pkg), `${w}.css`), 'utf8');
+      css.push(text.replace(/url\(\.\/files\//g, `url(${FONT_FILES_PREFIX}${pkg}/files/`));
+    }
+  }
+  return css.join('\n');
+}
+async function fontFile(url) {
+  const rest = url.slice(FONT_FILES_PREFIX.length), pkg = Object.values(FONT_PACKAGES).find(p => rest.startsWith(`${p}/files/`));
+  assert.ok(pkg, `unknown test font file ${url}`);
+  const root = fontRoot(pkg), path = resolve(root, rest.slice(pkg.length + 1));
+  assert.ok(path.startsWith(`${root}${sep}`), 'font route must stay inside its package');
+  return readFile(path);
+}
 
 // Serves HTML from `pageFor(path)`, which returns the page source (string or Buffer) or null for a 404.
 export async function startPageServer(pageFor) {
@@ -36,7 +67,8 @@ export function launchBrowser() {
 }
 
 // Route every request of `context`: the page origin passes, three.js comes from node_modules (or is aborted when
-// `cdn(url)` returns 'abort'; it may also wait), stylesheets are empty, everything else is blocked.
+// `cdn(url)` returns 'abort'; it may also wait), the Google Fonts stylesheet and its font files come from the font packages,
+// other stylesheets are empty, everything else is blocked.
 // `onThree(url)` sees every three.js request.
 export async function routeNetwork(context, origin, { cdn = () => 'serve', onThree = () => {} } = {}) {
   await context.route('**/*', async route => {
@@ -53,7 +85,9 @@ export async function routeNetwork(context, origin, { cdn = () => 'serve', onThr
         body: await readFile(path),
       });
     }
-    if (route.request().resourceType() === 'stylesheet') return route.fulfill({ contentType: 'text/css', body: '' });
+    if (url.startsWith(GOOGLE_FONTS_CSS)) return route.fulfill({ contentType: 'text/css', body: await googleFontsCss(url) });
+    if (url.startsWith(FONT_FILES_PREFIX)) return route.fulfill({ contentType: url.endsWith('.woff') ? 'font/woff' : 'font/woff2', headers: { 'Access-Control-Allow-Origin': '*' }, body: await fontFile(url) });
+    if (route.request().resourceType() === 'stylesheet') return route.fulfill({ contentType: 'text/css', body: '' }); // Pretendard
     return route.abort('blockedbyclient');
   });
 }
@@ -107,7 +141,10 @@ export async function openExplainPage(browser, origin, t, file, { viewport = { w
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`${origin}/${file}`, { waitUntil: waitReady ? 'load' : 'commit' });
-  if (waitReady) await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'ready');
+  if (waitReady) {
+    await page.waitForFunction(() => document.querySelector('.stage')?.dataset.state === 'ready');
+    await page.evaluate(() => document.fonts.ready); // the stage lays out again with the web fonts once they are in
+  }
   return { page, errors, threeRequests, close };
 }
 

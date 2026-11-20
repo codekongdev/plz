@@ -73,7 +73,7 @@ npm test
 
 `npm test` runs `node --test --test-concurrency=1 scripts/*.test.mjs`: one test file at a time, because the browser suites each run a software-rendered Chromium and slow each other down when they run together.
 
-On Linux, use `npx playwright install --with-deps chromium` to install the browser's system dependencies too. The browser tests serve three.js from the pinned npm development dependency at the page's CDN URLs, so the tests do not depend on the live CDN. These dependencies are only for verification; generated pages still use a single HTML file with no build step.
+On Linux, use `npx playwright install --with-deps chromium` to install the browser's system dependencies too. The browser tests serve three.js and the pages' web fonts (IBM Plex Sans KR, IBM Plex Mono, and Hahmlet, from pinned `@fontsource` development dependencies) at the page's CDN URLs, so the tests do not depend on the live CDN, and text is measured and drawn with the same fonts on macOS, Linux, and Windows. Only Pretendard, used for the page headline, is left out (its stylesheet is served empty), and glyphs the web fonts lack fall back to the system fonts. You do not need to install extra fonts on Linux. These dependencies are only for verification; generated pages still use a single HTML file with no build step.
 
 Because the `ENGINE` sections ship inside every generated page, treat them as stable. Skill instructions tell the agent not to edit them when building a page, and changes to them should be deliberate and explained.
 
