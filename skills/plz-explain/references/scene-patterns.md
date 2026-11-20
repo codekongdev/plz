@@ -14,7 +14,7 @@ engine-api.md). Put one-shot objects in `temporaryGroup()` and use `disposeObjec
 - When it is not obvious which object a step is about, add `{ anchor: obj }`: the same number appears in a badge next to that object. Check `overlaps()` afterwards, because the badge is a label too.
 - Leave the result visible at the end (a held `flash`, a changed label, an object that stays) rather than letting everything return to the start.
 
-The example chapters of patterns 1–9 are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters); patterns 10–14 point at `assets/example-hash-join-sip.html` (hash join and SIP, 5 chapters, svg kit only), pattern 15 at `assets/example-lost-update.html` (two sessions and one row, 5 chapters, svg kit only), and pattern 16 at `assets/example-bloom-filter.html` (Bloom filters, 5 chapters, svg kit only). Every example has an English counterpart beside it, with the same name ending in `.en.html` (for example `assets/example-lost-update.en.html`); look at that one when building an English page.
+The example chapters of patterns 1–9 are the chapter numbers of `assets/example-agent-sandbox.html` (AI-agent code sandbox, 10 chapters); patterns 10–14 point at `assets/example-hash-join-sip.html` (hash join and SIP, 5 chapters, svg kit only), pattern 15 at `assets/example-lost-update.html` (two sessions and one row, 5 chapters, svg kit only), pattern 16 at `assets/example-bloom-filter.html` (Bloom filters, 5 chapters, svg kit only), and pattern 17 at `assets/example-event-loop.html` (the JavaScript event loop, 5 chapters, svg kit only). Every example has an English counterpart beside it, with the same name ending in `.en.html` (for example `assets/example-lost-update.en.html`); look at that one when building an English page.
 
 | Shape of the concept | Pattern | Example chapter (example-agent-sandbox) |
 |---|---|---|
@@ -34,6 +34,7 @@ The example chapters of patterns 1–9 are the chapter numbers of `assets/exampl
 | Rows spread over several nodes or servers (svg) | 14. Node columns | `example-hash-join-sip.html` chapter 5 |
 | A few actors whose relative timing decides the outcome (svg) | 15. Lanes | `example-lost-update.html` chapters 1–4; two rules side by side: chapter 5 |
 | An outcome that responds to a continuous or ordinal parameter (svg) | 16. Parameter playground | `example-bloom-filter.html` chapters 3–5 |
+| What code does to hidden state: a stack, queues, a console (svg) | 17. Code and state in sync | `example-event-loop.html` (all chapters; chapter 4 for stepping and predicting) |
 
 ## 1. Layers
 
@@ -337,3 +338,24 @@ defineScene('hashes', {
 - Presets jump to the values a reader should not miss (the minimum of a U-shaped curve, a common target).
 - Every number the page shows comes from the formula in the scene, never typed in. Show the formula in the body and say when it is an approximation.
 - End the chapter with a small table of the key values (the same formula, computed once for the table).
+
+## 17. Code and state in sync
+
+A short program beside the state it changes; the marker moves line by line and each line changes one thing. Use it when the lesson is what code does to hidden state (the event loop, recursion, a protocol). The reader should already know the language; the code is the subject, not decoration.
+
+```js
+const code = d.code({ title: 'main.js', lines: PROGRAMS.predict.split('\n') });
+const frames = d.frames({ title: 'Call stack', max: 2 });
+const micro = d.queue({ title: 'Microtasks', max: 2, tone: 'actor' }), tasks = d.queue({ title: 'Tasks', max: 2, tone: 'matter' });
+const out = d.console({ title: 'Console', max: 4 });
+// diagram: d.flow([code, d.flow([frames, d.stack([micro, tasks], { dir: 'col' }), out])])
+// run:
+await a.line(code, 2); await a.carry('log 2', code.end(2), tasks.tail()); tasks.enqueue('log 2'); say('2. …', { anchor: tasks.last() });
+await a.line(code, null); frames.pop();
+await a.checkpoint(); frames.push(micro.dequeue()); out.log('3'); frames.pop(); say('5. …', { anchor: out.last() });
+```
+
+- Keep code to about 6–10 lines of about 40 characters; split a long call over two lines (`Promise.resolve()` / `  .then(…)`). The panel never shrinks code: a line that does not fit a phone is reported.
+- Let the shown code be the code that is checked: keep each program in one string, show it with `split('\n')`, and test that running it prints what the console part shows.
+- Offer `step: true` where predicting matters (a chapter that asks "what prints next?"). Say in the body that the reader can step and predict.
+- One line, one change: the marker moves, then one part changes (a frame, a queue, the console), then the caption says what changed, with a badge on that part.

@@ -36,7 +36,8 @@ of the explanation, not decoration. Motion carries only the change being learned
   - `assets/example-hash-join-sip.html` (svg kit): hash join and SIP, 5 chapters. It covers the operator tree, step diagrams with a filter, side-by-side panels and node columns.
   - `assets/example-lost-update.html` (svg kit): two sessions writing one row (lost update, row lock, version check), 5 chapters of time lanes.
   - `assets/example-bloom-filter.html` (svg kit): Bloom filters, 5 chapters: a bit array step by step, then three parameter playgrounds (sliders, charts, readouts).
-  - Every example has an English counterpart beside it, with the same name ending in `.en.html` (`example-agent-sandbox.en.html`, `example-hash-join-sip.en.html`, `example-lost-update.en.html`, `example-bloom-filter.en.html`); look at that one when building an English page. When you need a similar scene, look in these files first.
+  - `assets/example-event-loop.html` (svg kit): the JavaScript event loop, 5 chapters of code and state in sync (call stack, task and microtask queues, console), with a Step button.
+  - Every example has an English counterpart beside it, with the same name ending in `.en.html` (`example-agent-sandbox.en.html`, `example-hash-join-sip.en.html`, `example-lost-update.en.html`, `example-bloom-filter.en.html`, `example-event-loop.en.html`); look at that one when building an English page. When you need a similar scene, look in these files first.
 
 ## Page structure: shell and kits
 
@@ -45,7 +46,7 @@ The page has two layers of engine code. Neither is edited when building a page.
 - **The shell** owns the layout, chapter switching, HUD, caption rail, speed menu, split, auto-play, timing (the director), and verification hooks. It does not draw anything.
 - **A kit** draws the stage. Each scene names its kit with `kit:` (default `'axo'`). There are two:
   - `axo`: a three.js axonometric model of white blocks with ink outlines.
-  - `svg`: a 2D step diagram (tables of rows with keys, hash buckets, operator boxes with lanes, filters, operator trees, node columns, time-axis swimlanes, and parameter playgrounds with sliders, charts and readouts), with no library.
+  - `svg`: a 2D step diagram (tables of rows with keys, hash buckets, operator boxes with lanes, filters, operator trees, node columns, time-axis swimlanes, parameter playgrounds with sliders, charts and readouts, and code panels in sync with the state they change), with no library.
 - The stage lists the kits the page uses in `data-kits` on `aside.stage`: the template has `axo svg`; use `svg` alone when there is no axo chapter, so three.js is never downloaded.
 - Each kit's code and styles sit in their own sections of the template, marked `KIT <kit> css` / `KIT <kit> js` … `END KIT <kit> …`. A page keeps only the sections of the kits it uses (see "Build from the template").
 
@@ -56,6 +57,7 @@ Decide by where the information lives.
 - **svg** when the lesson is about values and order: which row, key, or request goes where, in what order, and what is dropped or matched (joins, filters, hashing, queues, routing rows to nodes, a query plan with counts). Removing a third dimension loses nothing here, and 2D keeps every key readable without rotating.
 - **svg lanes** (`d.lanes`) when the relative timing of a few actors (2–5) decides the outcome: races, isolation anomalies, lock waits, retries, handshakes. One column per actor, time running down, a playhead marking "now". Not for one actor (a step diagram) or hundreds (a simulation).
 - **svg playground** (`params` on the scene, `d.chart`, `d.readout`) when the lesson is how an outcome responds to a continuous or ordinal parameter. Keep to 1–3 controls, each a cause the reader varies; the run button plays a short tour first, and the reader explores after it. Not for a fixed procedure, where a slider would only replay time.
+- **svg code and state** (`d.code` with `d.frames`, `d.queue`, `d.console`, `d.vars`) when the lesson is what code or commands do to hidden state, and the reader already knows the code's language. Keep each chapter's code to about 6–10 short lines (about 40 characters), and offer the Step button (`step: true`) where the reader should predict each step. Not when the code is incidental to the concept.
 - **axo** when depth or containment is the concept: layers on layers, rooms inside a boundary, what sits under what (kernels, sandboxes, VMs, network zones).
 - A page may mix them; each chapter uses one kit. Keep the three semantic colors and the same labels for the same thing in both kits.
 

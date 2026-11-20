@@ -101,6 +101,8 @@
   .act .speed-seg { display: inline-flex; align-items: center; gap: 0.45rem; border-radius: 0 6px 6px 0; border-left: 1px solid rgba(255, 255, 255, 0.3); padding: 0.85rem 0.8rem; font: 600 0.9rem/1 var(--sans); font-variant-numeric: tabular-nums; }
   .speed-seg .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
   .act .speed-seg[aria-expanded="true"] { background: #33444F; }
+  .act .step-btn { color: var(--ink); background: #fff; border: 1px solid var(--ink); }
+  .act .step-btn:hover { background: var(--paper); }
   .speed-menu { position: fixed; z-index: 30; min-width: 108px; padding: 4px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 6px 16px rgba(30, 42, 51, 0.14); }
   .speed-menu[hidden] { display: none; }
   .speed-item { display: flex; align-items: center; gap: 0.5rem; width: 100%; min-height: 36px; padding: 0.4rem 0.7rem; font: 500 0.92rem/1 var(--sans); color: var(--ink); background: none; border: 0; border-radius: 5px; cursor: pointer; text-align: left; font-variant-numeric: tabular-nums; }
@@ -227,6 +229,9 @@
     .chapter { min-height: auto; padding-top: 2.75rem; scroll-margin-top: var(--stage-h); }
     .chapter h2 { font-size: 1.45rem; }
     [data-scene] { scroll-margin-top: var(--stage-h); }
+    /* The stage's height follows the chapter's drawing: the text must move with it (scroll anchoring would hold the text still
+       and slide the reading line into the chapter above, which takes the stage back). */
+    html, body { overflow-anchor: none; }
     .split-h { display: block; left: 0; right: 0; bottom: 0; height: 18px; cursor: row-resize; touch-action: none; }
     .split-h::after { left: calc(50% - 24px); top: 7px; width: 48px; height: 4px; }
     .stage .legend { padding-bottom: 1.15rem; }
@@ -376,6 +381,24 @@
   .svg-stage :is(.bit.active, .bit.on) rect { stroke: var(--ink); stroke-width: 2.5; }
   .svg-stage .bit.zero rect { stroke: var(--bound); stroke-width: 2.5; }
   .svg-stage .row .note { font-weight: 600; }
+  /* Code and state: a code panel (current line, ran lines), frames, queues, a console, named values. */
+  .svg-stage .code .cbox, .svg-stage .sbox { fill: #fff; stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .svg-stage .code .chi { fill: rgba(30, 42, 51, 0.07); }
+  .svg-stage .code .cmark path { fill: var(--ink); }
+  .svg-stage .code .cdot { fill: var(--ink-soft); opacity: 0; }
+  .svg-stage .code .cline.ran .cdot { opacity: .55; }
+  .svg-stage .code .cline.now .cdot { opacity: 0; }
+  .svg-stage .code .cline.now .ctext { font-weight: 700; }
+  .svg-stage .code .cnum { fill: var(--muted, #8A949B); }
+  .svg-stage .code .ctext { white-space: pre; }
+  .svg-stage .chip-i rect { fill: #fff; stroke: var(--ink-soft); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .svg-stage .chip-i.t-bound rect { fill: rgba(47, 111, 178, 0.12); stroke: var(--bound); }
+  .svg-stage .chip-i.t-matter rect { fill: rgba(196, 146, 31, 0.16); stroke: var(--matter); }
+  .svg-stage .chip-i.t-actor rect { fill: #F7DADF; stroke: var(--actor); }
+  .svg-stage .console .chip-i rect { fill: transparent; stroke: none; }
+  .svg-stage :is(.chip-i.on, .chip-i.active) rect { stroke: var(--ink); stroke-width: 2; }
+  .svg-stage .vars .vbg { fill: transparent; }
+  .svg-stage .vars .vrow.on .vbg { fill: rgba(30, 42, 51, 0.08); }
   /* Playground controls: an HTML band under the diagram (the kit places it). Native range inputs, 44px targets. */
   .pg { position: absolute; z-index: 2; display: grid; grid-template-columns: max-content minmax(96px, 1fr) max-content; align-items: center; gap: 2px 10px; font: 500 0.8rem/1.3 var(--sans); color: var(--ink); }
   .pg[hidden] { display: none; }
@@ -633,6 +656,7 @@ const UI_TEXT = {
     railAria: 'Step captions',
     railShow: 'Show all',
     railHide: 'Hide',
+    step: 'Step',
     splitX: 'Resize text and model',
     splitH: 'Resize model height',
   },
@@ -659,6 +683,7 @@ const UI_TEXT = {
     railAria: '단계 설명',
     railShow: '모두 보기',
     railHide: '접기',
+    step: '한 단계씩',
     splitX: '본문과 모형 너비 조절',
     splitH: '모형 높이 조절',
   },
@@ -685,6 +710,7 @@ const UI_TEXT = {
     railAria: '手順の説明',
     railShow: 'すべて表示',
     railHide: '閉じる',
+    step: '1ステップ',
     splitX: '本文とモデルの幅を調整',
     splitH: 'モデルの高さを調整',
   },
@@ -711,6 +737,7 @@ const UI_TEXT = {
     railAria: '步骤说明',
     railShow: '全部',
     railHide: '收起',
+    step: '单步',
     splitX: '调整正文与模型的宽度',
     splitH: '调整模型高度',
   },
@@ -766,12 +793,12 @@ const hudNow = $('.hud .now');
 const legendEl = $('.legend');
 const hintEl = $('.hint');
 const layoutEl = $('.layout');
-const stageControls = document.querySelectorAll('[data-run], .autorun, .reset-view');
+const stageControls = () => document.querySelectorAll('[data-run], .autorun, .reset-view, .step-btn'); // Step buttons are added later
 const retryBtn = $('.retry-load');
 function setStageState(state, message = 'loading') {
   stageEl.dataset.state = state;
   stageEl.setAttribute('aria-busy', String(state === 'loading'));
-  stageControls.forEach(button => { button.disabled = state !== 'ready'; });
+  stageControls().forEach(button => { button.disabled = state !== 'ready'; });
   const notice = stageEl.querySelector('.fallback p');
   notice.dataset.ui = message;
   notice.textContent = uiStr(message);
@@ -815,6 +842,8 @@ function account(token, base, scaled) {
   if (timeline.token !== token) Object.assign(timeline, { token, base: 0, scaled: 0 });
   timeline.base += base; timeline.scaled += scaled;
 }
+// Stepping (see "Stepping" below): the stepped run, if any. Declared here so the director can see it.
+let stepState = null;
 function director(token) {
   const live = () => token === runToken;
   function wait(ms) {
@@ -867,7 +896,22 @@ function director(token) {
       requestAnimationFrame(frame);
     });
   }
-  return { live, wait, tween, speed: () => speed, reduced: () => REDUCE, instant: () => INSTANT };
+  // A step boundary (a.line, a.checkpoint). In a stepped run, every boundary after the first waits for the reader's next
+  // Step; a chapter change cancels the wait like any other.
+  function checkpoint() {
+    if (!live()) return Promise.reject(CANCEL);
+    const st = stepState;
+    if (!st || st.token !== token || !st.mode) return Promise.resolve();
+    if (!st.started) { st.started = true; return Promise.resolve(); }
+    return new Promise((resolve, reject) => {
+      const job = { token, rescale() {} };
+      job.cancel = () => { pendingJobs.delete(job); st.resume = null; reject(CANCEL); };
+      pendingJobs.add(job);
+      st.resume = () => { pendingJobs.delete(job); st.resume = null; resolve(); };
+      st.notify(false); // this step ended here
+    });
+  }
+  return { live, wait, tween, checkpoint, speed: () => speed, reduced: () => REDUCE, instant: () => INSTANT };
 }
 const speedSubs = new Set();
 function setSpeed(v) {
@@ -1188,6 +1232,7 @@ Split.apply(); // the saved split holds while kits load, and after a load failur
      animator(dir, scene) the `a` passed to run(); defaults to the director { wait, tween, live }
      fit(rect, W, H, chrome) fit the drawing to rect (px inside the layer W × H); the rest is under the caption rail.
                           chrome = { top, bottom }: the band between the HUD and the legend, for kits that must stay clear of them
+     ended(scene)         optional: the scene's run reached its end (not cancelled)
      params(scene, values) optional: a scene's parameters (playgrounds): set some (values) and return all; null without parameters
      paramSpec(scene)     optional: { id: { min, max, value } } of a scene's parameters
      place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom };
@@ -1239,8 +1284,8 @@ function activeKit() { return current ? kits[scenes[current].kit] : null; }
 /* KIT svg js — the svg kit. A page without svg chapters deletes this section, up to END KIT svg js (and KIT svg css). */
 /* ---- Kit "svg": 2D step diagrams in native SVG. No library. ----
    A scene's build(d) makes parts with the builder `d` (table, buckets, box, gate, tree, columns, lanes, chart, meter, readout, bits,
-   link, token) and arranges them
-   with d.grid / d.panels / d.stack. The kit computes the layout for the stage: natural size on desktop scaled by k (1 to 1.6),
+   code, frames, queue, console, vars, link, token) and arranges them
+   with d.grid / d.panels / d.stack / d.flow. The kit computes the layout for the stage: natural size on desktop scaled by k (1 to 1.6),
    compressed columns and adaptive row heights on narrow stages and phones. Parts expose points (functions returning [x, y]
    in diagram units); links, tokens and badges are drawn from those points, so they follow every relayout, also mid-run.
    Movement goes through the director (speed, instant, reduced motion, CANCEL). Reset restores every part to its built state. */
@@ -1338,6 +1383,8 @@ function svgBuilder(sc) {
   const register = part => { sc.parts.push(withEdges(part)); return part; };
   // Text that must stay inside a frame (pills, chips, lanes, nodes): checked by clipped() through the kit's overflowing().
   const framed = (text, frame) => sc.framed.push({ text, frame });
+  // Text that left the drawing (a taken item, a removed token) stops being checked.
+  sc.unframe = () => { sc.framed = sc.framed.filter(f => f.text.isConnected); };
 
   // Table: a title, a header row, and rows that carry a key (mono) and a faint payload. Row states: hit, gone, active.
   // payload: false draws a key-only table (no faint payload column): narrower, for compact diagrams such as panels.
@@ -2096,6 +2143,222 @@ function svgBuilder(sc) {
     return register(part);
   }
 
+  // ---- Code and state in sync: a code panel and the state it changes (a call stack, queues, a console, named values). ----
+  // Sizes shared by them: mono code text, a line height, paddings.
+  // Line and slot heights follow the row height the fit chose (desktop 36 → 28, phones 20 → 15), so a short stage gets a
+  // shorter drawing before the kit falls back to phone sizes.
+  const cgeo = m => ({ fs: m.phone ? 11.5 : 13, lh: m.phone ? clamp(15, m.row - 1, 19) : clamp(19, m.row - 11, 25), pad: m.phone ? 4 : 10, slotH: m.phone ? m.row + 2 : Math.max(20, m.row - 8) });
+  // Code panel: numbered lines of code, a marker at the current line, a quiet dot beside lines that already ran, and an
+  // optional note at a line's end (an output, a value). Keep lines short: a line wider than the panel may be is reported by
+  // clipped(); the kit does not shrink code below the minimum text sizes. note: the longest note it will show, on any line
+  // (a string), or per line ({ 4: 'waits' }), so only those lines need room for it.
+  function code({ title = '', lines = [], note = '' } = {}) {
+    const g = svgNode('g', { class: 'part code' }, sc.layer.parts);
+    const ttl = label(g, 'g', title);
+    const frame = svgNode('rect', { class: 'cbox', rx: 6 }, g);
+    const hi = svgNode('rect', { class: 'chi', rx: 3 }, g);
+    const rows = lines.map((text, i) => {
+      const r = svgNode('g', { class: 'cline' }, g);
+      const n = { g: r, num: label(r, 'meta cnum', i + 1), dot: svgNode('circle', { class: 'cdot' }, r), text: label(r, 'mono ctext', text), note: label(r, 'meta cnote', '') };
+      n.text.setAttribute('xml:space', 'preserve'); // indentation is part of the code
+      framed(n.text, frame); framed(n.note, frame);
+      return n;
+    });
+    const mark = svgNode('g', { class: 'cmark' }, g);
+    svgNode('path', { d: 'M0,-5 L7,0 L0,5 Z' }, mark);
+    let current = null, markAt = null; // the current line (1-based) and the marker's place (a fractional line while it moves)
+    const ran = new Set();
+    const numW = m => (m.phone ? 20 : 26), markW = 12;
+    const textX = m => part.box.x + cgeo(m).pad + markW + numW(m) + 8;
+    const head = m => (title ? m.title : 0); // no title, no title row (a short stage keeps those pixels)
+    const lineY = (m, i) => part.box.y + head(m) + cgeo(m).pad + i * cgeo(m).lh + cgeo(m).lh / 2; // i: 0-based
+    const lineIndex = n => { if (n !== null && !(Number.isInteger(n) && n >= 1 && n <= lines.length)) throw new Error(`[plz] d.code: line ${n} is outside 1–${lines.length}`); return n; };
+    const part = {
+      kind: 'code', g, rows,
+      get current() { return current; },
+      get ran() { return new Set(ran); },
+      line: n => rows[lineIndex(n) - 1],
+      // The point just after line n's text (where a value leaves the code), and the badge place of a line.
+      end: n => () => { const m = sc.m; return [textX(m) + textWidth(rows[lineIndex(n) - 1].text, cgeo(m).fs) + 6, lineY(m, n - 1)]; },
+      note(n, text, { tone = '' } = {}) { const r = rows[lineIndex(n) - 1]; r.note.textContent = text; r.note.setAttribute('class', 'meta cnote' + toneClass(tone)); sc.dirty?.(); },
+      // Used by a.line: move the current line (the previous one keeps a trace) and the marker's place.
+      setCurrent(n) {
+        if (current !== null && current !== n) { ran.add(current); rows[current - 1].g.classList.add('ran'); }
+        current = lineIndex(n);
+        for (const r of rows) r.g.classList.remove('now');
+        if (n !== null) rows[n - 1].g.classList.add('now'); // the current line shows the marker, not its ran dot (CSS)
+      },
+      // The run ended: the line that was current keeps its trace and the marker hides.
+      finish() { part.setCurrent(null); part.markTo(null); },
+      markTo(v) { markAt = v; part.drawMark(sc.m); },
+      markPos: () => markAt,
+      size(m) {
+        const q = cgeo(m), noteOf = i => (typeof note === 'string' ? note : note?.[i + 1] ?? '');
+        const widest = Math.max(60, ...lines.map((t, i) => estimateText(t, q.fs, { mono: true }) + (noteOf(i) ? 12 + estimateText(noteOf(i), m.meta) : 0)));
+        const w = q.pad * 2 + markW + numW(m) + 8 + widest;
+        return { w, min: w, h: head(m) + q.pad * 2 + lines.length * q.lh };
+      },
+      // The panel's frame past the drawing area (a panel too wide for the stage), for clipped().
+      crowded() { const f = frame.getBoundingClientRect(), st = g.ownerSVGElement.getBoundingClientRect(); return f.right > st.right + 0.5 || f.left < st.left - 0.5 ? [title || '[code]'] : []; },
+      place(m, x, y) { const s = part.size(m); part.box = { x, y, w: s.w, h: s.h }; }, // never narrower than its widest line
+      capture() {},
+      restore() { current = null; markAt = null; ran.clear(); for (const r of rows) { r.g.classList.remove('ran', 'now'); r.note.textContent = ''; } },
+      drawMark(m) {
+        const q = cgeo(m), b = part.box;
+        mark.style.opacity = markAt === null ? 0 : '';
+        const y = lineY(m, markAt === null ? 0 : markAt - 1);
+        mark.setAttribute('transform', `translate(${+(b.x + q.pad).toFixed(2)} ${+y.toFixed(2)})`);
+        svgSet(hi, { x: b.x + q.pad - 2, y: y - q.lh / 2 + 1, width: b.w - 2 * q.pad + 4, height: q.lh - 2 });
+        hi.style.opacity = markAt === null ? 0 : '';
+      },
+      badgeAt: () => [part.box.x + part.box.w, part.box.y + head(sc.m)],
+      draw(m) {
+        const q = cgeo(m), b = part.box;
+        svgSet(ttl, { x: b.x, y: b.y + m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x: b.x, y: b.y + head(m), width: b.w, height: b.h - head(m) });
+        rows.forEach((r, i) => {
+          const y = lineY(m, i);
+          svgSet(r.num, { x: b.x + q.pad + markW + numW(m), y, 'text-anchor': 'end', 'font-size': m.meta });
+          svgSet(r.dot, { cx: b.x + q.pad + markW + 2, cy: y, r: 2.2 });
+          svgSet(r.text, { x: textX(m), y, 'font-size': q.fs });
+          svgSet(r.note, { x: b.x + b.w - q.pad, y, 'text-anchor': 'end', 'font-size': m.meta });
+        });
+        part.drawMark(m);
+      },
+    };
+    return register(part);
+  }
+
+  // A list part with items drawn as framed chips: the base of the call stack, the queues and the console.
+  // Items are kept in JS (reset restores the items the scene was built with); every item is { text, g, rect, t, mark }.
+  function chips(kind, { title = '', max = 4, tone = '' } = {}) {
+    const g = svgNode('g', { class: `part ${kind}` }, sc.layer.parts);
+    const ttl = label(g, 'g', title);
+    const frame = svgNode('rect', { class: 'sbox', rx: 6 }, g);
+    const itemsG = P(g);
+    let items = [], initial = [];
+    const make = (text, t = tone) => {
+      const ig = svgNode('g', { class: 'chip-i' + toneClass(t) }, itemsG);
+      const it = { text: String(text), tone: t, g: ig, rect: svgNode('rect', { rx: 4 }, ig), t: label(ig, 'mono', text) };
+      framed(it.t, it.rect);
+      it.mark = (cls, on = true) => ig.classList.toggle(cls, on);
+      // A badge follows the item's current slot; once the item is taken out, its badge goes with it (gone).
+      it.badgeAt = () => { const i = items.indexOf(it), b = i >= 0 && part.slotBox ? part.slotBox(sc.m, i) : it.box ?? part.box; return [b.x + b.w, b.y]; };
+      return it;
+    };
+    const part = {
+      kind, g,
+      list: () => items.map(i => i.text),
+      add(text, { tone: t = tone } = {}) { const it = make(text, t); items.push(it); if (items.length > max) console.warn(`[plz] d.${kind}: more than max (${max}) items`); sc.dirty?.(); return it; },
+      take(fromEnd) { const it = fromEnd ? items.pop() : items.shift(); if (!it) throw new Error(`[plz] d.${kind}: nothing to take`); it.g.remove(); it.gone = true; sc.unframe(); sc.dirty?.(); return it.text; },
+      last: () => items.at(-1) ?? part,
+      capture() { initial = items.map(i => [i.text, i.tone]); },
+      restore() { for (const i of items) i.g.remove(); sc.unframe(); items = initial.map(([t, tn]) => make(t, tn)); },
+      items: () => items,
+      max,
+      ttl, frame,
+      titleW: m => estimateText(title, m.text, { bold: true }) + 4, // a part is never narrower than its title
+    };
+    return part;
+  }
+  // Call stack: frames pushed and popped at the top; the oldest frame at the bottom.
+  function frames({ title = '', max = 4, tone = 'bound' } = {}) {
+    const part = chips('frames', { title, max, tone });
+    const slot = (m, i) => { const q = cgeo(m), b = part.box; return { x: b.x + q.pad, y: b.y + b.h - q.pad - (i + 1) * (q.slotH + 4) + 4, w: b.w - 2 * q.pad, h: q.slotH }; };
+    Object.assign(part, {
+      slotBox: slot,
+      push: (text, opts) => part.add(text, opts),
+      pop: () => part.take(true),
+      top: () => () => { const s = slot(sc.m, part.items().length); return [s.x + s.w / 2, s.y + s.h / 2]; },
+      size: m => { const q = cgeo(m), t = part.titleW(m); return { w: Math.max(t, m.phone ? 90 : 130), min: Math.max(t, m.phone ? 80 : 110), h: m.title + 2 * q.pad + part.max * (q.slotH + 4) }; },
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w, h: part.size(m).h - m.title }; },
+      draw(m) {
+        const b = part.box;
+        svgSet(part.ttl, { x: b.x, y: b.y - m.title / 2, 'font-size': m.text });
+        svgSet(part.frame, { x: b.x, y: b.y, width: b.w, height: b.h });
+        part.items().forEach((it, i) => { const s = slot(m, i); it.box = s; svgSet(it.rect, { x: s.x, y: s.y, width: s.w, height: s.h }); svgSet(it.t, { x: s.x + s.w / 2, y: s.y + s.h / 2 + 0.5, 'text-anchor': 'middle', 'font-size': cgeo(m).fs }); });
+      },
+    });
+    return register(part);
+  }
+  // Queue (FIFO): enqueue at the tail (right), dequeue at the head (left).
+  function queue({ title = '', max = 4, tone = 'matter' } = {}) {
+    const part = chips('queue', { title, max, tone });
+    const slotW = m => (m.phone ? 44 : 70);
+    const slot = (m, i) => { const q = cgeo(m), b = part.box, w = Math.min(slotW(m), (b.w - 2 * q.pad - (part.max - 1) * 4) / part.max); return { x: b.x + q.pad + i * (w + 4), y: b.y + q.pad, w, h: q.slotH }; };
+    Object.assign(part, {
+      slotBox: slot,
+      enqueue: (text, opts) => part.add(text, opts),
+      dequeue: () => part.take(false),
+      tail: () => () => { const s = slot(sc.m, Math.min(part.items().length, part.max - 1)); return [s.x + s.w / 2, s.y + s.h / 2]; },
+      head: () => () => { const s = slot(sc.m, 0); return [s.x + s.w / 2, s.y + s.h / 2]; },
+      size: m => { const q = cgeo(m), t = part.titleW(m); return { w: Math.max(t, 2 * q.pad + part.max * (slotW(m) + 4)), min: Math.max(t, 2 * q.pad + part.max * (m.phone ? 38 : 52)), h: m.title + 2 * q.pad + q.slotH }; },
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w: Math.min(w, part.size(m).w), h: part.size(m).h - m.title }; },
+      draw(m) {
+        const b = part.box;
+        svgSet(part.ttl, { x: b.x, y: b.y - m.title / 2, 'font-size': m.text });
+        svgSet(part.frame, { x: b.x, y: b.y, width: b.w, height: b.h });
+        part.items().forEach((it, i) => { const s = slot(m, i); it.box = s; svgSet(it.rect, { x: s.x, y: s.y, width: s.w, height: s.h }); svgSet(it.t, { x: s.x + s.w / 2, y: s.y + s.h / 2 + 0.5, 'text-anchor': 'middle', 'font-size': cgeo(m).fs }); });
+      },
+    });
+    return register(part);
+  }
+  // Console: output lines that accumulate top to bottom.
+  function konsole({ title = '', max = 5, tone = '' } = {}) {
+    const part = chips('console', { title, max, tone });
+    const lineBox = (m, i) => { const q = cgeo(m), b = part.box; return { x: b.x + q.pad, y: b.y + q.pad + i * q.lh, w: b.w - 2 * q.pad, h: q.lh - 3 }; };
+    Object.assign(part, {
+      slotBox: lineBox,
+      log: (text, opts) => part.add(text, opts),
+      next: () => () => { const s = lineBox(sc.m, Math.min(part.items().length, part.max - 1)); return [s.x + 30, s.y + s.h / 2]; },
+      size: m => { const q = cgeo(m), t = part.titleW(m); return { w: Math.max(t, m.phone ? 110 : 150), min: Math.max(t, m.phone ? 96 : 120), h: m.title + 2 * q.pad + part.max * q.lh }; },
+      place(m, x, y, w) { part.box = { x, y: y + m.title, w: Math.min(w, part.size(m).w), h: part.size(m).h - m.title }; },
+      draw(m) {
+        const b = part.box;
+        svgSet(part.ttl, { x: b.x, y: b.y - m.title / 2, 'font-size': m.text });
+        svgSet(part.frame, { x: b.x, y: b.y, width: b.w, height: b.h });
+        part.items().forEach((it, i) => { const s = lineBox(m, i); it.box = s; svgSet(it.rect, { x: s.x, y: s.y, width: s.w, height: s.h }); svgSet(it.t, { x: s.x + 6, y: s.y + s.h / 2 + 0.5, 'font-size': cgeo(m).fs }); });
+      },
+    });
+    return register(part);
+  }
+  // Named values: one row per name ("name  value"); set(name, value) changes a value.
+  // Named values: one row per name, the name on the left and its value on the right; set(name, value) changes a value.
+  // sample: the widest value it will show, so the part is wide enough for every name with that value beside it.
+  function vars({ title = '', names = [], sample = '00000' } = {}) {
+    const g = svgNode('g', { class: 'part vars' }, sc.layer.parts);
+    const ttl = label(g, 'g', title);
+    const frame = svgNode('rect', { class: 'sbox', rx: 6 }, g);
+    const rows = Object.fromEntries(names.map(nm => {
+      const r = svgNode('g', { class: 'vrow' }, g);
+      const n = { g: r, bg: svgNode('rect', { class: 'vbg', rx: 3 }, r), k: label(r, 'mono vname', nm), v: label(r, 'mono vval', '') };
+      n.mark = (cls, on = true) => r.classList.toggle(cls, on);
+      framed(n.k, frame); framed(n.v, frame);
+      return [nm, n];
+    }));
+    const row = nm => rows[nm] ?? (() => { throw new Error(`[plz] d.vars: no name "${nm}" (names: ${names.join(', ')})`); })();
+    const part = {
+      kind: 'vars', g,
+      set(nm, value) { row(nm).v.textContent = String(value); },
+      get: nm => row(nm).v.textContent,
+      row,
+      slot: nm => { const i = names.indexOf(nm); row(nm); return () => { const q = cgeo(sc.m); return [part.box.x + part.box.w - q.pad - 20, part.box.y + q.pad + i * q.lh + q.lh / 2]; }; },
+      size: m => {
+        const q = cgeo(m), nameW = Math.max(0, ...names.map(nm => estimateText(nm, q.fs, { mono: true }))), valW = estimateText(sample, q.fs, { mono: true });
+        const w = Math.ceil(Math.max(estimateText(title, m.text, { bold: true }) + 4, 2 * q.pad + nameW + 12 + valW));
+        return { w, min: w, h: m.title + 2 * q.pad + names.length * q.lh };
+      },
+      place(m, x, y) { const s = part.size(m); part.box = { x, y: y + m.title, w: s.w, h: s.h - m.title }; },
+      draw(m) {
+        const b = part.box, q = cgeo(m);
+        svgSet(ttl, { x: b.x, y: b.y - m.title / 2, 'font-size': m.text });
+        svgSet(frame, { x: b.x, y: b.y, width: b.w, height: b.h });
+        names.forEach((nm, i) => { const r = rows[nm], y = b.y + q.pad + i * q.lh + q.lh / 2; svgSet(r.bg, { x: b.x + 2, y: y - q.lh / 2 + 1, width: b.w - 4, height: q.lh - 2 }); svgSet(r.k, { x: b.x + q.pad, y, 'font-size': q.fs }); svgSet(r.v, { x: b.x + b.w - q.pad, y, 'text-anchor': 'end', 'font-size': q.fs }); });
+      },
+    };
+    return register(part);
+  }
+
   // Containers. grid: rows of cells (parts or null) with a gutter between columns for connectors and gates.
   // panels: the same kind of diagram side by side (stacked on phones), each with a title. stack: a plain row or column.
   function grid(rows, { gutter = null } = {}) {
@@ -2162,6 +2425,42 @@ function svgBuilder(sc) {
     };
     return node;
   }
+  // flow: items left to right at their natural widths, wrapping to a new line when the next one does not fit (like flex-wrap):
+  // one row on a wide stage, a few lines on a narrower one (code across the top, the state below it side by side), one
+  // column only when nothing fits beside anything. An item wider than the width gets a line of its own and is placed at
+  // that width (a nested flow then wraps itself). Lines are top-aligned.
+  function flow(items, { gap = null } = {}) {
+    const gx = m => gap ?? (m.phone ? 10 : 24), gy = m => m.gapY; // tighter than panels: the state parts belong together
+    const lines = (m, w) => {
+      const out = [];
+      let line = [], used = 0;
+      for (const p of items) {
+        const nat = p.size(m).w, add = (line.length ? gx(m) : 0) + nat;
+        if (line.length && used + add > w + 0.5) { out.push(line); line = []; used = 0; }
+        line.push(p); used += (line.length > 1 ? gx(m) : 0) + nat;
+      }
+      if (line.length) out.push(line);
+      return out.map(ps => {
+        const ws = ps.map(p => Math.min(p.size(m).w, w));
+        return { ps, ws, h: Math.max(...ps.map((p, i) => p.size(m, ws[i]).h)), w: ws.reduce((a, b) => a + b, 0) + gx(m) * (ps.length - 1) };
+      });
+    };
+    return {
+      size(m, w = Infinity) {
+        const ls = lines(m, w);
+        return { w: Math.max(...ls.map(l => l.w)), min: Math.max(...items.map(p => p.size(m).min)), h: ls.reduce((a, l) => a + l.h, 0) + gy(m) * (ls.length - 1) };
+      },
+      place(m, x, y, w) {
+        let yy = y;
+        for (const l of lines(m, w)) {
+          let xx = x;
+          l.ps.forEach((p, i) => { p.gridSlot = null; p.place(m, xx, yy, l.ws[i]); xx += l.ws[i] + gx(m); });
+          yy += l.h + gy(m);
+        }
+        return yy - gy(m) - y;
+      },
+    };
+  }
   function panels(list) {
     const titled = list.map(({ title, body }) => {
       const t = label(sc.layer.parts, 'g panel-title', title);
@@ -2180,7 +2479,8 @@ function svgBuilder(sc) {
     };
   }
   return {
-    table, buckets, box, gate, tree, columns, lanes, chart, meter, readout, bits, link, token, grid, stack, panels,
+    table, buckets, box, gate, tree, columns, lanes, chart, meter, readout, bits, code, frames, queue, console: konsole, vars,
+    link, token, grid, stack, panels, flow,
     corner: (a, b) => () => [pointOf(b)[0], pointOf(a)[1]],
     phone: () => sc.m.phone,
   };
@@ -2260,6 +2560,25 @@ function svgAnimator(dir, sc) {
       if (!n || dir.reduced() || dir.instant()) return;
       const anim = n.animate([{ transform: 'scale(1.14)' }, { transform: 'scale(1)' }], { duration: 160, easing: 'ease-out' });
       anim.playbackRate = dir.speed();
+    },
+    // Code and state: move the marker of `code` to line n (null: past the last line) in about ms; the line that was current
+    // keeps a quiet trace. Every a.line is a step boundary (see Stepping in the shell): in a stepped run it waits here for the
+    // reader's next Step. One line → one kind of change: change the state after it, then say what changed.
+    async line(code, n, { ms = 320, step = true } = {}) {
+      if (code?.kind !== 'code') throw new Error('[plz] a.line(code, n): code must be a part made by d.code');
+      if (step) await dir.checkpoint(); // step: false moves the marker inside the current step (no boundary)
+      const from = code.markPos();
+      code.setCurrent(n);
+      if (from === null || n === null) { code.markTo(n); return; }
+      await dir.tween(ms, t => code.markTo(from + (n - from) * t));
+      code.markTo(n);
+    },
+    // A step boundary that is not a line (the event loop taking the next task, say).
+    checkpoint: () => dir.checkpoint(),
+    // Move a value from one point to another as a token, then remove the token: the state change follows at once.
+    async carry(text, from, to, { tone = 'bound', ms = 650 } = {}) {
+      const tok = sc.d.token(text, from, { tone });
+      try { await this.along(tok, [from, to], ms); } finally { tok.g.remove(); sc.tokens.delete(tok); sc.unframe(); }
     },
     // Playground: sweep the sliders from their values to `values` (others stay) in about ms; the diagram follows each frame.
     // Range params move continuously (snapped to their steps), list params step through the list. Reduced motion: the
@@ -2442,6 +2761,7 @@ defineKit('svg', {
     for (const name of ['flows', 'parts', 'toks', 'badges']) layer[name] = svgNode('g', { class: name }, root);
     const sc = { def, root, layer, parts: [], links: [], framed: [], tokens: new Set(), badges: new Set(), m: svgMetrics(false), k: 1, info: { scale: 1, arrangement: 'natural', row: 36 } };
     const d = svgBuilder(sc);
+    sc.d = d; // the animator makes tokens with it (a.carry)
     const out = def.build(d) ?? {};
     if (!out.diagram || typeof out.run !== 'function') throw new Error(`[plz] svg scene ${def.name}: build(d) must return { diagram, run }`);
     sc.diagram = out.diagram;
@@ -2587,10 +2907,13 @@ defineKit('svg', {
     const m = svgMetrics(true, 15);
     return Math.max(150, sc.diagram.size(m, this.availW ?? Infinity).h + 2 * m.pad + (sc.ctlH ?? 0)); // at the width last fitted to, with the controls
   },
+  // The run ended (not cancelled): code panels hide their marker, so no step is spent on it.
+  ended(built) { for (const p of built.sc.parts) p.finish?.(); built.sc.dirty?.(); },
   reset(built) {
     const { sc } = built;
     for (const t of sc.tokens) t.g.remove();
     sc.tokens.clear();
+    sc.unframe();
     svgRestore(sc.snap);
     for (const p of sc.parts) p.restore?.(); // state a part keeps in JS (lane text)
     if (sc.pg) { sc.pg.apply(sc.pg.defaults()); sc.pg.clearLive(); } // every run and reset starts from the defaults
@@ -2613,6 +2936,7 @@ defineKit('svg', {
   hide(built) {
     for (const t of built.sc.tokens) t.g.remove();
     built.sc.tokens.clear();
+    built.sc.unframe();
     if (built.sc.pg) { built.sc.pg.root.hidden = true; built.sc.pg.release(); }
   },
   clear(built) { this.hide(built); },
@@ -2627,13 +2951,14 @@ defineKit('svg', {
       : Array.isArray(anchor) ? () => anchor // a fixed [x, y] in diagram units
       : anchor?.badgeAt ? () => anchor.badgeAt()
       : () => { const r = node.getBBox(); return [r.x + r.width, r.y]; }; // any SVG node (or { g }): its top-right corner
-    const b = { g, at, c: svgNode('circle', {}, g), t: svgNode('text', { 'data-lbl': '1' }, g, n) };
+    const b = { g, at, anchor, c: svgNode('circle', {}, g), t: svgNode('text', { 'data-lbl': '1' }, g, n) };
     sc.badges.add(b);
     this.drawBadges(sc);
     return () => { sc.badges.delete(b); g.remove(); };
   },
   drawBadges(sc) {
     for (const b of sc.badges) {
+      b.g.style.display = b.anchor?.gone ? 'none' : ''; // its item was taken out (a popped frame, a dequeued callback)
       const [x, y] = b.at(), r = sc.m.badge;
       svgSet(b.c, { cx: x, cy: y, r });
       svgSet(b.t, { x, y: y + 0.5, 'text-anchor': 'middle', 'font-size': sc.m.phone ? 11 : 12 });
@@ -2686,7 +3011,7 @@ defineKit('svg', {
     }
     return [...new Set(out)];
   },
-  info() { return this.current ? { ...this.current.sc.info } : null; },
+  info() { return this.current ? { ...this.current.sc.info, framed: this.current.sc.framed.length } : null; },
 });
 /* END KIT svg js */
 
@@ -2958,17 +3283,18 @@ function activate(name, force = false) {
   hudNow.textContent = s.title ?? '';
   document.querySelectorAll('.chapter').forEach(c => c.classList.toggle('is-active', c.dataset.scene === name));
   layoutStage();
-  if (stackedQ.matches) Split.apply(); // the stage-height minimum follows the chapter's drawing
+  if (stackedQ.matches) Split.apply(); // the stage-height minimum follows the chapter's drawing (the reading line follows the stage)
 }
 let liveRun = 0; // token of the run in flight, 0 when none
 const runInFlight = () => liveRun !== 0 && liveRun === runToken;
-async function runScene(name) {
+async function runScene(name, { step = false } = {}) {
   activate(name);
   const s = scenes[name];
   if (!s) return;
   const kit = kits[s.kit];
   const mine = bumpRun(); // a run or chapter change after this point cancels this run
   if (explored === name) explored = null; // running a chapter the reader changed: its values reset, auto-play may loop it again
+  if (step) { stepState?.finish(); stepState = newStep(name, mine, false); } // a replaced stepped run settles its waiters
   liveRun = mine;
   Object.assign(timeline, { token: mine, base: 0, scaled: 0 });
   clearCaptions();
@@ -2984,8 +3310,10 @@ async function runScene(name) {
     return;
   } finally {
     if (liveRun === mine) liveRun = 0;
+    if (stepState?.token === mine) stepState.finish();
   }
   if (mine !== runToken) return;
+  kit.ended?.(s.built); // the run reached its end (a kit may tidy its end state, e.g. hide a code marker)
   sceneTotals[name] = captions.length;
   renderRailMeta();
   onSceneDone(name, mine); // If auto-play is on, continue the loop.
@@ -2997,7 +3325,36 @@ function resetScene(name) {
   clearCaptions();
   restoreScene(s);
 }
-document.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => runScene(b.dataset.run)));
+/* ---- Stepping. A scene with step: true gets a Step button beside its run button; the reader advances the chapter's run one
+   authored step at a time (from one checkpoint to the next: a.line, a.checkpoint) and can predict before each step.
+   - Step with no run in flight starts a run (from the reset state) that pauses at its next checkpoint; Step again goes on.
+   - Step during a run (the tour, auto-play) lets that run pause at its next checkpoint.
+   - Run during a stepped run lets it continue to the end (it does not restart); Run after the end restarts as usual.
+   - Stepping is reader input: auto-play holds, and the chapter keeps its stepped state until Run or leaving the chapter.
+   - Speed, instant mode and reduced motion apply inside each step; a chapter change cancels a paused run. ---- */
+function newStep(name, token, started) {
+  const st = { name, token, mode: true, started, resume: null, waiters: [], done: false };
+  st.wait = () => (st.done ? Promise.resolve(true) : new Promise(r => st.waiters.push(r)));
+  st.notify = done => st.waiters.splice(0).forEach(r => r(done));
+  st.ended = new Promise(r => { st.finish = () => { if (st.done) return; st.done = true; st.resume = null; st.notify(true); r(); }; });
+  return st;
+}
+const steppedRun = name => stepState && stepState.name === name && stepState.token === runToken && runInFlight();
+// One step: resolves true when the run ended, false when it paused at its next checkpoint.
+function stepScene(name) {
+  let p;
+  if (steppedRun(name)) { stepState.mode = true; p = stepState.wait(); stepState.resume?.(); }
+  else if (current === name && runInFlight()) { stepState?.finish(); stepState = newStep(name, runToken, true); p = stepState.wait(); }
+  else { runScene(name, { step: true }); p = stepState.wait(); }
+  onReaderControl({ changed: true, keepRun: true });
+  return p;
+}
+// Run: continue a stepped run to its end, or start a run.
+function runOrContinue(name) {
+  if (steppedRun(name)) { stepState.mode = false; explored = null; stepState.resume?.(); return stepState.ended; }
+  return runScene(name);
+}
+document.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => runOrContinue(b.dataset.run)));
 $('.reset-view').addEventListener('click', () => activeKit()?.resetView?.());
 
 // ---- Auto-play. Off by default; when on, it replays the action of the chapter being read in a loop. ----
@@ -3048,11 +3405,11 @@ function releaseControl() {
   controlHold = false;
   if (autorunOn && autoEl && explored !== current) { autoPending = true; tryAutorun(); }
 }
-onReaderControl = ({ pressed = null, changed = false, release = false } = {}) => {
+onReaderControl = ({ pressed = null, changed = false, release = false, keepRun = false } = {}) => {
   if (release) { releaseControl(); return; }
   if (pressed !== null) controlPressed = pressed;
   if (changed && current) explored = current;
-  if (!controlHold) { controlHold = true; stopAuto(); if (liveRun) bumpRun(); }
+  if (!controlHold) { controlHold = true; stopAuto(); if (liveRun && !keepRun) bumpRun(); } // keepRun: stepping keeps its own run
   clearTimeout(controlTimer);
   controlTimer = controlPressed ? 0 : setTimeout(releaseControl, CONTROL_GRACE);
 };
@@ -3111,39 +3468,44 @@ addEventListener('scroll', tryAutorun, { passive: true });
 autorunBtn.addEventListener('click', () => setAutorun(!autorunOn));
 renderAutorun();
 
-// The "reading line" that decides which chapter is being read. In the stacked layout (stage pinned on top) it is the point 30% down the text area just below the stage;
-// in the side-by-side layout (desktop, landscape) it is a band at 45-50% of the screen height. While the split is dragged, chapter switching waits.
-let io = null;
-function readingMargin() {
+// The "reading line" that decides which chapter is being read. In the stacked layout (stage pinned on top) it is the point 30% down
+// the text area just below the stage; in the side-by-side layout (desktop, landscape) it is at 47.5% of the screen height.
+// The line is measured from the current layout every time it is checked, so it is never stale. It is checked when the reader
+// scrolls, when the window or the split changes size (after a drag ends), and at startup — never because the stage's height
+// changed with the chapter: a chapter whose drawing makes the stage taller or shorter cannot hand the line straight back to
+// its neighbour (that would flip between them).
+let io = null; // kept for older code paths: the reading line no longer uses an IntersectionObserver
+function readingLineY() {
   const vh = innerHeight, st = stageEl.getBoundingClientRect();
   const stacked = st.width >= innerWidth - 1 && st.height < vh - 1;
-  if (!stacked) return '-45% 0px -50% 0px';
+  if (!stacked) return vh * 0.475;
   const stageBottom = Math.min(st.height, vh);
-  const readLine = Math.round(stageBottom + (vh - stageBottom) * 0.3);
-  return `-${readLine}px 0px -${Math.max(0, vh - readLine - 2)}px 0px`;
+  return stageBottom + (vh - stageBottom) * 0.3;
 }
-function observe() {
-  if (io) io.disconnect();
-  io = new IntersectionObserver(entries => {
-    if (splitDragging) return;
-    entries.forEach(e => {
-      if (!e.isIntersecting) return;
-      readingEl = e.target;
-      activate(e.target.dataset.scene);
-      scheduleAutorun(e.target);
-    });
-  }, { rootMargin: readingMargin() });
-  document.querySelectorAll('[data-scene]').forEach(node => io.observe(node));
+function pickChapter() {
+  if (splitDragging) return;
+  const y = readingLineY();
+  const hit = [...document.querySelectorAll('[data-scene]')].find(n => { const r = n.getBoundingClientRect(); return r.top <= y && r.bottom > y; });
+  if (!hit || hit === readingEl) return;
+  readingEl = hit;
+  activate(hit.dataset.scene);
+  scheduleAutorun(hit);
 }
+let pickFrame = 0;
+const pickSoon = () => { if (!pickFrame) pickFrame = requestAnimationFrame(() => { pickFrame = 0; pickChapter(); }); };
+addEventListener('scroll', pickSoon, { passive: true });
 let observeTimer = 0;
-const reobserve = () => { clearTimeout(observeTimer); observeTimer = setTimeout(observe, 150); };
+const reobserve = () => { clearTimeout(observeTimer); observeTimer = setTimeout(pickChapter, 150); };
+function observe() { pickChapter(); }
 Split.onDragEnd = observe;
 let lastSize = '';
 new ResizeObserver(() => {
   layoutStage(); // live re-fit: the run, its objects and captions keep going
-  const size = `${wrap.clientWidth}x${wrap.clientHeight}`;
+  // Only a width change (window, split) moves the text under the line; a height change comes from the chapter itself.
+  const size = `${wrap.clientWidth}`;
   if (size !== lastSize) { lastSize = size; reobserve(); }
 }).observe(wrap);
+addEventListener('resize', reobserve);
 new ResizeObserver(layoutStage).observe(legendEl);
 
 function loop() {
@@ -3165,6 +3527,18 @@ function visibleLabels() {
     .map(node => ({ text: node.textContent, r: node.getBoundingClientRect() }))
     .filter(b => b.r.width > 0 && !covered(b.r));
 }
+// The hooks' way to a chapter: in the stacked layout, scroll so the chapter's top sits just below the stage (CSS
+// scroll-margin-top); side by side, scroll it to the centre. An instant scroll: with a smooth one, other chapters cross the
+// reading line on the way. Then wait until the line has picked the chapter and let the chapter change finish as a reader
+// would see it (only when the chapter changed, and not in instant mode).
+async function hookGoTo(name) {
+  const was = current;
+  const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
+  document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center', behavior: 'instant' });
+  for (let i = 0; i < 120 && current !== name; i++) await frames(1);
+  if (!INSTANT && was !== name) await sleep(600);
+  await frames();
+}
 window.__explainer = {
   scenes: () => Object.keys(scenes),
   resources: () => activeKit()?.info?.().resources ?? null,
@@ -3182,21 +3556,22 @@ window.__explainer = {
   paramSpec: name => { const s = scenes[name]; return s?.built ? kits[s.kit].paramSpec?.(s.built) ?? null : null; },
   timing: () => ({ base: Math.round(timeline.base), scaled: Math.round(timeline.scaled) }), // the latest run's own timeline (ms; see account())  // the active kit's own state (svg: { scale, arrangement, row })
   async run(name) {
-    // In the stacked layout, scroll so the chapter's top sits just below the stage (CSS scroll-margin-top); in the side-by-side layout, scroll it to the center.
-    const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
-    // An instant scroll: with a smooth one, other chapters cross the reading line on the way (and, on a slow machine, after the
-    // run has started, which cancels it). Then wait until the reading line has picked this chapter, and let the chapter change
-    // (fade, camera) finish as a reader would see it.
-    document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center', behavior: 'instant' });
-    for (let i = 0; i < 120 && current !== name; i++) await frames(1);
-    if (!INSTANT) await sleep(600);
-    await frames();
-    await runScene(name);
+    await hookGoTo(name);
+    await runOrContinue(name); // a stepped run of this chapter continues to its end
     await sleep(200);
     await frames(); // the end state has been drawn before the caller measures it
     // Labels may still be easing apart (or the camera still gliding): wait until the kit says it has settled, at most 120 frames.
     for (let i = 0; i < 120 && activeKit()?.settled && !activeKit().settled(); i++) await frames(1);
     return current === name ? lastCaption : '';
+  },
+  // One authored step of a chapter (as the Step button does): resolves when the run paused at its next checkpoint or ended.
+  // Both hooks go to the chapter the same way and settle once the result is drawn: run with the final caption, step with
+  // { done, caption } once the run paused at its next checkpoint or ended.
+  async step(name) {
+    await hookGoTo(name);
+    const done = await stepScene(name);
+    await frames();
+    return { done: Boolean(done), caption: lastCaption };
   },
   overlaps(minArea = 24) {
     const boxes = visibleLabels();
@@ -3259,6 +3634,15 @@ kits[scenes[first].kit].home?.(scenes[first].built);
 activate(first);
 observe();
 loop();
+// Step buttons for scenes that ask for them (created now, enabled with the stage).
+document.querySelectorAll('.act [data-run]').forEach(run => {
+  const name = run.dataset.run;
+  if (!scenes[name]?.step) return;
+  const b = el('button', { type: 'button', className: 'step-btn', textContent: uiStr('step'), disabled: true });
+  b.dataset.ui = 'step';
+  (run.closest('.splitbtn') ?? run).after(b);
+  b.addEventListener('click', () => stepScene(name));
+});
 setStageState('ready');
 layoutStage();
 Split.apply(); // again now that the caption bar is shown: the stage-height minimum includes it

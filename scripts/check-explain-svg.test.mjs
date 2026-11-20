@@ -12,14 +12,14 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const assets = join(root, 'skills/plz-explain/assets');
 const DESKTOP = { width: 1440, height: 900 };
 // Shipped example pages drawn only by the svg kit.
-const SVG_EXAMPLES = ['example-hash-join-sip.html', 'example-hash-join-sip.en.html', 'example-lost-update.html', 'example-lost-update.en.html', 'example-bloom-filter.html', 'example-bloom-filter.en.html'];
+const SVG_EXAMPLES = ['example-hash-join-sip.html', 'example-hash-join-sip.en.html', 'example-lost-update.html', 'example-lost-update.en.html', 'example-bloom-filter.html', 'example-bloom-filter.en.html', 'example-event-loop.html', 'example-event-loop.en.html'];
 // The chapters of each svg example, in order.
-const EXAMPLE_SCENES = { 'hash-join-sip': ['plan', 'build', 'sip', 'compare', 'nodes'], 'lost-update': ['serial', 'lost', 'lock', 'version', 'compare'], 'bloom-filter': ['add', 'lookup', 'bits', 'hashes', 'sizing'] };
+const EXAMPLE_SCENES = { 'hash-join-sip': ['plan', 'build', 'sip', 'compare', 'nodes'], 'lost-update': ['serial', 'lost', 'lock', 'version', 'compare'], 'bloom-filter': ['add', 'lookup', 'bits', 'hashes', 'sizing'], 'event-loop': ['stack', 'timeout', 'promise', 'predict', 'chain'] };
 let browser, server, origin;
 
 // Scenes that use every svg part: a row-level step diagram with a filter (s1), side-by-side panels fed by one trigger (s2),
 // and an operator tree next to node columns (s3).
-const LANE_CHAPTERS = { extra: ['s4', 's5', 's6'] }; // SVG_SCENES has two lanes chapters and a playground after the template's three
+const LANE_CHAPTERS = { extra: ['s4', 's5', 's6', 's7'] }; // SVG_SCENES has two lanes chapters, a playground and a code-state chapter after the template's three
 const SVG_SCENES = `
 const KEYS = [8, 17, 23, 31, 42, 56], IN = [17, 42], HIT = KEYS.map(k => IN.includes(k));
 defineScene('s1', {
@@ -234,6 +234,30 @@ defineScene('s6', {
         await a.wait(500);
         await a.set({ m: 1600 }, { ms: 1500 });
         say('2. With 16 bits per item, the rate fell below 1%.', { anchor: chart.near(1600, f(1600, 4)) });
+      },
+    };
+  },
+});// Code and state in sync: a code panel with a marker, a call stack, two queues and a console. Steppable.
+defineScene('s7', {
+  kit: 'svg',
+  title: '7  Code and state',
+  step: true,
+  build(d) {
+    const code = d.code({ title: 'main.js', lines: ["console.log('1');", 'setTimeout(cb, 0);', 'Promise.resolve().then(p);', "console.log('4');"] });
+    const frames = d.frames({ title: 'Call stack', max: 3 });
+    const micro = d.queue({ title: 'Microtasks', max: 3 });
+    const tasks = d.queue({ title: 'Tasks', max: 3 });
+    const out = d.console({ title: 'Console', max: 4 });
+    window.__cs = { code, frames, micro, tasks, out };
+    return {
+      diagram: d.flow([code, d.flow([frames, d.stack([micro, tasks], { dir: 'col' }), out])]),
+      async run(a, say) {
+        await a.line(code, 1); frames.push('script'); out.log('1'); say('1. The script logged 1.', { anchor: out.last() });
+        await a.line(code, 2); await a.carry('cb', code.end(2), tasks.tail()); tasks.enqueue('cb'); say('2. The timer callback went to the task queue.', { anchor: tasks });
+        await a.line(code, 3); await a.carry('p', code.end(3), micro.tail()); micro.enqueue('p'); say('3. The promise callback went to the microtask queue.', { anchor: micro });
+        await a.line(code, 4); out.log('4'); await a.line(code, null, { step: false }); frames.pop(); say('4. The script logged 4 and ended; the stack is empty.', { anchor: frames });
+        await a.checkpoint(); frames.push(micro.dequeue()); out.log('3'); frames.pop(); say('5. The microtask ran first.', { anchor: out.last() });
+        await a.checkpoint(); frames.push(tasks.dequeue()); out.log('2'); frames.pop(); say('6. Then the task ran.', { anchor: out.last() });
       },
     };
   },
@@ -505,11 +529,15 @@ test('svg timing: speed scales the run, and reduced motion keeps captions arrivi
   await page.evaluate(() => window.__explainer.instant(true));
   await page.evaluate(() => window.__explainer.run('s4'));
   const lanesInstant = await laneState(page);
+  await page.evaluate(() => window.__explainer.run('s7'));
+  const csInstant = await csState(page);
   await close();
   const reduced = await openPage(t, 'variant-svg-only.html', { reducedMotion: 'reduce' });
   await reduced.page.evaluate(() => window.__explainer.speed(2));
   await reduced.page.evaluate(() => window.__explainer.run('s4'));
   assert.equal(await laneState(reduced.page), lanesInstant, 'lanes: reduced motion reaches the instant end state');
+  await reduced.page.evaluate(() => window.__explainer.run('s7'));
+  assert.equal(await csState(reduced.page), csInstant, 'code and state: reduced motion reaches the instant end state');
   await reduced.page.evaluate(() => window.__explainer.speed(1));
   const r = await stampRun(reduced.page, 's1', 1);
   assert.equal(r.text, x1.text);
@@ -578,7 +606,7 @@ for (const file of ['variant-svg-only.html', 'template.html', ...SVG_EXAMPLES]) 
       const { page, errors } = await openPage(t, file);
       await page.evaluate(() => window.__explainer.instant(true));
       await svgChapterChecks(page, 'default', { phone: false });
-      const k = await page.evaluate(async () => { await window.__explainer.run('s3'); return window.__explainer.kitInfo().scale; });
+      const k = await page.evaluate(async () => { const n = window.__explainer.scenes().includes('s3') ? 's3' : window.__explainer.scenes()[0]; await window.__explainer.run(n); return window.__explainer.kitInfo().scale; }); // s3, or an example's first chapter
       assert.ok(k >= 1, `scale ${k} at 1440x900`);
       for (const key of ['Home', 'End']) {
         await page.focus('.split-v'); await page.keyboard.press(key); await nextFrames(page);
@@ -590,7 +618,7 @@ for (const file of ['variant-svg-only.html', 'template.html', ...SVG_EXAMPLES]) 
       const { page, errors } = await openPage(t, file, { viewport: { width: 2282, height: 1293 } });
       await page.evaluate(() => window.__explainer.instant(true));
       await svgChapterChecks(page, '2282', { phone: false });
-      const k = await page.evaluate(async () => { await window.__explainer.run('s3'); return window.__explainer.kitInfo().scale; });
+      const k = await page.evaluate(async () => { const n = window.__explainer.scenes().includes('s3') ? 's3' : window.__explainer.scenes()[0]; await window.__explainer.run(n); return window.__explainer.kitInfo().scale; }); // s3, or an example's first chapter
       assert.ok(k > 1.15 && k <= 1.6, `scale ${k} grows on a large stage`);
       assert.deepEqual(errors, []);
     });
@@ -826,6 +854,7 @@ for (const file of SVG_EXAMPLES) {
     if (file.endsWith('.en.html')) assert.equal(await page.evaluate(() => /[가-힣]/.test(document.body.innerText + document.title)), false, 'no Hangul on the English page');
     for (const n of await noteTexts(page)) assert.doesNotMatch(n, file.endsWith('.en.html') ? ROTATE.en : ROTATE.ko, 'the step-by-step note, without overrides');
     if (file.includes('bloom-filter')) await bloomNumbers(page);
+    if (file.includes('event-loop')) await eventLoopOrders(page);
     assert.deepEqual(errors, []);
   });
 }
@@ -1362,6 +1391,13 @@ defineScene('s1', { kit: 'svg', title: '1  Notes and charts', build(d) {
     await a.wait(400); say('Done.');
   } };
 } });
+defineScene('s3', { kit: 'svg', title: '3  Long line', build(d) {
+  const code = d.code({ title: 'long.js', lines: ['ok();', 'const aVeryLongVariableNameThatDoesNotFit = someFunction(withArguments, andMoreArguments, andEvenMore);'] });
+  const vars = d.vars({ title: 'Vars', names: ['a', 'aLongerName'], sample: '123456' });
+  vars.set('aLongerName', '123456');
+  window.__vars = vars;
+  return { diagram: d.stack([code, vars], { dir: 'col' }), async run(a, say) { await a.line(code, 2); say('Done.'); } };
+} });
 defineScene('s2', { kit: 'svg', title: '2  List and step', params: { mode: { label: 'Mode', values: ['off', 'on', 'auto'], value: 'on' }, r: { label: 'R', min: 0, max: 10, step: 4, value: 8 } },
   build(d) { const out = d.readout({ label: 'Value', sample: 'auto 10' }); return { diagram: out, update(p) { out.set(p.mode + ' ' + p.r); return p.mode + ' ' + p.r; }, async run(a, say) { say('Done.'); } }; } });
 `;
@@ -1409,4 +1445,156 @@ test('parts: a long table note stays clear of the × mark, list and stepped para
     assert.deepEqual(errors, []);
     await close();
   }
+});
+
+// ---- Code and state in sync ----
+const CS_STATE = () => {
+  const C = window.__cs;
+  return JSON.stringify({ current: C.code.current, ran: [...C.code.ran].sort(), frames: C.frames.list(), micro: C.micro.list(), tasks: C.tasks.list(), out: C.out.list(),
+    marker: C.code.g.querySelector('.cmark')?.getAttribute('transform') ?? null });
+};
+const csState = page => page.evaluate(CS_STATE);
+
+test('code and state: the marker leaves traces, the stack pushes and pops, queues are FIFO, the console grows, and reset restores everything', { timeout: 60_000 }, async t => {
+  const { page, errors, close } = await openPage(t, 'variant-svg-only.html');
+  await gotoChapter(page, 's7');
+  const fresh = await csState(page);
+  assert.deepEqual(JSON.parse(fresh), { ...JSON.parse(fresh), current: null, ran: [], frames: [], micro: [], tasks: [], out: [] });
+  await page.evaluate(() => window.__explainer.instant(true));
+  assert.equal(await page.evaluate(() => window.__explainer.run('s7')), '6. Then the task ran.');
+  const end = JSON.parse(await csState(page));
+  assert.deepEqual([end.current, end.ran, end.frames, end.micro, end.tasks, end.out], [null, [1, 2, 3, 4], [], [], [], ['1', '4', '3', '2']]);
+  const fifo = await page.evaluate(() => { const q = window.__cs.micro; q.enqueue('x'); q.enqueue('y'); const first = q.dequeue(); const rest = q.list(); q.dequeue(); return { first, rest }; });
+  assert.deepEqual(fifo, { first: 'x', rest: ['y'] });
+  const lifo = await page.evaluate(() => { const f = window.__cs.frames; f.push('a'); f.push('b'); const top = f.list().at(-1); f.pop(); const left = f.list(); f.pop(); return { top, left }; });
+  assert.deepEqual(lifo, { top: 'b', left: ['a'] });
+  assert.deepEqual(await page.evaluate(() => [window.__explainer.overlaps(), window.__explainer.clipped()]), [[], []]);
+  const atReset = await page.evaluate(async src => {
+    const state = new Function(`return (${src})()`), list = document.querySelector('.rail-list');
+    let snap = null;
+    const mo = new MutationObserver(() => { if (snap === null && list.children.length === 0) snap = state(); });
+    mo.observe(list, { childList: true });
+    window.__explainer.instant(false); window.__explainer.speed(2);
+    await window.__explainer.run('s7');
+    mo.disconnect(); window.__explainer.speed(1);
+    return snap;
+  }, CS_STATE.toString());
+  assert.equal(atReset, fresh, 'reset restores the marker, the traces, the stack, the queues and the console');
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('code and state: Step advances one authored step, Run after partial stepping completes, stepping holds auto-play, and a too-long line is reported', { timeout: 90_000 }, async t => {
+  const { page, errors, close } = await openPage(t, 'variant-svg-only.html');
+  await gotoChapter(page, 's7');
+  assert.equal(await page.locator('[data-scene="s7"] .act .step-btn').count(), 1, 'a Step button beside the run button');
+  assert.equal(await page.locator('[data-scene="s6"] .act .step-btn').count(), 0, 'only where the scene asks for it');
+  await page.evaluate(() => window.__explainer.instant(true));
+  let r = await page.evaluate(() => window.__explainer.step('s7'));
+  assert.deepEqual([r.done, JSON.parse(await csState(page)).current, JSON.parse(await csState(page)).out], [false, 1, ['1']]);
+  r = await page.evaluate(() => window.__explainer.step('s7'));
+  assert.deepEqual([r.done, JSON.parse(await csState(page)).current, JSON.parse(await csState(page)).tasks], [false, 2, ['cb']]);
+  assert.equal(await page.evaluate(() => window.__explainer.run('s7')), '6. Then the task ran.', 'Run continues a stepped run to the end');
+  assert.deepEqual(JSON.parse(await csState(page)).out, ['1', '4', '3', '2']);
+  // stepping is reader input: auto-play holds and the stepped state stays
+  await page.evaluate(() => window.__explainer.instant(false));
+  await page.evaluate(() => { window.__explainer.speed(2); window.__explainer.autorun(true); });
+  await page.waitForFunction(() => document.querySelectorAll('.rail-list .cap').length >= 1, null, { timeout: 20_000 });
+  await page.evaluate(() => document.querySelector('[data-scene="s7"] .act .step-btn').click());
+  await page.waitForFunction(() => window.__cs.code.current !== null, null, { timeout: 10_000 });
+  await sleep(1200); // the step itself finishes (it pauses at the next line)
+  const held = await csState(page);
+  await sleep(GRACE + 1500);
+  assert.equal(await csState(page), held, 'auto-play does not move a chapter the reader is stepping');
+  await page.evaluate(() => { window.__explainer.autorun(false); window.__explainer.speed(1); });
+  assert.deepEqual(errors, []);
+  await close();
+  // a line that does not fit is reported (the kit does not shrink text below its minimum)
+  const long = await openPage(t, 'variant-pg-extra.html', { viewport: { width: 390, height: 844 } });
+  await long.page.evaluate(() => window.__explainer.instant(true));
+  await long.page.evaluate(() => window.__explainer.run('s3'));
+  const clipped = await long.page.evaluate(() => window.__explainer.clipped());
+  assert.ok(clipped.some(x => x.startsWith('const aVeryLong')), `the long line is reported: ${JSON.stringify(clipped)}`);
+  assert.ok(!clipped.some(x => ['a', 'aLongerName', '123456'].includes(x)), `named values fit their part: ${JSON.stringify(clipped)}`);
+  assert.match(await long.page.evaluate(() => { try { window.__vars.slot('nope'); return 'no error'; } catch (e) { return e.message; } }), /^\[plz\] d\.vars/);
+  await long.close();
+});
+
+// Every console order the event-loop page shows is the real one: each chapter's program runs in this browser page
+// (its own console, real timers and promises) and must print what the page's console part shows after the chapter's run.
+async function eventLoopOrders(page) {
+  for (const name of EXAMPLE_SCENES['event-loop']) {
+    await page.evaluate(n => window.__explainer.run(n), name);
+    const shown = await page.evaluate(() => [...[...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').querySelectorAll('.console .chip-i text')].map(t => t.textContent));
+    const real = await page.evaluate(n => new Promise(resolve => {
+      const logs = [];
+      new Function('console', window.__el.PROGRAMS[n])({ log: v => logs.push(String(v)) });
+      setTimeout(() => resolve(logs), 100);
+    }), name);
+    assert.deepEqual(shown, real, `${name}: the page's console matches the program's real output`);
+    const lines = await page.evaluate(n => [...[...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none').querySelectorAll('.code .ctext')].map(t => t.textContent).join('\n') === window.__el.PROGRAMS[n], name);
+    assert.ok(lines, `${name}: the code panel shows the program that was run`);
+    // stepping: every step shows a new caption, the last one too
+    const caps = await page.evaluate(async n => { const out = []; for (let i = 0; i < 20; i++) { const r = await window.__explainer.step(n); out.push(r.caption); if (r.done) break; } return out; }, name);
+    assert.ok(caps.every((c, i) => i === 0 || c !== caps[i - 1]), `${name}: a new caption at every step: ${JSON.stringify(caps)}`);
+  }
+  // a wide stage uses its width: the state parts are not one tall column (two of them share a line)
+  await page.evaluate(() => window.__explainer.run('predict'));
+  const tops = await page.evaluate(() => { const g = [...document.querySelectorAll('.svg-scene')].find(g => g.style.display !== 'none'); return ['.frames', '.queue', '.console'].map(sel => Math.round(g.querySelector('.part' + sel).getBoundingClientRect().top)); });
+  assert.ok(new Set(tops).size < tops.length, `state parts share a line on a wide stage: ${tops}`);
+}
+
+test('code and state: stepping never hangs a pending step, every step changes the caption, the current line wins over its ran dot, and frames are not leaked', { timeout: 90_000 }, async t => {
+  const { page, errors, close } = await openPage(t, 'variant-svg-only.html');
+  await gotoChapter(page, 's7');
+  // a step in progress, then a step in another chapter: the first one settles
+  const settled = await page.evaluate(async () => {
+    window.__explainer.speed(0.5);
+    const p1 = window.__explainer.step('s7').then(() => 'settled');
+    await new Promise(r => setTimeout(r, 300));
+    const p2 = window.__explainer.step('s6');
+    const r1 = await Promise.race([p1, new Promise(r => setTimeout(() => r('hung'), 8000))]);
+    await p2;
+    window.__explainer.speed(1);
+    return r1;
+  });
+  assert.equal(settled, 'settled', 'a pending step settles when the reader steps another chapter');
+  // every step shows a new caption, including the last
+  await page.evaluate(() => window.__explainer.instant(true));
+  const captions = await page.evaluate(async () => {
+    const out = [];
+    for (let i = 0; i < 20; i++) { const r = await window.__explainer.step('s7'); out.push(r.caption); if (r.done) break; }
+    return out;
+  });
+  assert.ok(captions.every((c, i) => i === 0 || c !== captions[i - 1]), `a new caption at every step: ${JSON.stringify(captions)}`);
+  // current wins over ran
+  const dot = await page.evaluate(() => { const c = window.__cs.code; c.setCurrent(2); c.setCurrent(2); const row = c.line(2); const r = { now: row.g.classList.contains('now'), dot: getComputedStyle(row.dot).opacity, ran: c.ran.has(2) }; c.setCurrent(null); return r; });
+  assert.deepEqual(dot, { now: true, dot: '0', ran: true }, 'the current line hides its ran dot');
+  // framed registrations do not grow with repeated runs
+  const counts = [];
+  for (let i = 0; i < 3; i++) { await page.evaluate(() => window.__explainer.run('s7')); counts.push(await page.evaluate(() => window.__explainer.kitInfo().framed)); }
+  assert.ok(counts[0] > 0 && counts.every(c => c === counts[0]), `framed entries stay the same across runs: ${counts}`);
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('stacked phones: a chapter whose stage height differs from its neighbour stays active (no flip back)', { timeout: 60_000 }, async t => {
+  const { page, errors, close } = await openPage(t, 'variant-svg-only.html', { viewport: { width: 390, height: 844 } });
+  await page.evaluate(() => window.__explainer.instant(true));
+  for (const [from, to] of [['s6', 's7'], ['s7', 's6'], ['s5', 's6']]) {
+    await page.evaluate(n => window.__explainer.run(n), from);
+    const r = await page.evaluate(async n => {
+      const seen = [];
+      const mo = new MutationObserver(() => seen.push(window.__explainer.current()));
+      document.querySelectorAll('.chapter').forEach(c => mo.observe(c, { attributes: true, attributeFilter: ['class'] }));
+      const text = await window.__explainer.run(n);
+      await new Promise(r => setTimeout(r, 600));
+      mo.disconnect();
+      return { text, seen: [...new Set(seen)], current: window.__explainer.current() };
+    }, to);
+    assert.ok(r.text.length > 0 && r.current === to, `${from} → ${to}: ${JSON.stringify(r)}`);
+    assert.ok(!r.seen.includes(from) || r.seen.lastIndexOf(from) < r.seen.indexOf(to), `${from} → ${to} did not flip back: ${JSON.stringify(r.seen)}`);
+  }
+  assert.deepEqual(errors, []);
+  await close();
 });

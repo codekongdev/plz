@@ -101,6 +101,8 @@
   .act .speed-seg { display: inline-flex; align-items: center; gap: 0.45rem; border-radius: 0 6px 6px 0; border-left: 1px solid rgba(255, 255, 255, 0.3); padding: 0.85rem 0.8rem; font: 600 0.9rem/1 var(--sans); font-variant-numeric: tabular-nums; }
   .speed-seg .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
   .act .speed-seg[aria-expanded="true"] { background: #33444F; }
+  .act .step-btn { color: var(--ink); background: #fff; border: 1px solid var(--ink); }
+  .act .step-btn:hover { background: var(--paper); }
   .speed-menu { position: fixed; z-index: 30; min-width: 108px; padding: 4px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 6px 16px rgba(30, 42, 51, 0.14); }
   .speed-menu[hidden] { display: none; }
   .speed-item { display: flex; align-items: center; gap: 0.5rem; width: 100%; min-height: 36px; padding: 0.4rem 0.7rem; font: 500 0.92rem/1 var(--sans); color: var(--ink); background: none; border: 0; border-radius: 5px; cursor: pointer; text-align: left; font-variant-numeric: tabular-nums; }
@@ -227,6 +229,9 @@
     .chapter { min-height: auto; padding-top: 2.75rem; scroll-margin-top: var(--stage-h); }
     .chapter h2 { font-size: 1.45rem; }
     [data-scene] { scroll-margin-top: var(--stage-h); }
+    /* The stage's height follows the chapter's drawing: the text must move with it (scroll anchoring would hold the text still
+       and slide the reading line into the chapter above, which takes the stage back). */
+    html, body { overflow-anchor: none; }
     .split-h { display: block; left: 0; right: 0; bottom: 0; height: 18px; cursor: row-resize; touch-action: none; }
     .split-h::after { left: calc(50% - 24px); top: 7px; width: 48px; height: 4px; }
     .stage .legend { padding-bottom: 1.15rem; }
@@ -617,6 +622,7 @@ const UI_TEXT = {
     railAria: 'Step captions',
     railShow: 'Show all',
     railHide: 'Hide',
+    step: 'Step',
     splitX: 'Resize text and model',
     splitH: 'Resize model height',
   },
@@ -643,6 +649,7 @@ const UI_TEXT = {
     railAria: '단계 설명',
     railShow: '모두 보기',
     railHide: '접기',
+    step: '한 단계씩',
     splitX: '본문과 모형 너비 조절',
     splitH: '모형 높이 조절',
   },
@@ -669,6 +676,7 @@ const UI_TEXT = {
     railAria: '手順の説明',
     railShow: 'すべて表示',
     railHide: '閉じる',
+    step: '1ステップ',
     splitX: '本文とモデルの幅を調整',
     splitH: 'モデルの高さを調整',
   },
@@ -695,6 +703,7 @@ const UI_TEXT = {
     railAria: '步骤说明',
     railShow: '全部',
     railHide: '收起',
+    step: '单步',
     splitX: '调整正文与模型的宽度',
     splitH: '调整模型高度',
   },
@@ -750,12 +759,12 @@ const hudNow = $('.hud .now');
 const legendEl = $('.legend');
 const hintEl = $('.hint');
 const layoutEl = $('.layout');
-const stageControls = document.querySelectorAll('[data-run], .autorun, .reset-view');
+const stageControls = () => document.querySelectorAll('[data-run], .autorun, .reset-view, .step-btn'); // Step buttons are added later
 const retryBtn = $('.retry-load');
 function setStageState(state, message = 'loading') {
   stageEl.dataset.state = state;
   stageEl.setAttribute('aria-busy', String(state === 'loading'));
-  stageControls.forEach(button => { button.disabled = state !== 'ready'; });
+  stageControls().forEach(button => { button.disabled = state !== 'ready'; });
   const notice = stageEl.querySelector('.fallback p');
   notice.dataset.ui = message;
   notice.textContent = uiStr(message);
@@ -799,6 +808,8 @@ function account(token, base, scaled) {
   if (timeline.token !== token) Object.assign(timeline, { token, base: 0, scaled: 0 });
   timeline.base += base; timeline.scaled += scaled;
 }
+// Stepping (see "Stepping" below): the stepped run, if any. Declared here so the director can see it.
+let stepState = null;
 function director(token) {
   const live = () => token === runToken;
   function wait(ms) {
@@ -851,7 +862,22 @@ function director(token) {
       requestAnimationFrame(frame);
     });
   }
-  return { live, wait, tween, speed: () => speed, reduced: () => REDUCE, instant: () => INSTANT };
+  // A step boundary (a.line, a.checkpoint). In a stepped run, every boundary after the first waits for the reader's next
+  // Step; a chapter change cancels the wait like any other.
+  function checkpoint() {
+    if (!live()) return Promise.reject(CANCEL);
+    const st = stepState;
+    if (!st || st.token !== token || !st.mode) return Promise.resolve();
+    if (!st.started) { st.started = true; return Promise.resolve(); }
+    return new Promise((resolve, reject) => {
+      const job = { token, rescale() {} };
+      job.cancel = () => { pendingJobs.delete(job); st.resume = null; reject(CANCEL); };
+      pendingJobs.add(job);
+      st.resume = () => { pendingJobs.delete(job); st.resume = null; resolve(); };
+      st.notify(false); // this step ended here
+    });
+  }
+  return { live, wait, tween, checkpoint, speed: () => speed, reduced: () => REDUCE, instant: () => INSTANT };
 }
 const speedSubs = new Set();
 function setSpeed(v) {
@@ -1172,6 +1198,7 @@ Split.apply(); // the saved split holds while kits load, and after a load failur
      animator(dir, scene) the `a` passed to run(); defaults to the director { wait, tween, live }
      fit(rect, W, H, chrome) fit the drawing to rect (px inside the layer W × H); the rest is under the caption rail.
                           chrome = { top, bottom }: the band between the HUD and the legend, for kits that must stay clear of them
+     ended(scene)         optional: the scene's run reached its end (not cancelled)
      params(scene, values) optional: a scene's parameters (playgrounds): set some (values) and return all; null without parameters
      paramSpec(scene)     optional: { id: { min, max, value } } of a scene's parameters
      place(geom)          optional, wide stages only: arrange the drawing and the caption column together. geom = { W, H, top, bottom };
@@ -2371,17 +2398,18 @@ function activate(name, force = false) {
   hudNow.textContent = s.title ?? '';
   document.querySelectorAll('.chapter').forEach(c => c.classList.toggle('is-active', c.dataset.scene === name));
   layoutStage();
-  if (stackedQ.matches) Split.apply(); // the stage-height minimum follows the chapter's drawing
+  if (stackedQ.matches) Split.apply(); // the stage-height minimum follows the chapter's drawing (the reading line follows the stage)
 }
 let liveRun = 0; // token of the run in flight, 0 when none
 const runInFlight = () => liveRun !== 0 && liveRun === runToken;
-async function runScene(name) {
+async function runScene(name, { step = false } = {}) {
   activate(name);
   const s = scenes[name];
   if (!s) return;
   const kit = kits[s.kit];
   const mine = bumpRun(); // a run or chapter change after this point cancels this run
   if (explored === name) explored = null; // running a chapter the reader changed: its values reset, auto-play may loop it again
+  if (step) { stepState?.finish(); stepState = newStep(name, mine, false); } // a replaced stepped run settles its waiters
   liveRun = mine;
   Object.assign(timeline, { token: mine, base: 0, scaled: 0 });
   clearCaptions();
@@ -2397,8 +2425,10 @@ async function runScene(name) {
     return;
   } finally {
     if (liveRun === mine) liveRun = 0;
+    if (stepState?.token === mine) stepState.finish();
   }
   if (mine !== runToken) return;
+  kit.ended?.(s.built); // the run reached its end (a kit may tidy its end state, e.g. hide a code marker)
   sceneTotals[name] = captions.length;
   renderRailMeta();
   onSceneDone(name, mine); // If auto-play is on, continue the loop.
@@ -2410,7 +2440,36 @@ function resetScene(name) {
   clearCaptions();
   restoreScene(s);
 }
-document.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => runScene(b.dataset.run)));
+/* ---- Stepping. A scene with step: true gets a Step button beside its run button; the reader advances the chapter's run one
+   authored step at a time (from one checkpoint to the next: a.line, a.checkpoint) and can predict before each step.
+   - Step with no run in flight starts a run (from the reset state) that pauses at its next checkpoint; Step again goes on.
+   - Step during a run (the tour, auto-play) lets that run pause at its next checkpoint.
+   - Run during a stepped run lets it continue to the end (it does not restart); Run after the end restarts as usual.
+   - Stepping is reader input: auto-play holds, and the chapter keeps its stepped state until Run or leaving the chapter.
+   - Speed, instant mode and reduced motion apply inside each step; a chapter change cancels a paused run. ---- */
+function newStep(name, token, started) {
+  const st = { name, token, mode: true, started, resume: null, waiters: [], done: false };
+  st.wait = () => (st.done ? Promise.resolve(true) : new Promise(r => st.waiters.push(r)));
+  st.notify = done => st.waiters.splice(0).forEach(r => r(done));
+  st.ended = new Promise(r => { st.finish = () => { if (st.done) return; st.done = true; st.resume = null; st.notify(true); r(); }; });
+  return st;
+}
+const steppedRun = name => stepState && stepState.name === name && stepState.token === runToken && runInFlight();
+// One step: resolves true when the run ended, false when it paused at its next checkpoint.
+function stepScene(name) {
+  let p;
+  if (steppedRun(name)) { stepState.mode = true; p = stepState.wait(); stepState.resume?.(); }
+  else if (current === name && runInFlight()) { stepState?.finish(); stepState = newStep(name, runToken, true); p = stepState.wait(); }
+  else { runScene(name, { step: true }); p = stepState.wait(); }
+  onReaderControl({ changed: true, keepRun: true });
+  return p;
+}
+// Run: continue a stepped run to its end, or start a run.
+function runOrContinue(name) {
+  if (steppedRun(name)) { stepState.mode = false; explored = null; stepState.resume?.(); return stepState.ended; }
+  return runScene(name);
+}
+document.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => runOrContinue(b.dataset.run)));
 $('.reset-view').addEventListener('click', () => activeKit()?.resetView?.());
 
 // ---- Auto-play. Off by default; when on, it replays the action of the chapter being read in a loop. ----
@@ -2461,11 +2520,11 @@ function releaseControl() {
   controlHold = false;
   if (autorunOn && autoEl && explored !== current) { autoPending = true; tryAutorun(); }
 }
-onReaderControl = ({ pressed = null, changed = false, release = false } = {}) => {
+onReaderControl = ({ pressed = null, changed = false, release = false, keepRun = false } = {}) => {
   if (release) { releaseControl(); return; }
   if (pressed !== null) controlPressed = pressed;
   if (changed && current) explored = current;
-  if (!controlHold) { controlHold = true; stopAuto(); if (liveRun) bumpRun(); }
+  if (!controlHold) { controlHold = true; stopAuto(); if (liveRun && !keepRun) bumpRun(); } // keepRun: stepping keeps its own run
   clearTimeout(controlTimer);
   controlTimer = controlPressed ? 0 : setTimeout(releaseControl, CONTROL_GRACE);
 };
@@ -2524,39 +2583,44 @@ addEventListener('scroll', tryAutorun, { passive: true });
 autorunBtn.addEventListener('click', () => setAutorun(!autorunOn));
 renderAutorun();
 
-// The "reading line" that decides which chapter is being read. In the stacked layout (stage pinned on top) it is the point 30% down the text area just below the stage;
-// in the side-by-side layout (desktop, landscape) it is a band at 45-50% of the screen height. While the split is dragged, chapter switching waits.
-let io = null;
-function readingMargin() {
+// The "reading line" that decides which chapter is being read. In the stacked layout (stage pinned on top) it is the point 30% down
+// the text area just below the stage; in the side-by-side layout (desktop, landscape) it is at 47.5% of the screen height.
+// The line is measured from the current layout every time it is checked, so it is never stale. It is checked when the reader
+// scrolls, when the window or the split changes size (after a drag ends), and at startup — never because the stage's height
+// changed with the chapter: a chapter whose drawing makes the stage taller or shorter cannot hand the line straight back to
+// its neighbour (that would flip between them).
+let io = null; // kept for older code paths: the reading line no longer uses an IntersectionObserver
+function readingLineY() {
   const vh = innerHeight, st = stageEl.getBoundingClientRect();
   const stacked = st.width >= innerWidth - 1 && st.height < vh - 1;
-  if (!stacked) return '-45% 0px -50% 0px';
+  if (!stacked) return vh * 0.475;
   const stageBottom = Math.min(st.height, vh);
-  const readLine = Math.round(stageBottom + (vh - stageBottom) * 0.3);
-  return `-${readLine}px 0px -${Math.max(0, vh - readLine - 2)}px 0px`;
+  return stageBottom + (vh - stageBottom) * 0.3;
 }
-function observe() {
-  if (io) io.disconnect();
-  io = new IntersectionObserver(entries => {
-    if (splitDragging) return;
-    entries.forEach(e => {
-      if (!e.isIntersecting) return;
-      readingEl = e.target;
-      activate(e.target.dataset.scene);
-      scheduleAutorun(e.target);
-    });
-  }, { rootMargin: readingMargin() });
-  document.querySelectorAll('[data-scene]').forEach(node => io.observe(node));
+function pickChapter() {
+  if (splitDragging) return;
+  const y = readingLineY();
+  const hit = [...document.querySelectorAll('[data-scene]')].find(n => { const r = n.getBoundingClientRect(); return r.top <= y && r.bottom > y; });
+  if (!hit || hit === readingEl) return;
+  readingEl = hit;
+  activate(hit.dataset.scene);
+  scheduleAutorun(hit);
 }
+let pickFrame = 0;
+const pickSoon = () => { if (!pickFrame) pickFrame = requestAnimationFrame(() => { pickFrame = 0; pickChapter(); }); };
+addEventListener('scroll', pickSoon, { passive: true });
 let observeTimer = 0;
-const reobserve = () => { clearTimeout(observeTimer); observeTimer = setTimeout(observe, 150); };
+const reobserve = () => { clearTimeout(observeTimer); observeTimer = setTimeout(pickChapter, 150); };
+function observe() { pickChapter(); }
 Split.onDragEnd = observe;
 let lastSize = '';
 new ResizeObserver(() => {
   layoutStage(); // live re-fit: the run, its objects and captions keep going
-  const size = `${wrap.clientWidth}x${wrap.clientHeight}`;
+  // Only a width change (window, split) moves the text under the line; a height change comes from the chapter itself.
+  const size = `${wrap.clientWidth}`;
   if (size !== lastSize) { lastSize = size; reobserve(); }
 }).observe(wrap);
+addEventListener('resize', reobserve);
 new ResizeObserver(layoutStage).observe(legendEl);
 
 function loop() {
@@ -2578,6 +2642,18 @@ function visibleLabels() {
     .map(node => ({ text: node.textContent, r: node.getBoundingClientRect() }))
     .filter(b => b.r.width > 0 && !covered(b.r));
 }
+// The hooks' way to a chapter: in the stacked layout, scroll so the chapter's top sits just below the stage (CSS
+// scroll-margin-top); side by side, scroll it to the centre. An instant scroll: with a smooth one, other chapters cross the
+// reading line on the way. Then wait until the line has picked the chapter and let the chapter change finish as a reader
+// would see it (only when the chapter changed, and not in instant mode).
+async function hookGoTo(name) {
+  const was = current;
+  const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
+  document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center', behavior: 'instant' });
+  for (let i = 0; i < 120 && current !== name; i++) await frames(1);
+  if (!INSTANT && was !== name) await sleep(600);
+  await frames();
+}
 window.__explainer = {
   scenes: () => Object.keys(scenes),
   resources: () => activeKit()?.info?.().resources ?? null,
@@ -2595,21 +2671,22 @@ window.__explainer = {
   paramSpec: name => { const s = scenes[name]; return s?.built ? kits[s.kit].paramSpec?.(s.built) ?? null : null; },
   timing: () => ({ base: Math.round(timeline.base), scaled: Math.round(timeline.scaled) }), // the latest run's own timeline (ms; see account())  // the active kit's own state (svg: { scale, arrangement, row })
   async run(name) {
-    // In the stacked layout, scroll so the chapter's top sits just below the stage (CSS scroll-margin-top); in the side-by-side layout, scroll it to the center.
-    const stacked = stageEl.getBoundingClientRect().width >= innerWidth - 1;
-    // An instant scroll: with a smooth one, other chapters cross the reading line on the way (and, on a slow machine, after the
-    // run has started, which cancels it). Then wait until the reading line has picked this chapter, and let the chapter change
-    // (fade, camera) finish as a reader would see it.
-    document.querySelector(`[data-scene="${name}"]`)?.scrollIntoView({ block: stacked ? 'start' : 'center', behavior: 'instant' });
-    for (let i = 0; i < 120 && current !== name; i++) await frames(1);
-    if (!INSTANT) await sleep(600);
-    await frames();
-    await runScene(name);
+    await hookGoTo(name);
+    await runOrContinue(name); // a stepped run of this chapter continues to its end
     await sleep(200);
     await frames(); // the end state has been drawn before the caller measures it
     // Labels may still be easing apart (or the camera still gliding): wait until the kit says it has settled, at most 120 frames.
     for (let i = 0; i < 120 && activeKit()?.settled && !activeKit().settled(); i++) await frames(1);
     return current === name ? lastCaption : '';
+  },
+  // One authored step of a chapter (as the Step button does): resolves when the run paused at its next checkpoint or ended.
+  // Both hooks go to the chapter the same way and settle once the result is drawn: run with the final caption, step with
+  // { done, caption } once the run paused at its next checkpoint or ended.
+  async step(name) {
+    await hookGoTo(name);
+    const done = await stepScene(name);
+    await frames();
+    return { done: Boolean(done), caption: lastCaption };
   },
   overlaps(minArea = 24) {
     const boxes = visibleLabels();
@@ -2672,6 +2749,15 @@ kits[scenes[first].kit].home?.(scenes[first].built);
 activate(first);
 observe();
 loop();
+// Step buttons for scenes that ask for them (created now, enabled with the stage).
+document.querySelectorAll('.act [data-run]').forEach(run => {
+  const name = run.dataset.run;
+  if (!scenes[name]?.step) return;
+  const b = el('button', { type: 'button', className: 'step-btn', textContent: uiStr('step'), disabled: true });
+  b.dataset.ui = 'step';
+  (run.closest('.splitbtn') ?? run).after(b);
+  b.addEventListener('click', () => stepScene(name));
+});
 setStageState('ready');
 layoutStage();
 Split.apply(); // again now that the caption bar is shown: the stage-height minimum includes it

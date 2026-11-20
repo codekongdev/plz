@@ -317,6 +317,54 @@ Chart parts (sized by the layout like other parts; text at the kit's sizes, so t
 Charts and meters keep their state in JS (series, marker, fractions); `set` and `at` only store it and the next paint draws it once. Reset puts them back as they were when the scene was built, in step-diagram scenes too.
 `d.table({ …, note })` takes a sample of the longest row note (the table is sized so it fits between the key column and the × mark); `row(i).note(text, { tone })` writes it in the payload column (an answer, a result), and the key column widens for word keys.
 
+### Code and state in sync
+
+For a lesson about what code or commands do to hidden state (a call stack, queues, variables, a console): the event loop, recursion, a cache, a protocol state machine. Not when the reader has not met the code yet, or when the code is incidental. Keep each chapter's code to about 6–10 short lines (about 40 characters, so it fits a 390px phone at 11.5px mono).
+
+```js
+defineScene('promise', {
+  kit: 'svg', title: '3  Sooner than later',
+  step: true,                                                      // a Step button beside the run button
+  build(d) {
+    const code = d.code({ title: 'main.js', lines: PROGRAM.split('\n') });
+    const frames = d.frames({ title: 'Call stack', max: 2 });
+    const micro = d.queue({ title: 'Microtasks', max: 2, tone: 'actor' }), tasks = d.queue({ title: 'Tasks', max: 2, tone: 'matter' });
+    const out = d.console({ title: 'Console', max: 3 });
+    return {
+      diagram: d.flow([code, d.flow([frames, d.stack([micro, tasks], { dir: 'col' }), out])]),  // side by side, or stacked
+      async run(a, say) {
+        await a.line(code, 1); frames.push('script');
+        await a.carry('timer', code.end(1), tasks.tail()); tasks.enqueue('timer'); say('1. …', { anchor: tasks.last() });
+        await a.line(code, 4); out.log('sync');
+        await a.line(code, null); frames.pop();                    // past the last line: the marker hides
+        await a.checkpoint(); frames.push(micro.dequeue()); out.log('promise'); frames.pop(); say('5. …', { anchor: out.last() });
+      },
+    };
+  },
+});
+```
+
+| Part or method | Behavior |
+|---|---|
+| `d.code({ title, lines, note })` | Numbered mono lines. `code.current`, `code.ran` (lines that already ran keep a quiet dot), `code.end(n)` (the point after line n's text, where a value leaves), `code.note(n, text, { tone })` (an annotation at the line's end; `note` is a sample of the longest, for any line, or per line such as `{ 4: 'waits' }` so only those lines need room). Indentation is kept. The panel is as wide as its longest line and never narrower: a line that does not fit the stage, or a panel wider than the stage, is reported by `clipped()` (the kit does not shrink code below 12px / 11.5px) |
+| `d.frames({ title, max, tone })` | A call stack: `push(text)` on top, `pop()` from the top (returns the text), `list()`, `top()` (the point of the next frame) |
+| `d.queue({ title, max, tone })` | FIFO: `enqueue(text)` at the tail, `dequeue()` from the head, `list()`, `tail()`, `head()` |
+| `d.console({ title, max })` | Output lines that accumulate: `log(text)`, `list()`, `last()`, `next()` |
+| `d.vars({ title, names, sample })` | Named values: `set(name, value)`, `get(name)`, `slot(name)`; `sample` is the widest value, so the part fits every name with it. An unknown name stops the page with a `[plz] d.vars` error |
+| `d.flow(items, { gap })` | Items left to right at their natural widths, wrapping to a new line when the next does not fit (like flex-wrap): one row on a wide stage, the code across the top with the state side by side below it on a narrower one, a column only when nothing fits beside anything. A nested flow placed on its own line wraps itself |
+| `await a.line(code, n, { ms = 320, step = true })` | Moves the marker to line n (`null`: past the end) and is a step boundary; `step: false` moves it inside the current step (the script's end in the same step as its last line). One line → one kind of change: change the state after it, then say what changed. Every step must end with a caption. When the run ends, the kit hides the marker by itself (no final `a.line(code, null)`) |
+| `await a.carry(text, from, to, { tone, ms = 650 })` | Moves a value between two points as a token, then removes it; change the state right after |
+| `await a.checkpoint()` | A step boundary that is not a line (the event loop taking the next task) |
+
+- Items (`push`, `enqueue`, `log`) are parts of the state, kept in JS: reset puts back the items the scene was built with, the marker, the traces and the notes. A caption badge on an item (`frames.last()`, `queue.last()`) follows its slot and disappears when the item is taken out.
+- **Step control** (`step: true`): a Step button beside the run button runs one authored step (from one `a.line` / `a.checkpoint` to the next) so the reader can predict before each step.
+  - Step with no run in flight starts a run from the reset state and pauses at its next boundary; Step again goes on.
+  - Step during a run (the tour, auto-play) lets that run pause at its next boundary.
+  - Run during a stepped run continues it to the end (it does not restart); Run after the end restarts as usual.
+  - Stepping is reader input: auto-play holds, and the chapter keeps its stepped state until the reader runs it or leaves it.
+  - Speed, instant mode and reduced motion apply inside each step; a chapter change cancels a paused run.
+- `__explainer.run(name)` still resolves at the end with the final caption (continuing a stepped run). `__explainer.step(name)` runs one step and resolves `{ done, caption }`: `done` is true when the run ended.
+
 ## Kits: `defineKit(name, kit)`
 
 A page author does not write kits; this section is for engine changes. A kit is an object with these methods (only `load` and `build` are required):
@@ -362,6 +410,7 @@ a Retry button that reloads the page. On small screens the failed stage becomes 
 | `resources()` | axo: counts of registered labels, decluttering state entries, and renderer geometries (`labels`, `labelStates`, `geometries`), step badges excluded. Compare after warming up the same scene and after repeated runs |
 | `azimuth()` | axo: camera azimuth (radians). Use it to check whether the model rotated |
 | `kitInfo()` | The active kit's state. svg: `{ scale, arrangement, row }` (`arrangement`: `right`, `below`, `fit`, or `phone`) |
+| `step(name)` | One authored step of that chapter, as the Step button does (stepping is reader input): `{ done, caption }` |
 | `params(name, values?)` | A playground's parameters: reads them, or sets some (as the reader would, without stopping a run; the live line updates) and returns all. `null` for a scene without parameters |
 | `paramSpec(name)` | `{ id: { min, max, value } }` of a playground's parameters (`min`/`max` are the first and last values of a list) |
 | `timing()` | The latest run's own timeline: `{ base, scaled }` in ms. `base` is the time every wait and tween asked for at 1×, `scaled` the time they were scheduled for at the speeds in effect (0 in instant mode; parallel steps add up). Use it to check speed without depending on machine load |
@@ -426,6 +475,7 @@ English (`en`) is canonical. A key missing from the chosen language's dictionary
 | `noteSteps` | Intro note on a page whose kits are not rotatable (svg only), wide and narrow | The button in each chapter makes that event happen in the model, step by step. | 장마다 있는 버튼을 누르면 모형에서 그 일이 단계별로 일어납니다. | 各章のボタンを押すと、モデル上でその出来事が一つずつ順に起こります。 | 点击每章中的按钮，模型上就会一步步演示那件事。 |
 | `noteMixedWide` | Intro `.note .wide` on a page with both kinds of kit | In 3D chapters, drag the model on the right to rotate it. (then as `noteSteps`) | 3D로 그린 장에서는 오른쪽 모형을 드래그해 돌려 볼 수 있습니다. (뒤는 `noteSteps`와 같음) | 3Dの章では、右のモデルをドラッグして回転できます。(後ろは `noteSteps` と同じ) | 在 3D 章节中，拖动右侧的模型即可旋转查看。(后句同 `noteSteps`) |
 | `noteMixedNarrow` | Intro `.note .narrow` on a page with both kinds of kit | In 3D chapters, swipe the model left or right to rotate it. (then as `noteSteps`) | 3D로 그린 장에서는 모형을 좌우로 밀어 돌려 볼 수 있습니다. (뒤는 같음) | 3Dの章では、モデルを左右にスワイプすると回転できます。(後ろは同じ) | 在 3D 章节中，左右滑动模型即可旋转查看。(后句相同) |
+| `step` | `.step-btn` beside the run button of a scene with `step: true` | Step | 한 단계씩 | 1ステップ | 单步 |
 | `resetView` | `.reset-view` button | Reset view | 시점 되돌리기 | 視点をリセット | 重置视角 |
 | `autorun` | Long text of the auto-play switch, `aria-label` | Auto-play | 자동 실행 | 自動再生 | 自动播放 |
 | `autorunShort` | Short text of the same switch (width 430px and below) | Auto | 자동 | 自動 | 自动 |
